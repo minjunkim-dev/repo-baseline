@@ -74,6 +74,10 @@
 2. commit한 뒤 각 프로젝트에 다시 적용하고 프로젝트별 PR을 올린다. `apply_baseline.py`는 commit하지 않은 변경이 있으면 멈춘다.
 3. `CHANGELOG.md`에 바뀐 점과 다시 적용할 프로젝트를 적는다.
 
+이 비공개 원본은 위 명령으로 로컬 검증한다. 복사본과 공유 테스트는 적용 대상 프로젝트의 기존 필수 CI에서 검증한다.
+프로젝트 manifest의 원본 commit과 파일 SHA-256을 함께 확인한다. 프로젝트 CI는 이 비공개 원본을 조회하지 않는다.
+로컬 원본 검증과 공개 프로젝트 CI 결과를 구분해 PR에 기록한다. 원본 저장소 CI가 실행됐다고 보고하지 않는다.
+
 `check_branch_name.py BRANCH`는 BGLike의 기존 PR 브랜치 규칙을 검사한다.
 `check_branch_name.py --pre-push DEFAULT_BRANCH`는 Git hook의 표준 입력에서 목적지 브랜치를 검사한다.
 기본 브랜치·태그·브랜치 삭제는 pre-push에서 허용한다. CI의 PR 검사에서는 기본 브랜치 예외를 적용하지 않는다.

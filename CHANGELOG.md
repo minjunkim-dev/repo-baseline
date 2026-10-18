@@ -4,7 +4,8 @@
 
 - BGLike의 기존 브랜치 정규식을 `scripts/check_branch_name.py`로 추출했다. CI와 pre-push가 같은 검사기를 쓴다.
 - pre-push는 실제 목적지 ref를 검사한다. 기본 브랜치·태그·삭제를 허용한다.
-- 회귀 검사와 원본 저장소의 읽기 전용 CI를 추가했다.
+- 회귀 검사를 추가했다. 원본 도구·검사는 로컬에서 실행하고, 해시가 일치하는 복사본·테스트는 BGLike의 기존 필수 CI에서 실행한다.
+- 비공개 원본에 시도한 새 CI는 계정 결제 제한으로 job을 시작하지 못했다. 새 workflow는 포함하지 않는다. 실패한 실행 기록은 PR #2에 남긴다.
 - 적용 대상: BGLike. smallnext·mobile-runtime의 hook과 workflow는 이번 범위에 포함하지 않는다.
 
 ## 2026-10-18 — Grouped security updates
