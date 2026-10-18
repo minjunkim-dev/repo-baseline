@@ -1,5 +1,9 @@
 # 변경 기록
 
+## 2026-10-18 — Grouped security updates
+
+- `POLICY.md` §2: Grouped security updates를 공통값으로 켠다. 계정 기본값과 smallnext·BGLike·mobile-runtime에 적용했다. API로 감사할 수 없어 화면 확인 항목으로 남긴다.
+
 ## 2026-10-18 — Dependabot 설정 생성·추적
 
 - `.github/dependabot.yml`을 `templates/dependabot.yml`과 `templates/dependabot-ecosystem.yml`로 생성한다. 프로젝트별 생태계는 manifest의 `ecosystems`에 적는다.
