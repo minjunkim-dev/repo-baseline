@@ -1,5 +1,11 @@
 # 변경 기록
 
+## 2026-10-18 — 독립 리뷰 3차 반영
+
+- `check_github_settings.py`: step 수준에서 읽지 못한 `github/codeql-action/` 표기는 실패로 처리한다(fail-closed). `-   name:`처럼 공백이 많은 목록 표기도 읽는다.
+- `test_apply_baseline.py`: 테스트가 직접 만든 임시 폴더만 지운다.
+- 다시 적용할 프로젝트: smallnext, BGLike, mobile-runtime.
+
 ## 2026-10-18 — 독립 리뷰 2차 반영
 
 - `apply_baseline.py`: `git --literal-pathspecs`로 추적 여부를 확인한다. `:(exclude)…` 같은 이름이 다른 파일과 매칭되지 않는다.

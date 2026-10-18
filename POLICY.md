@@ -36,6 +36,7 @@
 - advanced setup에서 `.github/repository-settings.json`이 `codeql_main_source.sha`로 workflow blob을 고정하면, `codeql.yml`을 바꾸는 PR은 이 값도 함께 갱신한다.
   - `scripts/check_github_settings.py`의 `codeql_source_drift()`가 PR CI에서 두 가지를 검사한다: blob SHA 일치, 모든 `github/codeql-action/*` 단계의 commit 일치.
   - 갱신 값: `git hash-object .github/workflows/codeql.yml`.
+  - 검사는 block 형식의 step `uses:`만 읽는다. flow 형식(`- {uses: …}`)이나 접힌 값처럼 읽지 못하는 표기는 고정되지 않은 것으로 보고 실패한다.
 - 집계 `CodeQL` check는 분석이 실패해도 `neutral`일 수 있다. GitHub는 필수 check의 `neutral`을 통과로 본다. 분석 실패로 병합을 막으려면 분석 job 결과를 필수 게이트에 연결한다.
 
 ## 4. GitHub 서버 설정

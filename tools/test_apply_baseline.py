@@ -66,11 +66,11 @@ class ApplyBaselineTests(unittest.TestCase):
 
     def test_ignored_file_named_like_a_pathspec_is_not_tracked(self):
         # Without --literal-pathspecs, ":(exclude)…" matched other tracked files and passed.
-        source = ":(exclude)tmp/__pycache__/payload.py"
-        path = apply_baseline.HERE / source
-        path.parent.mkdir(parents=True)
-        self.addCleanup(lambda: shutil.rmtree(apply_baseline.HERE / ":(exclude)tmp"))
-        path.write_text("payload\n")
+        folder = Path(tempfile.mkdtemp(prefix=":(exclude)", dir=apply_baseline.HERE))
+        self.addCleanup(shutil.rmtree, folder)  # only the folder this test created
+        source = f"{folder.name}/__pycache__/payload.py"
+        (folder / "__pycache__").mkdir()
+        (apply_baseline.HERE / source).write_text("payload\n")
         self.write_manifest({"files": {"x.py": {"source": source}}})
         with self.assertRaisesRegex(ValueError, "not tracked"):
             apply_baseline.apply(self.project, check=True)
