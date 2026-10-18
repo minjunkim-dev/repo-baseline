@@ -64,6 +64,32 @@ class ApplyBaselineTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     apply_baseline.apply(self.project, check=True)
 
+    def test_dependabot_config_is_generated_per_ecosystem(self):
+        target = ".github/dependabot.yml"
+        ecosystems = [{"package-ecosystem": "cargo", "directory": "/services/api"}]
+        self.write_manifest({"files": {target: {"source": "templates/dependabot.yml", "ecosystems": ecosystems}}})
+        with patch.object(apply_baseline, "git", fake_git):
+            apply_baseline.apply(self.project)
+        text = (self.project / target).read_text()
+        self.assertTrue(text.startswith((apply_baseline.HERE / "templates/dependabot.yml").read_text()))
+        self.assertIn("  - package-ecosystem: cargo\n    directory: /services/api\n", text)
+        self.assertEqual(text.count("interval: weekly"), 2)
+        self.assertEqual(apply_baseline.apply(self.project, check=True), [])
+        (self.project / target).write_text(text.replace('"10:00"', '"09:00"'))
+        self.assertEqual(apply_baseline.apply(self.project, check=True), [target])
+
+    def test_invalid_ecosystems_fail(self):
+        bad = [{"package-ecosystem": "github-actions", "directory": "/"},
+               {"package-ecosystem": "npm", "directory": "/\n  labels: []"},
+               {"package-ecosystem": "npm"}]
+        for item in bad + [None]:
+            with self.subTest(item=item):
+                ecosystems = [item] if item is not None else [bad[1] | {"directory": "/a"}] * 2
+                self.write_manifest({"files": {".github/dependabot.yml":
+                                               {"source": "templates/dependabot.yml", "ecosystems": ecosystems}}})
+                with self.assertRaisesRegex(ValueError, "Invalid ecosystems"):
+                    apply_baseline.apply(self.project, check=True)
+
     def test_ignored_file_named_like_a_pathspec_is_not_tracked(self):
         # Without --literal-pathspecs, ":(exclude)…" matched other tracked files and passed.
         folder = Path(tempfile.mkdtemp(prefix=":(exclude)", dir=apply_baseline.HERE))

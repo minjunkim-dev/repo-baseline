@@ -10,26 +10,26 @@
 | `POLICY.md` | 공통값과 허용 예외 | 아니요. 참조만 한다 |
 | `prompts/github-repository-settings.md` | GitHub 서버 설정 절차 | 아니요. 에이전트 채팅에 첨부한다 |
 | `prompts/pr-ci-setup.md` | 문서·CI·리뷰·병합 절차 | 아니요. 에이전트 채팅에 첨부한다 |
-| `templates/dependabot.yml` | Dependabot 설정 시작점 | 예. 생태계만 프로젝트에 맞게 바꾼다 |
+| `templates/dependabot.yml`, `templates/dependabot-ecosystem.yml` | Dependabot 설정 원본 | 예. manifest의 `ecosystems` 목록으로 `.github/dependabot.yml`을 생성한다 |
 | `templates/repo-baseline.json` | 복사 목록(manifest) 시작점 | 예. `.github/repo-baseline.json`으로 둔다 |
 | `scripts/` | 프로젝트에 그대로 복사하는 검사기와 테스트 | 예. 수정하지 않는다 |
 | `tools/apply_baseline.py` | `scripts/`를 프로젝트에 복사하고 해시를 기록 | 아니요 |
 
-`scripts/`의 파일은 프로젝트에서 직접 고치지 않는다. 이 저장소에서 고친 뒤 다시 적용한다.
+`scripts/`의 파일과 생성한 `.github/dependabot.yml`은 프로젝트에서 직접 고치지 않는다. 이 저장소에서 고친 뒤 다시 적용한다.
 프로젝트의 `scripts/check_repo_baseline.py`가 복사본이 기록된 해시와 다르면 CI를 실패시킨다.
 
 ## 새 프로젝트에 적용
 
 1. `templates/repo-baseline.json`을 프로젝트의 `.github/repo-baseline.json`으로 복사한다.
 2. `bugbot_rules`에 프로젝트의 `.cursor/BUGBOT.md` 경로를 모두 적는다.
-3. 테스트를 다른 폴더에서 실행하면 `files`의 대상 경로를 바꾼다. 예: `"scripts/source-only/test_github_settings.py": {"source": "scripts/test_github_settings.py"}`.
-4. 이 저장소에서 다음을 실행한다.
+3. `.github/dependabot.yml` 항목의 `ecosystems`에 GitHub Actions 외의 실제 생태계를 적는다. 예: `{"package-ecosystem": "cargo", "directory": "/services/api"}`.
+4. 테스트를 다른 폴더에서 실행하면 `files`의 대상 경로를 바꾼다. 예: `"scripts/source-only/test_github_settings.py": {"source": "scripts/test_github_settings.py"}`.
+5. 이 저장소에서 다음을 실행한다.
 
    ```bash
    python3 tools/apply_baseline.py /path/to/project
    ```
 
-5. `templates/dependabot.yml`을 `.github/dependabot.yml`로 복사하고 실제 생태계만 추가한다.
 6. 두 프롬프트를 같은 채팅에 첨부하고 순서대로 적용한다.
 7. 복사한 테스트가 기존 필수 CI job에서 실행되는지 확인한다.
 

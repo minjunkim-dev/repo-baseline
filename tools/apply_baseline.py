@@ -6,16 +6,23 @@ Usage: tools/apply_baseline.py <project> [--check]
 The project's .github/repo-baseline.json lists each copied file as
 {"<path in project>": {"source": "<path here>"}}. Applying copies every source,
 then records source_commit and sha256. --check only reports files that differ.
+
+An entry with "ecosystems" is generated instead of copied: the source (the
+github-actions Dependabot config) gets one templates/dependabot-ecosystem.yml
+block per {"package-ecosystem": ..., "directory": ...} item.
 """
 
 import hashlib
 import json
 from pathlib import Path
+import re
+from string import Template
 import subprocess
 import sys
 
 HERE = Path(__file__).resolve().parents[1]
 MANIFEST = ".github/repo-baseline.json"
+ECOSYSTEM_TEMPLATE = "templates/dependabot-ecosystem.yml"
 
 
 def git(*args):
@@ -36,29 +43,47 @@ def load(project):
         raise ValueError(f"{MANIFEST} must list files to copy")
     for name, entry in files.items():
         source = entry.get("source") if isinstance(entry, dict) else None
-        if not isinstance(source, str) or not inside(HERE, HERE / source) or not (HERE / source).is_file():
-            raise ValueError(f"Unknown source for {name!r}: {source!r}")
-        try:
-            git("--literal-pathspecs", "ls-files", "--error-unmatch", "--", source)
-        except subprocess.CalledProcessError:
-            raise ValueError(f"Source is not tracked in repo-baseline: {source!r}") from None
+        sources = [source, ECOSYSTEM_TEMPLATE] if isinstance(entry, dict) and "ecosystems" in entry else [source]
+        for path in sources:
+            if not isinstance(path, str) or not inside(HERE, HERE / path) or not (HERE / path).is_file():
+                raise ValueError(f"Unknown source for {name!r}: {path!r}")
+            try:
+                git("--literal-pathspecs", "ls-files", "--error-unmatch", "--", path)
+            except subprocess.CalledProcessError:
+                raise ValueError(f"Source is not tracked in repo-baseline: {path!r}") from None
         if not inside(project, project / name):
             raise ValueError(f"Target escapes the project: {name!r}")
+        if "ecosystems" in entry:
+            ecosystems = entry["ecosystems"]
+            if not isinstance(ecosystems, list) or any(
+                    not isinstance(item, dict) or set(item) != {"package-ecosystem", "directory"}
+                    or not re.fullmatch(r"[a-z][a-z0-9-]*", str(item["package-ecosystem"]))
+                    or item["package-ecosystem"] == "github-actions"
+                    or not re.fullmatch(r"/[A-Za-z0-9._/-]*", str(item["directory"]))
+                    for item in ecosystems) or len({json.dumps(i, sort_keys=True) for i in ecosystems}) != len(ecosystems):
+                raise ValueError(f"Invalid ecosystems for {name!r}")
     return manifest
+
+
+def content(entry):
+    data = (HERE / entry["source"]).read_bytes()
+    block = Template((HERE / ECOSYSTEM_TEMPLATE).read_text(encoding="utf-8"))
+    for item in entry.get("ecosystems", []):
+        data += block.substitute(ecosystem=item["package-ecosystem"], directory=item["directory"]).encode()
+    return data
 
 
 def apply(project, check=False):
     project = project.resolve()
     manifest = load(project)
     differ = sorted(name for name, entry in manifest["files"].items()
-                    if not (project / name).is_file()
-                    or (project / name).read_bytes() != (HERE / entry["source"]).read_bytes())
+                    if not (project / name).is_file() or (project / name).read_bytes() != content(entry))
     if check:
         return differ
     if git("status", "--porcelain"):
         raise ValueError("Commit repo-baseline changes first; source_commit must name the copied content")
     for name, entry in manifest["files"].items():
-        data = (HERE / entry["source"]).read_bytes()
+        data = content(entry)
         (project / name).parent.mkdir(parents=True, exist_ok=True)
         (project / name).write_bytes(data)
         entry["sha256"] = hashlib.sha256(data).hexdigest()

@@ -1,5 +1,11 @@
 # 변경 기록
 
+## 2026-10-18 — Dependabot 설정 생성·추적
+
+- `.github/dependabot.yml`을 `templates/dependabot.yml`과 `templates/dependabot-ecosystem.yml`로 생성한다. 프로젝트별 생태계는 manifest의 `ecosystems`에 적는다.
+- 생성한 파일도 해시로 추적한다. 프로젝트에서 Dependabot 값을 바꾸면 CI가 실패한다.
+- 다시 적용할 프로젝트: smallnext, BGLike, mobile-runtime.
+
 ## 2026-10-18 — 독립 리뷰 6차 반영
 
 - `check_github_settings.py`: `github/codeql-action` 이름을 대소문자 구분 없이 찾는다. GitHub는 owner/repo 이름의 대소문자를 구분하지 않는다.

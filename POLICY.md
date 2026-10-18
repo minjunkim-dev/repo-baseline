@@ -14,7 +14,7 @@
 
 ## 2. Dependabot
 
-`templates/dependabot.yml`을 복사한다. 실제로 쓰는 생태계와 manifest 경로만 추가한다.
+`tools/apply_baseline.py`가 `templates/dependabot.yml`과 manifest의 `ecosystems` 목록으로 `.github/dependabot.yml`을 생성한다. 생성한 파일의 해시를 manifest에 기록하므로, 프로젝트에서 값을 바꾸면 `check_repo_baseline.py`가 CI에서 실패한다. 생태계를 추가하려면 manifest의 `ecosystems`를 고치고 다시 적용한다.
 
 | 항목 | 값 | 종류·근거 |
 | --- | --- | --- |
