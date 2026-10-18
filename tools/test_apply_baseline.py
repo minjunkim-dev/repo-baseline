@@ -1,6 +1,7 @@
 """Apply shared files into a scratch project, then verify them with the copied checker."""
 
 import json
+import shutil
 from pathlib import Path
 import subprocess
 import sys
@@ -62,6 +63,17 @@ class ApplyBaselineTests(unittest.TestCase):
                 self.write_manifest({"files": files})
                 with self.assertRaises(ValueError):
                     apply_baseline.apply(self.project, check=True)
+
+    def test_ignored_file_named_like_a_pathspec_is_not_tracked(self):
+        # Without --literal-pathspecs, ":(exclude)…" matched other tracked files and passed.
+        source = ":(exclude)tmp/__pycache__/payload.py"
+        path = apply_baseline.HERE / source
+        path.parent.mkdir(parents=True)
+        self.addCleanup(lambda: shutil.rmtree(apply_baseline.HERE / ":(exclude)tmp"))
+        path.write_text("payload\n")
+        self.write_manifest({"files": {"x.py": {"source": source}}})
+        with self.assertRaisesRegex(ValueError, "not tracked"):
+            apply_baseline.apply(self.project, check=True)
 
     def test_untracked_source_and_symlinked_manifest_fail(self):
         def untracked(*args):

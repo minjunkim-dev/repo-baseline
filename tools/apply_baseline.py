@@ -39,7 +39,7 @@ def load(project):
         if not isinstance(source, str) or not inside(HERE, HERE / source) or not (HERE / source).is_file():
             raise ValueError(f"Unknown source for {name!r}: {source!r}")
         try:
-            git("ls-files", "--error-unmatch", "--", source)
+            git("--literal-pathspecs", "ls-files", "--error-unmatch", "--", source)
         except subprocess.CalledProcessError:
             raise ValueError(f"Source is not tracked in repo-baseline: {source!r}") from None
         if not inside(project, project / name):
