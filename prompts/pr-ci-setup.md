@@ -43,7 +43,7 @@ GitHub 설정 프롬프트나 이전 기록이 없으면 누락을 기록하고 
 2. 호출자의 공개 interface에서 정상·실패 동작을 검사해. 상수 재단언·소스 문자열 순서·실패를 지운 mock으로 초록 CI를 만들지 마. 정적 제약에는 정적 검사를 사용해. 단순 문서 이동을 복제하는 테스트는 추가하지 마.
 3. aggregate는 실제로 선택된 job의 실패·취소·누락을 거부하게 해. 불필요한 job의 skip은 명시된 범위 정책으로 처리해. 기존 체크 이름·publisher·신뢰하는 base·trusted aggregation을 보존해.
 4. GitHub 인계 목록의 CodeQL·Dependabot·Action SHA·최소 권한·읽기 전용 감사·Bugbot YAML 요구조건을 파일 작업으로 구현해. 지원과 호환성은 해당 GitHub 프롬프트 기준을 사용해. source 실행·분석·업로드를 실제로 확인해. 미지원 언어와 제품 SDK를 억지로 변경하지 마.
-   공통 검사기·테스트는 `repo-baseline`에서 적용하고 `.github/repo-baseline.json`에 원본 commit과 해시를 기록해. 복사한 테스트가 기존 필수 CI job에서 실행되는지 확인해. 프로젝트 고유 값(Bugbot 규칙 경로·테스트 위치)은 manifest에만 둬.
+   공통 검사기·테스트와 `.github/dependabot.yml`은 `repo-baseline`에서 적용하고 `.github/repo-baseline.json`에 원본 commit과 해시를 기록해. 복사한 테스트가 기존 필수 CI job에서 실행되는지 확인해. 프로젝트 고유 값(Bugbot 규칙 경로·테스트 위치)은 manifest에만 둬.
 5. PR 코드는 Secret·높은 권한과 분리해. 읽기 빌드와 쓰기 게시를 분리해. 새 권한·Secret·신뢰 경계 변경은 검토 가능한 최종 head를 준비하고 사람 승인을 받아.
 6. 체크 이름이나 trusted base 정책을 바꾸면 기존 보호에서 통과할 수 있는 전환 PR을 먼저 준비해. 유효한 기존 체크를 유지하며 새 체크를 검증해. 검사를 우회하거나 임시로 보호를 낮추지 마.
 7. source와 정책이 유효한 동일 head/base의 통과 근거를 재사용해. 새로운 변경·실패·입력 변경이 없으면 테스트와 서버 조회를 중복 실행하지 마.

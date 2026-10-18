@@ -88,7 +88,7 @@ Release를 사용하는 저장소는 미래 공개 Release의 immutability 지�
 
 공개 여부·요금제·기능 지원을 확인해. 사용 가능한 Dependency graph·Dependabot alerts·security updates·Secret scanning·Push protection을 켜.
 유료 기능을 구매하거나 실제 비밀값으로 시험하지 마. 미지원·조회 불가를 구분해 기록해.
-Dependabot version updates는 실제 생태계와 GitHub Actions를 대상으로 `templates/dependabot.yml`과 `POLICY.md` §2의 값을 적용해. 일정·라벨·제목·상한(설정하지 않음, 기본 5)·`codeql-action` 그룹을 임의로 바꾸지 마. 설정 파일 보완은 PR·CI/CD 작업에 인계해.
+Dependabot version updates는 GitHub Actions와 실제 생태계를 대상으로 `POLICY.md` §2를 따라. `.github/dependabot.yml`은 손으로 쓰지 말고 manifest의 `ecosystems`에 실제 생태계를 적은 뒤 `tools/apply_baseline.py`로 생성해. 일정·라벨·제목·상한(설정하지 않음, 기본 5)·`codeql-action` 그룹을 임의로 바꾸지 마. 설정 파일 보완은 PR·CI/CD 작업에 인계해.
 SHA로 고정한 Action에는 Dependabot alert가 생기지 않는다. Action의 보안 수정은 정기 업데이트로만 들어온다. 열린 봇 PR이 상한을 채워 새 업데이트를 막고 있는지 확인해.
 
 CodeQL은 실제 언어·runner OS·SDK·compiler·toolchain과 빌드 구조의 공식 호환성을 확인해.

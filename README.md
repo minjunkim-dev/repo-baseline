@@ -61,7 +61,7 @@
 
 ## 이 저장소를 바꿀 때
 
-1. `scripts/`를 바꾸면 테스트를 실행한다.
+1. `scripts/`, `templates/`, `tools/`를 바꾸면 테스트를 실행한다.
 
    ```bash
    python3 -m unittest discover -s tools -p 'test_*.py'
