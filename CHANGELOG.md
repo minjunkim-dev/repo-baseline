@@ -1,5 +1,10 @@
 # 변경 기록
 
+## 2026-10-18 — 독립 리뷰 4차 반영
+
+- `check_github_settings.py`: step 구조 해석을 없앴다. 주석과 블록 본문을 뺀 모든 `github/codeql-action/` 참조를 비교한다. 단독 `-`, 여러 줄 flow 표기로도 참조를 숨길 수 없다.
+- 다시 적용할 프로젝트: smallnext, BGLike, mobile-runtime.
+
 ## 2026-10-18 — 독립 리뷰 3차 반영
 
 - `check_github_settings.py`: step 수준에서 읽지 못한 `github/codeql-action/` 표기는 실패로 처리한다(fail-closed). `-   name:`처럼 공백이 많은 목록 표기도 읽는다.
