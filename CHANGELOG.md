@@ -1,5 +1,11 @@
 # 변경 기록
 
+## 2026-10-18 — 독립 리뷰 6차 반영
+
+- `check_github_settings.py`: `github/codeql-action` 이름을 대소문자 구분 없이 찾는다. GitHub는 owner/repo 이름의 대소문자를 구분하지 않는다.
+- 이스케이프·줄 연결로 이름을 숨기는 표기는 보류했다. 후속 Issue로 추적한다.
+- 다시 적용할 프로젝트: smallnext, BGLike, mobile-runtime.
+
 ## 2026-10-18 — 독립 리뷰 5차 반영
 
 - `check_github_settings.py`: 따옴표 밖의 `#`만 주석으로 지운다. 블록 경계를 블록을 가진 키의 열로 계산한다. 따옴표 안의 `: |`는 블록 헤더로 보지 않는다.
