@@ -66,12 +66,19 @@
    ```bash
    python3 -m unittest discover -s tools -p 'test_*.py'
    python3 -m unittest discover -s scripts -p 'test_bugbot_rules.py'
+   python3 -m unittest discover -s scripts -p 'test_branch_name.py'
    ```
 
    `test_github_settings.py`와 `test_repo_baseline.py`는 프로젝트 파일이 필요하다. 프로젝트에 적용한 뒤 그 프로젝트의 CI에서 검증한다.
 
 2. commit한 뒤 각 프로젝트에 다시 적용하고 프로젝트별 PR을 올린다. `apply_baseline.py`는 commit하지 않은 변경이 있으면 멈춘다.
 3. `CHANGELOG.md`에 바뀐 점과 다시 적용할 프로젝트를 적는다.
+
+`check_branch_name.py BRANCH`는 BGLike의 기존 PR 브랜치 규칙을 검사한다.
+`check_branch_name.py --pre-push DEFAULT_BRANCH`는 Git hook의 표준 입력에서 목적지 브랜치를 검사한다.
+기본 브랜치·태그·브랜치 삭제는 pre-push에서 허용한다. CI의 PR 검사에서는 기본 브랜치 예외를 적용하지 않는다.
+pre-push hook은 검사 후 원래 인자와 표준 입력을 Git LFS에 전달해야 한다.
+다른 프로젝트에 연결할 때는 그 프로젝트의 브랜치 규칙과 먼저 대조한다.
 
 ## 적용 중인 프로젝트
 

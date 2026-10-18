@@ -1,5 +1,12 @@
 # 변경 기록
 
+## 2026-10-18 — 공유 브랜치 이름 검사
+
+- BGLike의 기존 브랜치 정규식을 `scripts/check_branch_name.py`로 추출했다. CI와 pre-push가 같은 검사기를 쓴다.
+- pre-push는 실제 목적지 ref를 검사한다. 기본 브랜치·태그·삭제를 허용한다.
+- 회귀 검사와 원본 저장소의 읽기 전용 CI를 추가했다.
+- 적용 대상: BGLike. smallnext·mobile-runtime의 hook과 workflow는 이번 범위에 포함하지 않는다.
+
 ## 2026-10-18 — Grouped security updates
 
 - `POLICY.md` §2: Grouped security updates를 공통값으로 켠다. 계정 기본값과 smallnext·BGLike·mobile-runtime에 적용했다. API로 감사할 수 없어 화면 확인 항목으로 남긴다.

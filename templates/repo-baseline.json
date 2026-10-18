@@ -1,5 +1,11 @@
 {
   "files": {
+    "scripts/check_branch_name.py": {
+      "source": "scripts/check_branch_name.py"
+    },
+    "scripts/test_branch_name.py": {
+      "source": "scripts/test_branch_name.py"
+    },
     "scripts/check_repo_baseline.py": {
       "source": "scripts/check_repo_baseline.py"
     },
