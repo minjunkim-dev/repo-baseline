@@ -33,6 +33,21 @@
 6. 두 프롬프트를 같은 채팅에 첨부하고 순서대로 적용한다.
 7. 복사한 테스트가 기존 필수 CI job에서 실행되는지 확인한다.
 
+## 에이전트에게 보낼 요청문
+
+두 프롬프트(`prompts/github-repository-settings.md`, `prompts/pr-ci-setup.md`)를 첨부하고 아래 글을 함께 보낸다.
+
+```text
+첨부한 두 프롬프트(repo-baseline 버전)를 기준으로 이 프로젝트에 실제 적용하고 검증해줘.
+
+같은 채팅에서 GitHub 초기 점검 → PR·CI/CD 셋업 → GitHub 최종 적용·검증 순서로 진행해. 중복 작업은 피하고 보류 항목까지 마무리해.
+공통값은 repo-baseline의 POLICY.md와 templates를 따르고, 공통 검사기는 tools/apply_baseline.py로 복사해. 값을 새로 고르지 마.
+
+1인 개발·Bugbot Manual Only·Autofix Off·On-demand Off를 유지해. 공개 배포와 production 변경은 하지 마.
+
+최종 독립 리뷰·필수 CI 후 위험별 병합 기준을 적용해. 권한·Secret·workflow·설정 변경은 작성자와 다른 모델로도 리뷰해. 한쪽 문은 사람이 최종 head를 승인하게 해. 완료 항목과 미확인 항목을 구분해 보고해.
+```
+
 ## 기존 프로젝트를 다시 맞춤
 
 1. 먼저 차이를 본다. 아무것도 쓰지 않는다.
