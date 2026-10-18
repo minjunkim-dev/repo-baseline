@@ -22,16 +22,27 @@ def git(*args):
     return subprocess.run(["git", *args], cwd=HERE, check=True, capture_output=True, text=True).stdout.strip()
 
 
+def inside(base, path):
+    """A real (non-symlink) path that resolves under base."""
+    return not path.is_symlink() and base in path.resolve().parents
+
+
 def load(project):
+    if not inside(project, project / MANIFEST):
+        raise ValueError(f"{MANIFEST} must be a regular file inside the project")
     manifest = json.loads((project / MANIFEST).read_text(encoding="utf-8"))
     files = manifest.get("files") if isinstance(manifest, dict) else None
     if not isinstance(files, dict) or not files:
         raise ValueError(f"{MANIFEST} must list files to copy")
     for name, entry in files.items():
         source = entry.get("source") if isinstance(entry, dict) else None
-        if not isinstance(source, str) or not (HERE / source).is_file():
+        if not isinstance(source, str) or not inside(HERE, HERE / source) or not (HERE / source).is_file():
             raise ValueError(f"Unknown source for {name!r}: {source!r}")
-        if project.resolve() not in (project / name).resolve().parents:
+        try:
+            git("ls-files", "--error-unmatch", "--", source)
+        except subprocess.CalledProcessError:
+            raise ValueError(f"Source is not tracked in repo-baseline: {source!r}") from None
+        if not inside(project, project / name):
             raise ValueError(f"Target escapes the project: {name!r}")
     return manifest
 

@@ -56,11 +56,27 @@ class ApplyBaselineTests(unittest.TestCase):
         with patch.object(apply_baseline, "git", lambda *args: " M scripts/x.py"):
             with self.assertRaisesRegex(ValueError, "Commit repo-baseline"):
                 apply_baseline.apply(self.project)
-        for files in [{"x.py": {"source": "missing.py"}}, {"../x.py": {"source": CHECKER}}, {}]:
+        for files in [{"x.py": {"source": "missing.py"}}, {"x.py": {"source": "/etc/hosts"}},
+                      {"x.py": {"source": "../outside.py"}}, {"../x.py": {"source": CHECKER}}, {}]:
             with self.subTest(files=files):
                 self.write_manifest({"files": files})
                 with self.assertRaises(ValueError):
                     apply_baseline.apply(self.project, check=True)
+
+    def test_untracked_source_and_symlinked_manifest_fail(self):
+        def untracked(*args):
+            raise subprocess.CalledProcessError(1, ["git", *args])
+        with patch.object(apply_baseline, "git", untracked):
+            with self.assertRaisesRegex(ValueError, "not tracked"):
+                apply_baseline.apply(self.project, check=True)
+        with tempfile.TemporaryDirectory() as other:
+            target = Path(other) / "repo-baseline.json"
+            manifest = self.project / apply_baseline.MANIFEST
+            target.write_text(manifest.read_text())
+            manifest.unlink()
+            manifest.symlink_to(target)
+            with self.assertRaisesRegex(ValueError, "regular file inside"):
+                apply_baseline.apply(self.project, check=True)
 
 
 if __name__ == "__main__":

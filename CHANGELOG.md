@@ -1,5 +1,11 @@
 # 변경 기록
 
+## 2026-10-18 — 독립 리뷰 반영
+
+- `apply_baseline.py`: 추적된 저장소 내부 파일만 원본으로 허용한다. manifest와 대상의 symlink·외부 경로를 거부한다.
+- `check_github_settings.py`: CodeQL 참조를 실제 `uses:` 줄에서만 읽는다. 대소문자를 정규화하고 태그 참조도 불일치로 본다. default setup 기준선을 지원한다.
+- 다시 적용할 프로젝트: smallnext, BGLike, mobile-runtime.
+
 ## 2026-10-18 — 첫 버전
 
 - 세 프로젝트(smallnext, BGLike, mobile-runtime)의 공통 검사기를 모았다.
