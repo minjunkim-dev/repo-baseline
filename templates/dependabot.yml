@@ -1,0 +1,32 @@
+version: 2
+updates:
+  # Workflow actions are pinned to full SHAs; this keeps the pins current.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: wednesday
+      time: "10:00"
+      timezone: Asia/Seoul
+    labels: [dependencies]
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      # CodeQL fails unless init and analyze run the same version.
+      codeql-action:
+        patterns:
+          - "github/codeql-action/*"
+
+  # Copy this block once per real ecosystem and manifest directory.
+  # - package-ecosystem: cargo
+  #   directory: /services/api
+  #   schedule:
+  #     interval: weekly
+  #     day: wednesday
+  #     time: "10:00"
+  #     timezone: Asia/Seoul
+  #   labels: [dependencies]
+  #   commit-message:
+  #     prefix: chore
+  #     include: scope

@@ -1,0 +1,11 @@
+{
+  "files": {
+    "scripts/check_repo_baseline.py": {"source": "scripts/check_repo_baseline.py"},
+    "scripts/test_repo_baseline.py": {"source": "scripts/test_repo_baseline.py"},
+    "scripts/check_github_settings.py": {"source": "scripts/check_github_settings.py"},
+    "scripts/test_github_settings.py": {"source": "scripts/test_github_settings.py"},
+    "scripts/check_bugbot_rules.py": {"source": "scripts/check_bugbot_rules.py"},
+    "scripts/test_bugbot_rules.py": {"source": "scripts/test_bugbot_rules.py"}
+  },
+  "bugbot_rules": [".cursor/BUGBOT.md"]
+}
