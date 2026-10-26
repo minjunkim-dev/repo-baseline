@@ -12,18 +12,9 @@
     "scripts/test_github_settings.py": {
       "source": "scripts/test_github_settings.py"
     },
-    "scripts/check_bugbot_rules.py": {
-      "source": "scripts/check_bugbot_rules.py"
-    },
-    "scripts/test_bugbot_rules.py": {
-      "source": "scripts/test_bugbot_rules.py"
-    },
     ".github/dependabot.yml": {
       "source": "templates/dependabot.yml",
       "ecosystems": []
     }
-  },
-  "bugbot_rules": [
-    ".cursor/BUGBOT.md"
-  ]
+  }
 }
