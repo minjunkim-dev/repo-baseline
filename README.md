@@ -29,8 +29,8 @@
    python3 tools/apply_baseline.py /path/to/project
    ```
 
-5. 두 프롬프트를 같은 채팅에 첨부하고 순서대로 적용한다.
-6. 복사한 테스트가 기존 필수 CI job에서 실행되는지 확인한다.
+5. 두 프롬프트를 같은 채팅에 첨부하고 순서대로 적용한다. [프로젝트 초기 설정과 일상 개발](docs/development-workflow.md)을 프로젝트 작업 문서에 연결하고 스킬의 tracker·라벨·도메인 설정까지 확인한다.
+6. 복사 파일 해시 검사와 테스트가 기존 필수 CI job에서 실행되는지 확인한다. [GitHub 설정 기준선과 기능 지원](docs/github-settings-profile.md)의 예외·결과 구분을 따른다.
 
 ## 에이전트에게 보낼 요청문
 
@@ -58,6 +58,10 @@
 2. 다른 파일이 프로젝트의 의도된 변경이면 이 저장소로 옮긴다. 의도하지 않은 drift면 다시 적용한다.
 3. 적용한 결과를 PR로 올리고 프로젝트의 리뷰·CI·병합 기준을 따른다.
 
+## 일상 개발 시작
+
+작은 수정은 요청·완료 조건에서 바로 구현한다. 여러 작업으로 나뉘는 기능은 명세 → 의존성 있는 티켓 → 준비된 작업 구현 → 통합 검증으로 진행한다. 설치된 Matt Pocock 스킬과 연결하는 절차는 [프로젝트 초기 설정과 일상 개발](docs/development-workflow.md)을 따른다.
+
 ## 자체 리뷰와 회고
 
 기본 흐름은 구현 → 자동 검사 → 별도 Standards·Spec 리뷰 → 확실한 결함 수정·커밋 → 최종 변경의 리뷰·검사 → 위험별 병합이다. 상세 기준은 `prompts/pr-ci-setup.md` §5·§6을 따른다.
@@ -80,10 +84,11 @@
 1. `scripts/`, `templates/`, `tools/`를 바꾸면 테스트를 실행한다.
 
    ```bash
+   python3 -m unittest discover -s scripts -p 'test_*.py'
    python3 -m unittest discover -s tools -p 'test_*.py'
    ```
 
-   `test_github_settings.py`와 `test_repo_baseline.py`는 프로젝트 파일이 필요하다. 프로젝트에 적용한 뒤 그 프로젝트의 CI에서 검증한다.
+   원본 단위 테스트는 합성 fixture를 사용한다. 도구 테스트는 깨끗한 임시 Git 원본을 만들고 default·advanced·미지원 설정의 프로젝트에 실제 복사한 뒤 테스트·출처 SHA·해시 drift·재적용·CodeQL pin 실패를 검사한다. 개인 프로젝트·GitHub 인증·네트워크는 필요 없다. 자체 CI는 같은 명령을 Python 3.11·3.13에서 실행한다. 실제 서버 감사·지원 여부·스킬 실행은 이 테스트의 검증 범위 밖이다.
 
 2. commit한 뒤 각 프로젝트에 다시 적용하고 프로젝트별 PR을 올린다. `apply_baseline.py`는 commit하지 않은 변경이 있으면 멈춘다.
 3. `CHANGELOG.md`에 바뀐 점과 다시 적용할 프로젝트를 적는다.

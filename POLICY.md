@@ -46,6 +46,7 @@
 
 - 목표값은 `prompts/github-repository-settings.md` §3·§5의 표를 따른다.
 - 각 프로젝트는 기대값을 `.github/repository-settings.json`에 두고 `scripts/check_github_settings.py`로 읽기 전용 감사를 한다.
+- 기능 미지원·비해당은 근거를 기록한 명시적 예외만 허용한다. 형식과 LIMITED·DRIFT·UNVERIFIED 구분은 `docs/github-settings-profile.md`를 따른다. 조회 실패를 자동 예외로 바꾸지 않는다.
 - 개인 계정에는 조직 단위 ruleset이 없다. 서버 설정은 저장소마다 적용하고 감사로 확인한다.
 
 ## 5. 리뷰와 병합
@@ -61,3 +62,7 @@
 - 에이전트 환경 개선에는 Matt Pocock의 `mattpocock-skills:retro`를 사용한다. 동명의 일반 스프린트 회고와 구분하고 실제 설치된 원문을 확인한다. 호출 문법은 사용하는 런타임을 따른다.
 - 회고는 사용자가 요청한 세션·PR을 대상으로 한다. 매 PR이나 일정에 따라 자동 실행하지 않는다. 제안을 먼저 보고하고 사용자가 선택한 개선만 반영한다.
 - 실행 절차와 완료 조건은 `prompts/pr-ci-setup.md` §7을 따른다.
+
+## 7. 프로젝트 스킬과 작업 진입
+
+- 초기 스킬 설정·tracker·라벨·도메인 읽기 규칙과 명세 → 티켓 → 구현 진입은 `docs/development-workflow.md`를 따른다. 기존 프로젝트 선택을 재사용하고 작은 수정에 전체 명세 절차를 강제하지 않는다.

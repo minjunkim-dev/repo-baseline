@@ -27,13 +27,15 @@ GitHub 설정 프롬프트나 이전 기록이 없으면 누락을 기록하고 
 - 설치된 관련 스킬의 실제 지침을 확인해. 사용자 경로와 대체 설치 경로를 확인하고 미확인과 미설치를 구분해. 사용하지 않은 스킬이나 리뷰를 실행했다고 보고하지 마.
 - 필요한 Matt Pocock 스킬을 선택해. 구현에는 tdd·diagnosing-bugs·codebase-design, 독립 리뷰와 PR에는 code-review·pr, 미확정 결정에는 grilling·research·domain-modeling을 사용해. 문서는 writing-for-agents로 작성해. 사용자가 회고를 요청하면 §7의 Matt Pocock retro를 사용해. 모든 스킬을 강제로 실행하지 마. 깊은 모듈 개선은 확인한 문제와 합의한 범위에서만 진행해.
 
+새 프로젝트·스킬 설정 누락 시 `repo-baseline`의 `docs/development-workflow.md`의 초기 설정을 적용해. tracker·라벨·도메인 읽기 규칙과 실제 지침 로딩까지 확인해. 일상 개발 진입 절차도 프로젝트 작업 문서에 연결해. 작은 수정은 명세·티켓 분해 없이 완료 조건에서 시작해.
+
 ## 3. AGENTS.md와 상세 문서
 
-1. AGENTS.md를 공통 길잡이로 정리해. 프로젝트 식별·작업별 문서 경로·제품 결정·승인 경계만 짧게 남겨.
+1. 기존 프로젝트의 canonical 지침 파일을 공통 길잡이로 정리해. 초기 스킬 설정의 파일 선택은 `repo-baseline`의 `docs/development-workflow.md`를 따라. 프로젝트 식별·작업별 문서 경로·제품 결정·승인 경계만 짧게 남겨.
 2. 구현 에이전트는 확정 Issue·완료 조건·필요한 코드와 도메인·작업 절차를 읽게 해. 전체 코딩 규칙과 리뷰 체크리스트를 구현 시작마다 상시 주입하지 마.
 3. 코딩·설계 기준과 P0/P1/P2 판단은 별도 코딩 규칙에 둬. 리뷰 입력·보고·수정·검증·병합은 별도 리뷰 문서에 둬. Issue·협업·검증 명령은 작업 문서에 둬. 실제 기존 파일을 재사용해. docs/coding-standards.md·docs/agents/review.md 등은 역할의 예시이며 고정 경로가 아니다.
 4. 원문·제품·보안·권리·접근성·기기 검증·작업 시작 preflight·위험별 승인 기준을 보존해. README·CONTRIBUTING·스크립트·테스트의 이동 경로와 anchor를 확인해.
-5. 추적된 CLAUDE.md와 도구별 중복 지침의 고유 내용을 옮긴 뒤 정리해. shim·symlink를 다시 만들지 마. 개인·전역·관리자 지침은 보존해.
+5. 도구별 지침이 중복돼 있으면 고유 내용을 보존하고 실제 로딩을 확인한 뒤 정리해. 기존 canonical 파일을 임의로 바꾸지 마. shim·symlink를 다시 만들지 마. 개인·전역·관리자 지침은 보존해.
 6. 기존 피처 플래그·데이터 호환·OFF/ON·접근성 계약을 보존해. 미완성 기능을 병합하면 실제 진입점의 기본값을 OFF로 두고 담당자·완료 조건·제거 조건을 기록해. 사용처 없는 공통 플래그 체계를 만들지 마.
 7. 사용하는 도구의 AGENTS.md 로딩 지원을 확인해. 자동 로딩을 확인할 수 없으면 시작할 때 명시적으로 읽는 절차를 문서화해. 실제 실행하지 않은 로딩을 검증했다고 보고하지 마.
 
@@ -43,7 +45,7 @@ GitHub 설정 프롬프트나 이전 기록이 없으면 누락을 기록하고 
 2. 호출자의 공개 interface에서 정상·실패 동작을 검사해. 상수 재단언·소스 문자열 순서·실패를 지운 mock으로 초록 CI를 만들지 마. 정적 제약에는 정적 검사를 사용해. 단순 문서 이동을 복제하는 테스트는 추가하지 마.
 3. aggregate는 실제로 선택된 job의 실패·취소·누락을 거부하게 해. 불필요한 job의 skip은 명시된 범위 정책으로 처리해. 기존 체크 이름·publisher·신뢰하는 base·trusted aggregation을 보존해.
 4. GitHub 인계 목록의 CodeQL·Dependabot·Action SHA·최소 권한·읽기 전용 감사 요구조건을 파일 작업으로 구현해. 지원과 호환성은 해당 GitHub 프롬프트 기준을 사용해. source 실행·분석·업로드를 실제로 확인해. 미지원 언어와 제품 SDK를 억지로 변경하지 마.
-   공통 검사기·테스트와 `.github/dependabot.yml`은 `repo-baseline`에서 적용하고 `.github/repo-baseline.json`에 원본 commit과 해시를 기록해. 복사한 테스트가 기존 필수 CI job에서 실행되는지 확인해. 프로젝트 고유 값(생태계·테스트 위치)은 manifest에만 둬.
+   공통 검사기·테스트와 `.github/dependabot.yml`은 `repo-baseline`에서 적용하고 `.github/repo-baseline.json`에 원본 commit과 해시를 기록해. 복사 파일 해시 검사와 테스트가 기존 필수 CI job에서 실행되는지 확인해. 정확한 명령과 설정 예외 형식은 `repo-baseline`의 `docs/github-settings-profile.md`를 따라. 프로젝트 고유 값(생태계·테스트 위치)은 manifest에만 둬.
 5. PR 코드는 Secret·높은 권한과 분리해. 읽기 빌드와 쓰기 게시를 분리해. 새 권한·Secret·신뢰 경계 변경은 검토 가능한 최종 head를 준비하고 사람 승인을 받아.
 6. 체크 이름이나 trusted base 정책을 바꾸면 기존 보호에서 통과할 수 있는 전환 PR을 먼저 준비해. 유효한 기존 체크를 유지하며 새 체크를 검증해. 검사를 우회하거나 임시로 보호를 낮추지 마.
 7. source와 정책이 유효한 동일 head/base의 통과 근거를 재사용해. 새로운 변경·실패·입력 변경이 없으면 테스트와 서버 조회를 중복 실행하지 마.
