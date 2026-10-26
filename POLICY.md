@@ -47,7 +47,6 @@
 - 목표값은 `prompts/github-repository-settings.md` §3·§5의 표를 따른다.
 - 각 프로젝트는 기대값을 `.github/repository-settings.json`에 두고 `scripts/check_github_settings.py`로 읽기 전용 감사를 한다.
 - 개인 계정에는 조직 단위 ruleset이 없다. 서버 설정은 저장소마다 적용하고 감사로 확인한다.
-- Bugbot 대시보드 값(Manual Only, Autofix Off, On-demand Off)은 GitHub API로 읽을 수 없다. Cursor 관리자 API의 개인 계정 지원은 미확인이다. 화면에서 확인한 날짜를 기록한다.
 
 ## 5. 리뷰와 병합
 
@@ -56,3 +55,9 @@
 - 병합 전에 PR 본문이 저장소 PR 양식을 따르는지 확인한다(관련 Issue 또는 생략 이유, 플래그 상태 등). Dependabot PR에는 사람용 양식을 강제하지 않는다.
 - 다른 사람이나 봇의 PR 브랜치에 커밋을 추가하면 PR 댓글로 알린다. 추가 커밋은 최종 head 리뷰와 필수 CI를 다시 거친다.
 - 병합 위험 기준은 `prompts/pr-ci-setup.md` §10을 따른다.
+
+## 6. 회고
+
+- 에이전트 환경 개선에는 Matt Pocock의 `mattpocock-skills:retro`를 사용한다. 동명의 일반 스프린트 회고와 구분하고 실제 설치된 원문을 확인한다. 호출 문법은 사용하는 런타임을 따른다.
+- 회고는 사용자가 요청한 세션·PR을 대상으로 한다. 매 PR이나 일정에 따라 자동 실행하지 않는다. 제안을 먼저 보고하고 사용자가 선택한 개선만 반영한다.
+- 실행 절차와 완료 조건은 `prompts/pr-ci-setup.md` §7을 따른다.

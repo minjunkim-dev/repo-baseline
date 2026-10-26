@@ -24,7 +24,7 @@ class ApplyBaselineTests(unittest.TestCase):
         self.addCleanup(folder.cleanup)
         self.project = Path(folder.name)
         (self.project / ".github").mkdir()
-        self.write_manifest({"files": {CHECKER: {"source": CHECKER}}, "bugbot_rules": [".cursor/BUGBOT.md"]})
+        self.write_manifest({"files": {CHECKER: {"source": CHECKER}}, "project_note": "keep"})
 
     def write_manifest(self, data):
         (self.project / apply_baseline.MANIFEST).write_text(json.dumps(data))
@@ -37,7 +37,7 @@ class ApplyBaselineTests(unittest.TestCase):
             self.assertEqual(apply_baseline.apply(self.project), [CHECKER])
         manifest = json.loads((self.project / apply_baseline.MANIFEST).read_text())
         self.assertEqual(manifest["source_commit"], "c" * 40)
-        self.assertEqual(manifest["bugbot_rules"], [".cursor/BUGBOT.md"])
+        self.assertEqual(manifest["project_note"], "keep")
         self.assertEqual(len(manifest["files"][CHECKER]["sha256"]), 64)
         self.assertEqual(apply_baseline.apply(self.project, check=True), [])
         result = self.run_checker()

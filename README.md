@@ -21,17 +21,16 @@
 ## 새 프로젝트에 적용
 
 1. `templates/repo-baseline.json`을 프로젝트의 `.github/repo-baseline.json`으로 복사한다.
-2. `bugbot_rules`에 프로젝트의 `.cursor/BUGBOT.md` 경로를 모두 적는다.
-3. `.github/dependabot.yml` 항목의 `ecosystems`에 GitHub Actions 외의 실제 생태계를 적는다. 예: `{"package-ecosystem": "cargo", "directory": "/services/api"}`.
-4. 테스트를 다른 폴더에서 실행하면 `files`의 대상 경로를 바꾼다. 예: `"scripts/source-only/test_github_settings.py": {"source": "scripts/test_github_settings.py"}`.
-5. 이 저장소에서 다음을 실행한다.
+2. `.github/dependabot.yml` 항목의 `ecosystems`에 GitHub Actions 외의 실제 생태계를 적는다. 예: `{"package-ecosystem": "cargo", "directory": "/services/api"}`.
+3. 테스트를 다른 폴더에서 실행하면 `files`의 대상 경로를 바꾼다. 예: `"scripts/source-only/test_github_settings.py": {"source": "scripts/test_github_settings.py"}`.
+4. 이 저장소에서 다음을 실행한다.
 
    ```bash
    python3 tools/apply_baseline.py /path/to/project
    ```
 
-6. 두 프롬프트를 같은 채팅에 첨부하고 순서대로 적용한다.
-7. 복사한 테스트가 기존 필수 CI job에서 실행되는지 확인한다.
+5. 두 프롬프트를 같은 채팅에 첨부하고 순서대로 적용한다.
+6. 복사한 테스트가 기존 필수 CI job에서 실행되는지 확인한다.
 
 ## 에이전트에게 보낼 요청문
 
@@ -43,7 +42,7 @@
 같은 채팅에서 GitHub 초기 점검 → PR·CI/CD 셋업 → GitHub 최종 적용·검증 순서로 진행해. 중복 작업은 피하고 보류 항목까지 마무리해.
 공통값은 repo-baseline의 POLICY.md와 templates를 따르고, 공통 검사기는 tools/apply_baseline.py로 복사해. 값을 새로 고르지 마.
 
-1인 개발·Bugbot Manual Only·Autofix Off·On-demand Off를 유지해. 공개 배포와 production 변경은 하지 마.
+1인 개발·별도 컨텍스트의 자체 리뷰를 기준으로 해. 공개 배포와 production 변경은 하지 마.
 
 최종 독립 리뷰·필수 CI 후 위험별 병합 기준을 적용해. 권한·Secret·workflow·설정 변경은 작성자와 다른 모델로도 리뷰해. 한쪽 문은 사람이 최종 head를 승인하게 해. 완료 항목과 미확인 항목을 구분해 보고해.
 ```
@@ -59,13 +58,29 @@
 2. 다른 파일이 프로젝트의 의도된 변경이면 이 저장소로 옮긴다. 의도하지 않은 drift면 다시 적용한다.
 3. 적용한 결과를 PR로 올리고 프로젝트의 리뷰·CI·병합 기준을 따른다.
 
+## 자체 리뷰와 회고
+
+기본 흐름은 구현 → 자동 검사 → 별도 Standards·Spec 리뷰 → 확실한 결함 수정·커밋 → 최종 변경의 리뷰·검사 → 위험별 병합이다. 상세 기준은 `prompts/pr-ci-setup.md` §5·§6을 따른다.
+
+같은 실수나 탐색·도구 사용 문제가 있었던 작업을 돌아보려면 Matt Pocock의 `mattpocock-skills:retro`에 대상 세션·PR을 지정한다. 일반 스프린트 회고와 출처를 구분한다. 사용자가 선택한 개선만 반영하며 자동 정기 실행은 하지 않는다. 절차는 같은 프롬프트 §7을 따른다.
+
+## 기존 리뷰 서비스 구성에서 전환
+
+기존 프로젝트에 이 버전을 적용하기 전에 다음을 확인한다. `apply_baseline.py`는 기존 manifest를 읽으므로, 아래 정리 없이 실행하면 삭제된 원본을 찾지 못한다. 파일 삭제와 문서 이동은 프로젝트별 PR로 검토한다.
+
+1. 이전 `.cursor/BUGBOT.md`에만 있는 고유 기준을 코딩 규칙·도메인 원문으로 옮긴다. 자체 리뷰 문서의 자료 선택 표에 연결하고, 내용이 보존된 요약 파일만 제거한다. 개인·전역 규칙은 유지한다.
+2. 기존 CI·검사 명령에서 `check_bugbot_rules.py`·`test_bugbot_rules.py` 호출을 제거한다. 다른 빌드·테스트·보안 검사와 보호는 유지한다. trusted base의 기존 검사가 전환을 막으면 기존 정책으로 통과할 수 있는 전환 PR을 먼저 준비한다.
+3. `.github/repo-baseline.json`에서 `source`가 `scripts/check_bugbot_rules.py` 또는 `scripts/test_bugbot_rules.py`인 항목과 `bugbot_rules` 키를 제거한다. 해당 복사 파일도 내용과 실제 위치를 확인한 뒤 제거한다.
+4. 남은 파일의 차이를 `tools/apply_baseline.py /path/to/project --check`로 확인하고 다시 적용한다. 실제 프로젝트 CI에서 남은 공통 검사·자체 리뷰를 검증한다.
+
+서버 서비스 비활성화와 GitHub App·계정 연결 해제는 저장소 파일 갱신과 별개다. 관련 서버 기능의 사용 여부와 영향 범위를 확인하고 승인된 변경만 수행한다.
+
 ## 이 저장소를 바꿀 때
 
 1. `scripts/`, `templates/`, `tools/`를 바꾸면 테스트를 실행한다.
 
    ```bash
    python3 -m unittest discover -s tools -p 'test_*.py'
-   python3 -m unittest discover -s scripts -p 'test_bugbot_rules.py'
    ```
 
    `test_github_settings.py`와 `test_repo_baseline.py`는 프로젝트 파일이 필요하다. 프로젝트에 적용한 뒤 그 프로젝트의 CI에서 검증한다.
