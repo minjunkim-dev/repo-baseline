@@ -1,5 +1,12 @@
 # 변경 기록
 
+## 2026-10-27 — GitHub 설정 적용 도구
+
+- `tools/apply_github_settings.py`를 추가했다. 프로젝트의 `.github/repository-settings.json`(감사 도구와 같은 기준선)을 읽어 다른 항목만 쓴다. 기본 실행은 현재 값과 기준값, 쓰기 요청을 출력만 하고, `--apply`는 쓴 뒤 다시 감사한다. 공개 여부·ruleset·workflow 파일과, 기준선 밖 설정이 켜진 브랜치 보호는 쓰지 않는다. 기준선 오류와 404 외의 조회 오류는 쓰기 전에 멈춘다.
+- 새 프로젝트의 기준선 시작점 `templates/repository-settings.json`(채울 값은 `REPLACE`로 표시)과 이 저장소 자신의 `.github/repository-settings.json`을 두었다. 정책 값이 서로 어긋나면 `tools` 테스트가 실패한다.
+- GitHub 설정 프롬프트 §3 표에 기준선이 이미 쓰던 값(기존 승인 무효화 On, 코드 소유자 리뷰 Off, 마지막 push 승인 Off, 브랜치 잠금 Off, Release 불변성 On)을 적었다.
+- `scripts/check_github_settings.py`의 schema·저장소 이름·브랜치 검사를 `validate_target()`으로 분리했다. 동작은 같아 소비 프로젝트 재적용은 필요 없다. 다음에 다시 맞출 때 함께 복사된다.
+
 ## 2026-10-27 — Matt Pocock 스킬 사용법을 다시 적지 않음
 
 - 개발 절차 문서·PR/CI 셋업 프롬프트·POLICY·README에서 스킬의 단계(셋업 세부, 작업 크기별 진입 표, 명세→티켓→구현, 스킬 선택, retro 단계)를 옮겨 적던 부분을 뺐다. 옮겨 적은 내용이 원문과 어긋나 있었다(원문은 변경마다 grilling을 권하지만 문서는 불확실할 때만으로 바꿔 적음). 스킬은 설치된 원문대로 쓰고, 시작점은 `/ask-matt`에 묻는다.
