@@ -1,5 +1,14 @@
 # 변경 기록
 
+## 2026-10-27 — Matt Pocock 스킬 사용법을 다시 적지 않음
+
+- 개발 절차 문서·PR/CI 셋업 프롬프트·POLICY·README에서 스킬의 단계(셋업 세부, 작업 크기별 진입 표, 명세→티켓→구현, 스킬 선택, retro 단계)를 옮겨 적던 부분을 뺐다. 옮겨 적은 내용이 원문과 어긋나 있었다(원문은 변경마다 grilling을 권하지만 문서는 불확실할 때만으로 바꿔 적음). 스킬은 설치된 원문대로 쓰고, 시작점은 `/ask-matt`에 묻는다.
+- 남긴 것은 스킬이 정하지 않는 이 기준의 선택이다. `AGENTS.md`만 쓰기(셋업 스킬 전에 `CLAUDE.md`를 옮김), 모든 변경은 PR·필수 CI·위험별 병합(셋업 프롬프트 §10), 리뷰 정책(§5), 회고 정책(§6).
+- README의 재적용 순서를 고쳤다. squash 병합과 병합 후 브랜치 삭제를 쓰므로 PR을 병합한 뒤 최신 `main`에서 적용한다.
+- 공통 검사기·템플릿은 바뀌지 않아 소비 프로젝트 재적용은 필요 없다.
+- 권한·Secret·workflow·저장소 설정·dependency 정책 PR의 추가 리뷰를 "다른 모델"에서 "작성자 세션 밖의 외부 리뷰"로 바꾸고, 공개 저장소는 CodeRabbit 무료 플랜으로 충족한다고 적었다. CodeRabbit은 참고용이며 필수 체크·자동 수정은 쓰지 않는다. GitHub 설정 프롬프트 §7도 CodeRabbit을 정리 대상에서 뺐다.
+- CodeRabbit 리뷰 반영: 라벨 문서는 `triage`가 설치됐을 때만 완료 조건에 넣는다(셋업 스킬이 그때만 라벨 단계를 진행). Claude Code 플러그인에서는 `/mattpocock-skills:<이름>`처럼 플러그인 이름을 붙여 부른다.
+
 ## 2026-10-27 — 이 저장소에도 Dependabot 버전 업데이트 적용
 
 - `.github/dependabot.yml`을 두었다. 생태계가 GitHub Actions뿐이라 `templates/dependabot.yml`을 그대로 쓴다. SHA로 고정한 `check.yml`의 action은 보안 알림이 생기지 않으므로 이 정기 업데이트로만 갱신된다(`POLICY.md` §2).
