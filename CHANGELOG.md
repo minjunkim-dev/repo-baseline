@@ -1,5 +1,10 @@
 # 변경 기록
 
+## 2026-10-27 — 이 저장소에도 Dependabot 버전 업데이트 적용
+
+- `.github/dependabot.yml`을 두었다. 생태계가 GitHub Actions뿐이라 `templates/dependabot.yml`을 그대로 쓴다. SHA로 고정한 `check.yml`의 action은 보안 알림이 생기지 않으므로 이 정기 업데이트로만 갱신된다(`POLICY.md` §2).
+- 이 저장소에는 manifest가 없어 `apply_baseline.py`로 생성하지 않는다. 첫 줄을 사본이라는 설명으로 바꾸고, 나머지가 템플릿과 어긋나면 `tools` 테스트가 실패하게 했다.
+
 ## 2026-10-27 — 지침 파일을 AGENTS.md로 통일
 
 - 초기 설정 6단계가 `## Agent skills` 블록을 `AGENTS.md`에만 둔다. 파일이 없으면 만든다. PR/CI 셋업 프롬프트 §3도 canonical 파일 선택 대신 `AGENTS.md`로 정리하게 맞췄다.
