@@ -52,7 +52,15 @@
 
 ## 5. 리뷰와 병합
 
-- 독립 리뷰는 작성자와 분리한 컨텍스트에서 Standards·Spec을 각각 실행한다. 신뢰 경계 변경(아래)에는 Security를 추가한다. 리뷰별 도구는 `docs/development-workflow.md`의 "리뷰 단계별 도구"를 따른다.
+- 독립 리뷰는 작성자와 분리한 컨텍스트에서 Standards·Spec·버그 찾기를 각각 실행한다. 신뢰 경계 변경(아래)에는 Security를 추가한다. 도구는 다음과 같다(공통값).
+
+| 리뷰 | 도구 | 대상 |
+| --- | --- | --- |
+| Standards·Spec | Matt Pocock `code-review` | 모든 PR |
+| 버그 찾기 | Claude Code 내장 `/code-review` | 모든 PR. 깊이는 양쪽 문 `low`, 한쪽 문·위험 변경 `high` |
+| Security | Claude Code 내장 `/security-review`. Semgrep CLI가 있으면 함께 실행 | 신뢰 경계 변경. 열린 지적은 고치거나 오탐 이유를 남기기 전에는 병합하지 않는다 |
+
+- 내장 명령이 없는 런타임은 같은 역할의 리뷰를 쓰고 무엇을 썼는지 리뷰 기록에 남긴다. CodeQL을 쓰더라도 Security 리뷰를 대신하지 않는다.
 - 신뢰 경계 변경은 누가 무엇을 할 수 있는지, 또는 신뢰하지 않는 입력이 더 높은 권한에 닿는지를 바꾸는 변경이다. 작성자의 판단이 아니라 diff로 정한다. 아래 중 하나라도 걸리면 신뢰 경계 변경이다. 애매하면 신뢰 경계 변경으로 본다.
 
 | 종류 | 기준 | 정하는 사람 |
@@ -62,6 +70,8 @@
 | 내용 | workflow `permissions`·`pull_request_target`, Secret·token 참조, 셸 실행·`eval`, 데이터·파일·브랜치 삭제, 외부 입력을 처음 받는 코드 | diff를 읽는 에이전트 |
 
 - 사람은 어느 PR에든 Security 리뷰를 더 요청할 수 있다. 경로 기준에 걸린 PR은 에이전트가 Security 리뷰를 빼지 않는다. PR 본문 Merge Danger에 걸린 기준을 적고, 걸린 것이 없으면 없다고 적는다.
+- Dependabot이 버전만 올린 PR은 신뢰 경계 변경으로 보지 않는다. 필수 CI와 §2의 매주 처리를 따른다.
+- 신뢰 경계 변경은 Security 리뷰 대상일 뿐이다. 사람 승인이 필요한 위험 변경인지는 `prompts/pr-ci-setup.md` §10으로 따로 판정한다.
 - 리뷰는 수렴해야 한다. 리뷰·수정 라운드 상한은 3이다(공통값). 재리뷰 범위와 지적 표시는 `prompts/pr-ci-setup.md` §5를 따른다.
 - 외부 리뷰: 권한·Secret·workflow·저장소 설정·dependency 정책을 바꾸는 PR과 `prompts/pr-ci-setup.md` §10의 위험 변경에는 작성자 세션 밖의 리뷰를 하나 더한다. 공개 저장소는 CodeRabbit 무료 플랜의 리뷰로 충족한다. CodeRabbit 리뷰를 받을 수 없는 비공개 저장소는 다른 모델의 리뷰를 받거나, 받지 못한 사실을 기록하고 사람 승인 여부를 위험 기준으로 판단한다. 같은 모델을 별도 컨텍스트로 돌린 리뷰는 외부 리뷰로 세지 않는다. 그 외 PR은 선택이다.
 - CodeRabbit은 참고용 리뷰다. 필수 체크로 두지 않는다. 지적은 확인해 맞는 것만 고치고, 스레드마다 반영 여부를 답한 뒤 해결한다. Autofix·수정안 바로 커밋·docstring·테스트 생성은 쓰지 않는다. 다시 리뷰가 필요하면 `@coderabbitai full review`를 쓴다.
@@ -79,7 +89,7 @@
 
 ## 7. 프로젝트 스킬과 작업 진입
 
-- 개발 절차는 Matt Pocock 스킬을 설치된 원문대로 쓴다. 이 저장소는 스킬의 단계를 다시 정하지 않는다. 초기 설정에서 이 기준이 고르는 것(`AGENTS.md`만 사용)과 `main`에 들어가는 경계는 `docs/development-workflow.md`를 따른다.
+- 개발 절차는 Matt Pocock 스킬을 설치된 원문대로 쓴다. 이 저장소는 스킬의 단계를 다시 정하지 않는다. 초기 설정에서 이 기준이 고르는 것(`AGENTS.md`만 사용, 검증 스킬 하나만 예외)과 `main`에 들어가는 경계는 `docs/development-workflow.md`를 따른다.
 - pstack 스킬은 Matt Pocock 스킬이 다루지 않는 단계에만 사람이 불러 쓴다. 단계별 배치는 `docs/development-workflow.md`를 따른다. 설치되지 않았으면 건너뛴다.
 
 ## 8. 주간 점검
@@ -91,7 +101,7 @@
 | 점검 기간 | 지난 7일 |
 | hotfix로 보는 범위 | 14일 안에 병합된 PR을 고친 PR |
 | CI 시간 비교 | 이전 4주 중앙값보다 20% 넘게 늘면 표시 |
-| 멈춘 PR | 7일 넘게 갱신이 없는 열린 PR과 처리하지 않은 Dependabot PR |
+| 멈춘 PR | 7일 넘게 갱신이 없는 열린 PR, 열린 지 7일이 넘은 Dependabot PR |
 
 - 점검은 회고 후보를 모을 뿐이다. 회고는 §6대로 사용자가 지정할 때만 한다.
 - 점검 결과로 고칠 것이 생기면 PR로만 반영하고 같은 리뷰·필수 CI·위험별 병합을 거친다. 일정 실행 설정은 이 저장소에 두지 않는다.
