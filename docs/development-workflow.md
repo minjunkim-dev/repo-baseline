@@ -35,7 +35,7 @@
 | 개선 반영 | `correct` | `retro`로 고른 개선을 `POLICY.md` §6 순서로 막을 때 |
 
 - 같은 일을 하는 pstack `tdd`·`reflect`·`teach`는 쓰지 않는다. `retro`는 다른 회고 스킬로 바꾸지 않는다(`POLICY.md` §6).
-- 검증 스킬은 지침 파일을 `AGENTS.md` 하나로 두는 규칙(셋업 프롬프트 §3)의 유일한 예외다. `.claude/settings.json` 같은 런타임 설정 파일은 지침 파일이 아니다. 주로 쓰는 런타임의 프로젝트 스킬 경로에 하나만 두고 `AGENTS.md`에서 경로를 연결한다. 생성 기본 경로(`.cursor/skills/`)가 그 런타임과 다르면 옮긴다. 다른 런타임용 사본이나 symlink는 만들지 않는다.
+- 검증 스킬은 지침 파일을 `AGENTS.md` 하나로 두는 규칙(셋업 프롬프트 §3)의 유일한 예외다. `.claude/settings.json` 같은 런타임 설정 파일은 지침 파일이 아니다. 주로 쓰는 런타임의 프로젝트 스킬 경로에 하나만 두고 `AGENTS.md`에서 경로를 연결한다. 생성 기본 경로(`.cursor/skills/`)가 그 런타임과 다르면 옮긴다. 다른 런타임용 사본이나 symlink는 만들지 않는다. `tools/apply_baseline.py`가 복사한 스킬(`.github/repo-baseline.json`에 있는 `matt-code-review` 등)은 이 저장소가 관리하는 파일이라 이 규칙의 대상이 아니다. 지우거나 하나로 합치지 않는다.
 
 ## 도구 설치와 확인
 
@@ -58,7 +58,7 @@
   - 리뷰 관문 스킬 `matt-code-review`는 저장소에 커밋돼 있으므로 플러그인 없이도 `/matt-code-review`로 부른다. 플러그인은 나머지 Matt Pocock 스킬을 쓰기 위한 로컬 편의다.
   - Matt Pocock 마켓플레이스를 태그(`ref`)로 고정해 등록하고 `mattpocock-skills`를 켠다. 등록은 각자 그 폴더를 신뢰한 뒤에 적용된다. 프로젝트 설정의 마켓플레이스 source는 `sha`를 받지 않으므로 태그로만 고정한다. 태그를 올리는 PR은 신뢰 경계 변경(`POLICY.md` §5)으로 리뷰한다.
   - 같은 스킬을 다른 마켓플레이스에서도 켜지 않는다. 이름이 겹친다.
-  - `.env`와 `.env.*`(`.env.example` 제외) 읽기를 막는다. Claude의 파일 도구와 `cat` 같은 인식되는 셸 명령에만 적용된다. 파일을 직접 여는 스크립트는 막지 못한다. 모든 프로세스를 막으려면 sandbox를 쓴다.
+  - `.env*`(`.env.example` 제외) 읽기를 막는다. Claude의 파일 도구와 `cat` 같은 인식되는 셸 명령에만 적용된다. 파일을 직접 여는 스크립트는 막지 못한다. 모든 프로세스를 막으려면 sandbox를 쓴다.
   - 확인: `claude plugin list`에 `mattpocock-skills@mattpocock`가 켜져 있다. 고정한 태그는 `.claude/settings.json`의 `ref`다.
 - Semgrep CLI(선택): 설치돼 있으면 Security 리뷰에서 함께 실행한다. 확인: `semgrep --version`.
 - 정기 Security 감사: Cloudflare `security-audit`를 `npx skills add https://github.com/cloudflare/security-audit-skill --skill security-audit`로 설치한다. 개인 경로의 사본을 쓰지 않는다. 이 저장소는 release가 없어 버전으로 고정할 수 없으므로 설치한 commit을 감사 기록에 적는다. 확인: 설치 경로에 `security-audit/SKILL.md`가 있고, `node --version`이 나온다(검증기에 필요). 설치 commit은 감사 기록에 적는다.

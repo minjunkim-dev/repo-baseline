@@ -100,7 +100,7 @@
 - 도구는 세 층에 둔다. 저장소 층(`AGENTS.md`, `@AGENTS.md` 한 줄만 있는 `CLAUDE.md`, `.agents/skills`, `.claude/skills`, 비밀값 없는 `.mcp.json`)만 팀원과 클라우드 세션에 닿는다. 계정 층(클라우드 환경·Secret·커넥터)은 사람마다 등록하고, 로컬 층(`~/.agents`, `~/.claude`의 스킬·플러그인·MCP)은 그 컴퓨터에만 있다. 층별 목록은 `docs/development-workflow.md`를 따른다.
 - 리뷰 관문 스킬은 저장소 층에 커밋한다. `vendor/mattpocock-skills/matt-code-review`(`mattpocock/skills` v1.3.2, commit `d1478fc`, MIT)를 `tools/apply_baseline.py`가 `.agents/skills/`와 `.claude/skills/`에 복사하고 해시를 기록한다. 내장 `/code-review`와 겹치지 않게 frontmatter `name`만 `matt-code-review`로 바꿨다. 올릴 때는 이 저장소에서 원본을 갱신하고 다시 적용한다.
 - Claude Code 프로젝트 설정은 `templates/claude-settings.json`이다(두 프로필 공통). `.env` 파일 읽기를 막고, 로컬 편의로 Matt Pocock 마켓플레이스를 태그로 고정해 플러그인을 켠다. 이 플러그인은 클라우드 세션에서 읽히지 않는다. 이 파일은 지침 파일이 아니라 설정 파일이다.
-- 개발 절차는 Matt Pocock 스킬을 설치된 원문대로 쓴다. 이 저장소는 스킬의 단계를 다시 정하지 않는다. 초기 설정에서 이 기준이 고르는 것(지침은 `AGENTS.md`만 사용, `@AGENTS.md` 한 줄만 있는 `CLAUDE.md`는 허용, 검증 스킬 하나만 예외)과 `main`에 들어가는 경계는 `docs/development-workflow.md`를 따른다.
+- 개발 절차는 Matt Pocock 스킬을 설치된 원문대로 쓴다. 이 저장소는 스킬의 단계를 다시 정하지 않는다. 초기 설정에서 이 기준이 고르는 것(지침은 `AGENTS.md`만 사용, `@AGENTS.md` 한 줄만 있는 `CLAUDE.md`는 허용, 검증 스킬 하나만 예외, 이 저장소가 복사하는 스킬은 대상 아님)과 `main`에 들어가는 경계는 `docs/development-workflow.md`를 따른다.
 - pstack 스킬은 Matt Pocock 스킬이 다루지 않는 단계에만 사람이 불러 쓴다. 단계별 배치는 `docs/development-workflow.md`를 따른다. 설치되지 않았으면 건너뛴다.
 
 ## 8. 주간 점검

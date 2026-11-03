@@ -18,7 +18,7 @@
 | `templates/claude-settings.json` | Claude Code 프로젝트 설정(Matt Pocock 플러그인, `.env` 읽기 차단) | 예. `.claude/settings.json`으로 둔다 |
 | `scripts/` | 프로젝트에 그대로 복사하는 검사기와 테스트 | 예. 수정하지 않는다 |
 | `vendor/mattpocock-skills/matt-code-review/` | 리뷰 관문 스킬(Matt Pocock `code-review`, 이름만 바꿈, MIT) | 예. manifest대로 `.agents/skills/`와 `.claude/skills/`에 복사한다 |
-| `tools/apply_baseline.py` | `scripts/`를 프로젝트에 복사하고 해시를 기록 | 아니요 |
+| `tools/apply_baseline.py` | manifest대로 `scripts/`와 `vendor/`의 스킬을 프로젝트에 복사하고 해시를 기록 | 아니요 |
 | `tools/apply_github_settings.py` | 설정 기준선과 다른 GitHub 서버 설정을 계획·적용 | 아니요 |
 
 `scripts/`의 파일과 생성한 `.github/dependabot.yml`은 프로젝트에서 직접 고치지 않는다. 이 저장소에서 고친 뒤 다시 적용한다.
@@ -27,17 +27,18 @@
 ## 새 프로젝트에 적용
 
 1. `templates/repo-baseline.json`을 프로젝트의 `.github/repo-baseline.json`으로 복사한다.
-2. `.github/dependabot.yml` 항목의 `ecosystems`에 GitHub Actions 외의 실제 생태계를 적는다. 예: `{"package-ecosystem": "cargo", "directory": "/services/api"}`.
-3. 테스트를 다른 폴더에서 실행하면 `files`의 대상 경로를 바꾼다. 예: `"scripts/source-only/test_github_settings.py": {"source": "scripts/test_github_settings.py"}`.
-4. 이 저장소에서 다음을 실행한다.
+2. `templates/claude-settings.json`을 프로젝트의 `.claude/settings.json`으로 둔다. 이미 있으면 합친다.
+3. `.github/dependabot.yml` 항목의 `ecosystems`에 GitHub Actions 외의 실제 생태계를 적는다. 예: `{"package-ecosystem": "cargo", "directory": "/services/api"}`.
+4. 테스트를 다른 폴더에서 실행하면 `files`의 대상 경로를 바꾼다. 예: `"scripts/source-only/test_github_settings.py": {"source": "scripts/test_github_settings.py"}`.
+5. 이 저장소에서 다음을 실행한다.
 
    ```bash
    python3 tools/apply_baseline.py /path/to/project
    ```
 
-5. 두 프롬프트를 같은 채팅에 첨부하고 순서대로 적용한다. [프로젝트 초기 설정과 일상 개발](docs/development-workflow.md)을 프로젝트 작업 문서에 연결하고 스킬의 tracker·도메인 설정(`triage`가 설치돼 있으면 라벨도)까지 확인한다.
-6. 복사 파일 해시 검사와 테스트가 기존 필수 CI job에서 실행되는지 확인한다. [GitHub 설정 기준선과 기능 지원](docs/github-settings-profile.md)의 예외·결과 구분을 따른다.
-7. 필수 CI가 실제 PR에서 성공한 뒤 GitHub 서버 설정을 적용한다(GitHub 설정 프롬프트 §4·§10).
+6. 두 프롬프트를 같은 채팅에 첨부하고 순서대로 적용한다. [프로젝트 초기 설정과 일상 개발](docs/development-workflow.md)을 프로젝트 작업 문서에 연결하고 스킬의 tracker·도메인 설정(`triage`가 설치돼 있으면 라벨도)까지 확인한다.
+7. 복사 파일 해시 검사와 테스트가 기존 필수 CI job에서 실행되는지 확인한다. [GitHub 설정 기준선과 기능 지원](docs/github-settings-profile.md)의 예외·결과 구분을 따른다.
+8. 필수 CI가 실제 PR에서 성공한 뒤 GitHub 서버 설정을 적용한다(GitHub 설정 프롬프트 §4·§10).
    1. `templates/repository-settings.json`을 프로젝트의 `.github/repository-settings.json`으로 복사한다.
    2. `REPLACE`로 시작하는 값과 저장소 정보를 채운다. 남아 있으면 도구가 아무것도 읽지 않고 멈춘다.
       - `repository`: `owner/name`. `repository_id`: `gh api repos/OWNER/NAME --jq .id`의 값.
@@ -79,14 +80,15 @@
 
 ## 기존 프로젝트를 다시 맞춤
 
-1. 먼저 차이를 본다. 아무것도 쓰지 않는다.
+1. `templates/repo-baseline.json`에 프로젝트 manifest에 없는 항목이 생겼으면(CHANGELOG에 적는다) 프로젝트의 `.github/repo-baseline.json`에 더한다. `--check`는 manifest에 이미 있는 항목만 비교한다.
+2. 먼저 차이를 본다. 아무것도 쓰지 않는다.
 
    ```bash
    python3 tools/apply_baseline.py /path/to/project --check
    ```
 
-2. 다른 파일이 프로젝트의 의도된 변경이면 이 저장소로 옮긴다. 의도하지 않은 drift면 다시 적용한다.
-3. 적용한 결과를 PR로 올리고 프로젝트의 리뷰·CI·병합 기준을 따른다.
+3. 다른 파일이 프로젝트의 의도된 변경이면 이 저장소로 옮긴다. 의도하지 않은 drift면 다시 적용한다.
+4. 적용한 결과를 PR로 올리고 프로젝트의 리뷰·CI·병합 기준을 따른다.
 
 ## 일상 개발 시작
 

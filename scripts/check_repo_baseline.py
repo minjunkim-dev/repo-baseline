@@ -45,7 +45,7 @@ def mcp_secrets(root=ROOT):
             if not isinstance(values, dict):
                 raise ValueError(f".mcp.json {name}.{field} must be an object")
             found += [f"{name}.{field}.{key}" for key, value in values.items()
-                      if not isinstance(value, str) or not re.search(r"\$\{[A-Za-z_]\w*(:-[^}]*)?\}", value)]
+                      if not isinstance(value, str) or not re.search(r"\$\{[A-Za-z_]\w*\}", value)]
     return found
 
 

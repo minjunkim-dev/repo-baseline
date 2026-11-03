@@ -60,9 +60,10 @@ class RepoBaselineTests(unittest.TestCase):
             self.assertEqual(mcp_secrets(root), [])
             (root / ".mcp.json").write_text(json.dumps({"mcpServers": {
                 "ok": {"env": {"TOKEN": "${API_TOKEN}"}, "headers": {"Authorization": "Bearer ${API_TOKEN}"}},
-                "bad": {"env": {"TOKEN": "sk-123"}, "headers": {"Authorization": "Bearer sk-123"}},
+                "bad": {"env": {"TOKEN": "sk-123", "KEY": "${API_KEY:-sk-123}"},
+                        "headers": {"Authorization": "Bearer sk-123"}},
             }}))
-            self.assertEqual(mcp_secrets(root), ["bad.env.TOKEN", "bad.headers.Authorization"])
+            self.assertEqual(mcp_secrets(root), ["bad.env.TOKEN", "bad.env.KEY", "bad.headers.Authorization"])
             (root / ".mcp.json").write_text("[]")
             with self.assertRaises(ValueError):
                 mcp_secrets(root)
