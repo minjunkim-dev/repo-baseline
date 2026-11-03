@@ -17,6 +17,7 @@
 | `templates/CODEOWNERS` | 팀 프로필의 신뢰 경계 경로 소유자 | 팀 프로필만. `.github/CODEOWNERS`로 두고 소유자를 채운다 |
 | `templates/claude-settings.json` | Claude Code 프로젝트 설정(Matt Pocock 플러그인, `.env` 읽기 차단) | 예. `.claude/settings.json`으로 둔다 |
 | `scripts/` | 프로젝트에 그대로 복사하는 검사기와 테스트 | 예. 수정하지 않는다 |
+| `vendor/mattpocock-skills/matt-code-review/` | 리뷰 관문 스킬(Matt Pocock `code-review`, 이름만 바꿈, MIT) | 예. manifest대로 `.agents/skills/`와 `.claude/skills/`에 복사한다 |
 | `tools/apply_baseline.py` | `scripts/`를 프로젝트에 복사하고 해시를 기록 | 아니요 |
 | `tools/apply_github_settings.py` | 설정 기준선과 다른 GitHub 서버 설정을 계획·적용 | 아니요 |
 
@@ -47,7 +48,7 @@
       - `patterns_allowed`: workflow의 `uses:` 중 GitHub 소유가 아닌 action(`owner/repo@*`). 없으면 빈 목록.
       - CodeQL을 workflow 파일(advanced setup)로 돌리면 `codeql.state`를 `not-configured`로 바꾸고 `codeql_workflow`·`codeql_main_source`를 넣는다(`POLICY.md` §3).
       - 비공개 저장소에서 요금제로 쓸 수 없는 기능은 [GitHub 설정 기준선과 기능 지원](docs/github-settings-profile.md)의 예외로 옮긴다.
-   3. `gh auth status`가 저장소 소유자로 로그인된 곳에서, 이 저장소를 기준으로 계획을 본다. 읽기만 한다.
+   3. `gh auth status`가 저장소 관리자(admin) 권한 계정으로 로그인된 곳에서, 이 저장소를 기준으로 계획을 본다. 읽기만 한다.
 
       ```bash
       python3 tools/apply_github_settings.py /path/to/project
@@ -93,7 +94,7 @@
 
 ## 자체 리뷰와 회고
 
-기본 흐름은 구현 → 자동 검사 → 별도 Standards·Spec·버그 찾기 리뷰(신뢰 경계 변경은 Security 추가) → 확실한 결함 수정·커밋 → 최종 변경의 리뷰·검사 → 위험별 병합이다. 상세 기준은 `prompts/pr-ci-setup.md` §5·§6을 따른다.
+기본 흐름은 구현 → 자동 검사 → 별도 Standards·Spec·버그 찾기 리뷰(버그 찾기는 코드 변경만, 신뢰 경계 변경은 Security 추가) → 확실한 결함 수정·커밋 → 최종 변경의 리뷰·검사 → 위험별 병합이다. 상세 기준은 `prompts/pr-ci-setup.md` §5·§6을 따른다.
 
 같은 실수나 탐색·도구 사용 문제가 있었던 작업은 Matt Pocock의 `retro`에 대상 세션·PR을 지정해 돌아본다. 사용자가 고른 개선만 반영하며, 회고 자체는 정기 실행하지 않는다. 같은 프롬프트 §7을 따른다.
 

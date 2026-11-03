@@ -4,6 +4,7 @@
 import hashlib
 import json
 from pathlib import Path
+import re
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -27,15 +28,40 @@ def drift(root=ROOT):
     return changed
 
 
+def mcp_secrets(root=ROOT):
+    """Committed .mcp.json env and header values must reference a variable, not hold a value.
+    shortcut: secrets inside `args` or URLs are not detected; review covers those."""
+    path = root / ".mcp.json"
+    if not path.exists():
+        return []
+    servers = json.loads(path.read_text(encoding="utf-8"))
+    servers = servers.get("mcpServers") if isinstance(servers, dict) else None
+    if not isinstance(servers, dict):
+        raise ValueError(".mcp.json must hold an mcpServers object")
+    found = []
+    for name, server in sorted(servers.items()):
+        for field in ("env", "headers"):
+            values = server.get(field, {}) if isinstance(server, dict) else None
+            if not isinstance(values, dict):
+                raise ValueError(f".mcp.json {name}.{field} must be an object")
+            found += [f"{name}.{field}.{key}" for key, value in values.items()
+                      if not isinstance(value, str) or not re.search(r"\$\{[A-Za-z_]\w*(:-[^}]*)?\}", value)]
+    return found
+
+
 def main():
     try:
         changed = drift()
+        secrets = mcp_secrets()
     except (OSError, ValueError) as error:
         print(f"repo-baseline UNVERIFIED: {error}", file=sys.stderr)
         return 2
+    if secrets:
+        print("repo-baseline SECRET: .mcp.json values without a ${VAR} reference: " + ", ".join(secrets))
     if changed:
         print("repo-baseline DRIFT: " + ", ".join(changed)
               + "; change the file in repo-baseline, then re-run tools/apply_baseline.py")
+    if secrets or changed:
         return 1
     print("repo-baseline PASS: copied files match the recorded hashes")
     return 0

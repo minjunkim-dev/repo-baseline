@@ -12,6 +12,24 @@
     "scripts/test_github_settings.py": {
       "source": "scripts/test_github_settings.py"
     },
+    ".agents/skills/matt-code-review/SKILL.md": {
+      "source": "vendor/mattpocock-skills/matt-code-review/SKILL.md"
+    },
+    ".agents/skills/matt-code-review/agents/openai.yaml": {
+      "source": "vendor/mattpocock-skills/matt-code-review/agents/openai.yaml"
+    },
+    ".agents/skills/matt-code-review/LICENSE": {
+      "source": "vendor/mattpocock-skills/matt-code-review/LICENSE"
+    },
+    ".claude/skills/matt-code-review/SKILL.md": {
+      "source": "vendor/mattpocock-skills/matt-code-review/SKILL.md"
+    },
+    ".claude/skills/matt-code-review/agents/openai.yaml": {
+      "source": "vendor/mattpocock-skills/matt-code-review/agents/openai.yaml"
+    },
+    ".claude/skills/matt-code-review/LICENSE": {
+      "source": "vendor/mattpocock-skills/matt-code-review/LICENSE"
+    },
     ".github/dependabot.yml": {
       "source": "templates/dependabot.yml",
       "ecosystems": []

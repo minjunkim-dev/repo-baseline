@@ -8,7 +8,7 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from check_repo_baseline import MANIFEST, ROOT, drift
+from check_repo_baseline import MANIFEST, ROOT, drift, mcp_secrets
 import subprocess
 
 
@@ -53,6 +53,19 @@ class RepoBaselineTests(unittest.TestCase):
             write({"a.py": {"sha256": good}}, commit=None)
             with self.assertRaises(ValueError):
                 drift(root)
+
+    def test_mcp_json_values_must_reference_variables(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            self.assertEqual(mcp_secrets(root), [])
+            (root / ".mcp.json").write_text(json.dumps({"mcpServers": {
+                "ok": {"env": {"TOKEN": "${API_TOKEN}"}, "headers": {"Authorization": "Bearer ${API_TOKEN}"}},
+                "bad": {"env": {"TOKEN": "sk-123"}, "headers": {"Authorization": "Bearer sk-123"}},
+            }}))
+            self.assertEqual(mcp_secrets(root), ["bad.env.TOKEN", "bad.headers.Authorization"])
+            (root / ".mcp.json").write_text("[]")
+            with self.assertRaises(ValueError):
+                mcp_secrets(root)
 
 
 if __name__ == "__main__":

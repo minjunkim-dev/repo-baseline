@@ -7,5 +7,8 @@
 /.github/dependabot.yml @REPLACE-OWNERS
 /.github/CODEOWNERS @REPLACE-OWNERS
 /.claude/settings.json @REPLACE-OWNERS
+/.agents/skills/ @REPLACE-OWNERS
+/.claude/skills/ @REPLACE-OWNERS
+/.mcp.json @REPLACE-OWNERS
 Dockerfile @REPLACE-OWNERS
 .env* @REPLACE-OWNERS
