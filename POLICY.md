@@ -52,7 +52,16 @@
 
 ## 5. 리뷰와 병합
 
-- 독립 리뷰는 작성자와 분리한 컨텍스트에서 Standards·Spec을 각각 실행한다. 권한·Secret·dependency·workflow 신뢰 경계 변경에는 Security를 추가한다.
+- 독립 리뷰는 작성자와 분리한 컨텍스트에서 Standards·Spec을 각각 실행한다. 신뢰 경계 변경(아래)에는 Security를 추가한다. 리뷰별 도구는 `docs/development-workflow.md`의 "리뷰 단계별 도구"를 따른다.
+- 신뢰 경계 변경은 누가 무엇을 할 수 있는지, 또는 신뢰하지 않는 입력이 더 높은 권한에 닿는지를 바꾸는 변경이다. 작성자의 판단이 아니라 diff로 정한다. 아래 중 하나라도 걸리면 신뢰 경계 변경이다. 애매하면 신뢰 경계 변경으로 본다.
+
+| 종류 | 기준 | 정하는 사람 |
+| --- | --- | --- |
+| 공통 경로 | `.github/workflows/**`, `.github/repository-settings.json`, `.github/dependabot.yml`, 의존성 manifest·lockfile, `Dockerfile`, `.env*` | 이 저장소(공통값) |
+| 프로젝트 경로 | 인증·결제·권한 검사·migration 등 프로젝트가 정한 경로 | 프로젝트 소유자. 프로젝트 리뷰 문서에 적는다 |
+| 내용 | workflow `permissions`·`pull_request_target`, Secret·token 참조, 셸 실행·`eval`, 데이터·파일·브랜치 삭제, 외부 입력을 처음 받는 코드 | diff를 읽는 에이전트 |
+
+- 사람은 어느 PR에든 Security 리뷰를 더 요청할 수 있다. 경로 기준에 걸린 PR은 에이전트가 Security 리뷰를 빼지 않는다. PR 본문 Merge Danger에 걸린 기준을 적고, 걸린 것이 없으면 없다고 적는다.
 - 리뷰는 수렴해야 한다. 리뷰·수정 라운드 상한은 3이다(공통값). 재리뷰 범위와 지적 표시는 `prompts/pr-ci-setup.md` §5를 따른다.
 - 외부 리뷰: 권한·Secret·workflow·저장소 설정·dependency 정책을 바꾸는 PR과 `prompts/pr-ci-setup.md` §10의 위험 변경에는 작성자 세션 밖의 리뷰를 하나 더한다. 공개 저장소는 CodeRabbit 무료 플랜의 리뷰로 충족한다. CodeRabbit 리뷰를 받을 수 없는 비공개 저장소는 다른 모델의 리뷰를 받거나, 받지 못한 사실을 기록하고 사람 승인 여부를 위험 기준으로 판단한다. 같은 모델을 별도 컨텍스트로 돌린 리뷰는 외부 리뷰로 세지 않는다. 그 외 PR은 선택이다.
 - CodeRabbit은 참고용 리뷰다. 필수 체크로 두지 않는다. 지적은 확인해 맞는 것만 고치고, 스레드마다 반영 여부를 답한 뒤 해결한다. Autofix·수정안 바로 커밋·docstring·테스트 생성은 쓰지 않는다. 다시 리뷰가 필요하면 `@coderabbitai full review`를 쓴다.
@@ -75,7 +84,7 @@
 
 ## 8. 주간 점검
 
-- 주 1회 점검은 선택이다. 요청문은 `prompts/weekly-check.md`다. 공통값은 다음과 같다.
+- 주 1회 점검은 선택이다. 대상은 README의 적용 중인 프로젝트와 이 저장소다. 요청문은 `prompts/weekly-check.md`다. 공통값은 다음과 같다.
 
 | 항목 | 값 |
 | --- | --- |
