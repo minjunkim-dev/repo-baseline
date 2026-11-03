@@ -22,3 +22,17 @@
 - 모든 변경은 PR로 `main`에 들어가고 필수 CI가 통과해야 한다. 병합은 위험별로 한다. 위험이 낮고 되돌리기 쉬운 양쪽 문은 맡은 에이전트가 병합할 수 있고, 한쪽 문·넓은 영향·위험 변경은 사람이 최종 head를 승인한다(셋업 프롬프트 §10).
 - 리뷰·수정·병합 위험 판단은 셋업 프롬프트 §5와 `POLICY.md` §5를 따른다. Security 리뷰와 외부 리뷰(공개 저장소는 CodeRabbit)를 더할 변경도 거기서 정한다.
 - 에이전트 환경 개선은 사용자가 대상을 지정할 때 `/retro`로 한다(`POLICY.md` §6).
+
+## pstack을 함께 쓸 때
+
+[pstack](https://github.com/cursor/plugins/tree/main/pstack)이 설치돼 있으면 Matt Pocock 스킬이 다루지 않는 단계에만 쓴다. pstack 스킬은 사람이 부른다. 에이전트는 아래 경우에 실행을 제안만 한다. 설치되지 않았으면 이 절을 건너뛴다.
+
+| 단계 | 기본 | 필요할 때 pstack |
+| --- | --- | --- |
+| 자기 검증 | — | `create-verification-skill`: 앱을 사용자처럼 실행하고 증거를 남기는 프로젝트 스킬을 한 번 만든다. 기능이 바뀌면 `maintain-verification-skill` |
+| PR 전 리뷰 | `code-review` | `blast-radius`: 영향이 diff 밖으로 번질 수 있는 변경 |
+| 위험 변경 | 사람 승인 | `interrogate`: 여러 모델의 리뷰. Claude Code에서 모델을 따로 설정하지 않으면 같은 모델의 별도 컨텍스트이므로 외부 리뷰로 세지 않는다 |
+| 개선 반영 | `retro`로 고른다 | `correct`: 고른 실수를 `POLICY.md` §6 순서로 막고, 새 검사가 과거 실수에서 실패하는지 확인한다 |
+
+- 같은 일을 하는 pstack `tdd`·`reflect`·`teach`는 쓰지 않는다. `retro`는 다른 회고 스킬로 바꾸지 않는다(`POLICY.md` §6).
+- 검증 스킬은 지침이 아니라 실행 절차다. 사용하는 런타임이 읽는 프로젝트 스킬 경로에 두고 `AGENTS.md`에서 경로를 연결한다. 생성 기본 경로(`.cursor/skills/`)가 런타임과 다르면 옮긴다.
