@@ -1,5 +1,26 @@
 # 변경 기록
 
+## 2026-11-03 — 리뷰 수렴과 위험 판정
+
+- 근거: [How the Claude Code team does code review](https://claude.dev/blog/solving-code-review-at-anthropic/)(2026-10-15).
+- 셋업 프롬프트 §5: 수정 뒤의 재리뷰 라운드는 바뀐 diff만 보고(병합 전 최종 head 전체 리뷰는 유지), 지적은 결함 유형으로 남기고 반복하지 않는다. 스타일만의 지적은 버리고, P0/P1/P2에 더해 Pre-existing을 표시한다. 라운드 상한(`POLICY.md` §5, 3)을 넘으면 접근 방식을 다시 검토해 사용자에게 보고한다.
+- 셋업 프롬프트 §6: 리뷰 근거는 `file:line`, 보고는 지적 개수로 시작한다. 리뷰 문서에 영역별 실패 정의·P2 상한·건너뛸 경로·사용자가 승인한 "배운 규칙"을 둔다.
+- 셋업 프롬프트 §10·§5, `POLICY.md` §5, README 요청문: 위험 등급은 변경 내용으로 정하고 판정 질문("망가지면 사용자가 무엇을 잃나")을 적었다. 위험 변경에도 외부 리뷰를 받는다. 같은 모델의 별도 컨텍스트 리뷰는 외부 리뷰로 세지 않는다.
+- `POLICY.md` §5·셋업 프롬프트 §5: 리뷰는 Standards·Spec·버그 찾기를 실행하고 신뢰 경계 변경에 Security를 더한다. 도구는 POLICY §5 표에 둔다. Standards·Spec은 Matt Pocock `code-review`, 버그 찾기는 내장 `/code-review`(양쪽 문 `low`, 한쪽 문·위험 변경 `high`), Security는 내장 `/security-review`(열린 지적이 있으면 병합하지 않음).
+- `POLICY.md` §5: 신뢰 경계 변경을 한 곳에 정의했다. 작성자 판단이 아니라 diff의 공통 경로·프로젝트 경로·내용 기준으로 정하고, 애매하면 신뢰 경계로 본다. POLICY와 셋업 프롬프트에서 서로 달랐던 목록을 이 정의로 바꿨다. PR 본문 Merge Danger에 걸린 기준을 적는다. Dependabot이 버전·해시·Action SHA만 바꾼 PR은 경로 기준의 유일한 예외로 신뢰 경계로 보지 않는다(다른 줄이 바뀌거나 다른 사람이 커밋을 더하면 예외가 아님). 신뢰 경계 변경은 Security 리뷰 대상일 뿐이고, 사람 승인이 필요한 위험 변경은 셋업 프롬프트 §10으로 따로 판정한다(§10의 "신뢰 경계"는 "권한을 넓히는 변경"으로 좁혔다).
+- 문서만 바뀌어 소비 프로젝트 재적용은 필요 없다.
+
+## 2026-11-03 — 개선 반영 순서와 pstack 배치
+
+- `POLICY.md` §6: 개선은 코드 구조·타입 → 결정적 검사 → 지침 → 사람 리뷰 순으로 가장 앞 단계에 반영한다. revert·hotfix PR 본문에 원래 PR과 놓친 단계를 적고 회고 후보로 둔다.
+- `POLICY.md` §7·`docs/development-workflow.md`: pstack 스킬을 제안할 단계(`create-verification-skill`, `blast-radius`, `interrogate`, `correct`)와 쓰지 않을 중복을 적었다. 검증 스킬은 `AGENTS.md`만 쓰는 규칙의 유일한 예외로 셋업 프롬프트 §3에 적었다.
+- 문서만 바뀌어 소비 프로젝트 재적용은 필요 없다.
+
+## 2026-11-03 — 주간 점검
+
+- `POLICY.md` §8·`prompts/weekly-check.md`: 선택적 주간 읽기 전용 점검을 추가했다. 기간과 기준값은 §8 표에 둔다.
+- 문서만 바뀌어 소비 프로젝트 재적용은 필요 없다.
+
 ## 2026-10-27 — GitHub 설정 적용 도구
 
 - `tools/apply_github_settings.py`를 추가했다. 프로젝트의 `.github/repository-settings.json`(감사 도구와 같은 기준선)을 읽어 다른 항목만 쓴다. 기본 실행은 현재 값과 기준값, 쓰기 요청을 출력만 하고, `--apply`는 쓴 뒤 다시 감사한다. 공개 여부·ruleset·workflow 파일과, 기준선 밖 설정이 켜진 브랜치 보호는 쓰지 않는다. 기준선 오류와 404 외의 조회 오류는 쓰기 전에 멈춘다.

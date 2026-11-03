@@ -10,6 +10,7 @@
 | `POLICY.md` | 공통값과 허용 예외 | 아니요. 참조만 한다 |
 | `prompts/github-repository-settings.md` | GitHub 서버 설정 절차 | 아니요. 에이전트 채팅에 첨부한다 |
 | `prompts/pr-ci-setup.md` | 문서·CI·리뷰·병합 절차 | 아니요. 에이전트 채팅에 첨부한다 |
+| `prompts/weekly-check.md` | 적용 중인 프로젝트의 주간 읽기 전용 점검 | 아니요. 이 저장소에서 에이전트에게 준다 |
 | `templates/dependabot.yml`, `templates/dependabot-ecosystem.yml` | Dependabot 설정 원본 | 예. manifest의 `ecosystems` 목록으로 `.github/dependabot.yml`을 생성한다 |
 | `templates/repo-baseline.json` | 복사 목록(manifest) 시작점 | 예. `.github/repo-baseline.json`으로 둔다 |
 | `templates/repository-settings.json` | GitHub 설정 기준선 시작점 | 예. `.github/repository-settings.json`으로 두고 `REPLACE` 값과 저장소 정보를 채운다 |
@@ -69,7 +70,7 @@
 
 1인 개발·별도 컨텍스트의 자체 리뷰를 기준으로 해. 공개 배포와 production 변경은 하지 마.
 
-최종 독립 리뷰·필수 CI 후 위험별 병합 기준을 적용해. 권한·Secret·workflow·설정·dependency 정책 변경은 `POLICY.md` §5의 외부 리뷰(공개 저장소는 CodeRabbit)도 받아. 한쪽 문은 사람이 최종 head를 승인하게 해. 완료 항목과 미확인 항목을 구분해 보고해.
+최종 독립 리뷰·필수 CI 후 위험별 병합 기준을 적용해. `POLICY.md` §5의 외부 리뷰 대상은 외부 리뷰(공개 저장소는 CodeRabbit)도 받아. 한쪽 문은 사람이 최종 head를 승인하게 해. 완료 항목과 미확인 항목을 구분해 보고해.
 ```
 
 ## 기존 프로젝트를 다시 맞춤
@@ -89,9 +90,11 @@
 
 ## 자체 리뷰와 회고
 
-기본 흐름은 구현 → 자동 검사 → 별도 Standards·Spec 리뷰 → 확실한 결함 수정·커밋 → 최종 변경의 리뷰·검사 → 위험별 병합이다. 상세 기준은 `prompts/pr-ci-setup.md` §5·§6을 따른다.
+기본 흐름은 구현 → 자동 검사 → 별도 Standards·Spec·버그 찾기 리뷰(신뢰 경계 변경은 Security 추가) → 확실한 결함 수정·커밋 → 최종 변경의 리뷰·검사 → 위험별 병합이다. 상세 기준은 `prompts/pr-ci-setup.md` §5·§6을 따른다.
 
-같은 실수나 탐색·도구 사용 문제가 있었던 작업은 Matt Pocock의 `retro`에 대상 세션·PR을 지정해 돌아본다. 사용자가 고른 개선만 반영하며 자동 정기 실행은 하지 않는다. 같은 프롬프트 §7을 따른다.
+같은 실수나 탐색·도구 사용 문제가 있었던 작업은 Matt Pocock의 `retro`에 대상 세션·PR을 지정해 돌아본다. 사용자가 고른 개선만 반영하며, 회고 자체는 정기 실행하지 않는다. 같은 프롬프트 §7을 따른다.
+
+주간 점검은 `prompts/weekly-check.md`로 회고 후보를 모은다. 읽기만 하며 항목과 기준값은 `POLICY.md` §8을 따른다. 점검을 일정 실행하면 그 설정은 이 저장소 밖에 둔다.
 
 ## 기존 리뷰 서비스 구성에서 전환
 
