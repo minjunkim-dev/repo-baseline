@@ -11,11 +11,13 @@
 2. revert·hotfix: 제목이 `Revert`로 시작하거나 본문에 `This reverts commit`이 있는 PR, 그리고 §8의 hotfix 범위에 드는 PR. 각각 원래 PR과 본문에 적힌 놓친 단계(`POLICY.md` §6)를 옮겨 적어. 본문에 없으면 추정하고 추정이라고 표시해.
 3. 필수 CI 시간: 프로젝트 `.github/repository-settings.json`의 `checks`는 job 이름이다. 그 job을 정의한 workflow를 `.github/workflows/`에서 찾고 트리거를 확인해. 기본 브랜치 `push`로 도는 workflow는 `gh run list --repo <owner/name> --workflow <파일> --branch <기본 브랜치> --status success --json createdAt,updatedAt`로, `pull_request`로만 도는 workflow는 `--branch` 대신 `--event pull_request`로 받아. 비교 기간을 다 덮도록 `--limit`을 충분히 줘. 실행 시간은 `createdAt`과 `updatedAt`의 차이(workflow 전체, 대기 포함)다. 이번 기간과 비교 기간의 중앙값을 구하고, §8의 기준을 넘게 늘었으면 표시해. 어느 기간에 성공 실행이 없으면 그 칸은 미확인으로 적고 중앙값·증가 표시·PASS를 적지 마.
 4. 멈춘 PR: §8의 기준에 드는 열린 PR.
+5. 리뷰 기록 누락: 점검 항목 1의 PR마다 `gh pr view <번호> --repo <owner/name> --json headRefOid`로 최종 head를 받고, `gh api repos/<owner>/<name>/commits/<headRefOid>/statuses --paginate`로 status를 읽어. context마다 가장 최근 status를 보고 `review/independent`·`review/security`가 둘 다 `success`가 아니면 누락으로 표시해.
+6. 정기 감사: `gh issue list --repo <owner/name> --label security-audit --state all --limit 1 --json createdAt,title`로 마지막 기록 날짜를 봐. §8 기준보다 오래됐거나 없으면 표시해.
 
 ## 2. 보고
 
-1. 프로젝트별 표: 병합 수, revert·hotfix 수, CI 시간 중앙값(이번 기간·비교 기간·증가 표시), 멈춘 PR 수.
-2. 병합 PR 목록: 점검 항목 1의 필드를 PR마다 적어.
+1. 프로젝트별 표: 병합 수, revert·hotfix 수, CI 시간 중앙값(이번 기간·비교 기간·증가 표시), 멈춘 PR 수, 리뷰 기록 누락 수, 마지막 정기 감사 날짜.
+2. 병합 PR 목록: 점검 항목 1의 필드와 리뷰 기록 누락 여부를 PR마다 적어.
 3. 회고 후보: revert·hotfix PR 목록. 회고는 실행하지 마(`POLICY.md` §6).
 4. 사용자 결정: 결정이 필요한 항목만 적어. 없으면 없다고 써. 위 1~3은 결정 항목이 없어도 빼지 마. 근거가 없는 항목을 PASS로 적지 마.
 

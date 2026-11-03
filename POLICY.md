@@ -1,6 +1,6 @@
 # 저장소 공통 정책
 
-이 문서는 1인 개발 저장소에 공통으로 적용하는 값을 정한다.
+이 문서는 1인 개발과 소규모 팀(2~6명) 저장소에 공통으로 적용하는 값을 정한다. 두 프로필이 다른 값은 §9에 있다. 프로필을 정하지 않은 프로젝트는 1인 프로필이다.
 프롬프트(`prompts/`)는 절차와 판단 기준을 정한다. 구체적인 값은 이 문서와 `templates/`를 따른다.
 정책 버전은 이 저장소의 commit SHA다. 각 프로젝트는 `.github/repo-baseline.json`의 `source_commit`에 적용한 버전을 기록한다.
 
@@ -9,7 +9,8 @@
 | 종류 | 뜻 | 바꾸는 방법 |
 | --- | --- | --- |
 | GitHub 필수값 | GitHub가 요구하는 값 | 바꿀 수 없다 |
-| 공통값 | 세 저장소에 같게 적용하는 운영 선택 | 이 저장소에서 바꾸고 모든 프로젝트에 다시 적용한다 |
+| 공통값 | 적용 중인 모든 저장소에 같게 적용하는 운영 선택 | 이 저장소에서 바꾸고 모든 프로젝트에 다시 적용한다 |
+| 프로필 값 | 1인·팀 프로필에 따라 다른 공통값(§9) | 이 저장소에서 바꾸고 그 프로필의 프로젝트에 다시 적용한다 |
 | 허용 예외 | 프로젝트 사정으로 공통값과 다르게 두는 값 | 프로젝트 `docs/REPOSITORY_SETUP.md`에 이유와 함께 한 줄로 적는다 |
 
 ## 2. Dependabot
@@ -48,25 +49,30 @@
 - 각 프로젝트는 기대값을 `.github/repository-settings.json`에 두고 `scripts/check_github_settings.py`로 읽기 전용 감사를 한다.
 - 공통값은 `templates/repository-settings.json`에 있다. 서버 적용은 `tools/apply_github_settings.py`가 같은 기준선으로 계획을 먼저 보이고, 승인 후 `--apply`로 다른 항목만 쓴다.
 - 기능 미지원·비해당은 근거를 기록한 명시적 예외만 허용한다. 형식과 LIMITED·DRIFT·UNVERIFIED 구분은 `docs/github-settings-profile.md`를 따른다. 조회 실패를 자동 예외로 바꾸지 않는다.
-- 개인 계정에는 조직 단위 ruleset이 없다. 서버 설정은 저장소마다 적용하고 감사로 확인한다.
+- 서버 설정은 저장소마다 적용하고 감사로 확인한다. 조직 단위 ruleset은 쓰지 않는다. 조직 소유 저장소에서 달라지는 점은 §9를 따른다.
 
 ## 5. 리뷰와 병합
 
 - 독립 리뷰는 작성자와 분리한 컨텍스트에서 Standards·Spec·버그 찾기를 각각 실행한다. 신뢰 경계 변경(아래)에는 Security를 추가한다. 도구는 다음과 같다(공통값).
 
-| 리뷰 | 도구 | 대상 |
+| 리뷰 | 도구 | 언제 |
 | --- | --- | --- |
 | Standards·Spec | Matt Pocock `code-review` | 모든 PR |
-| 버그 찾기 | Claude Code 내장 `/code-review` | 모든 PR. 깊이는 양쪽 문 `low`, 한쪽 문·위험 변경 `high` |
+| 버그 찾기 | Claude Code 내장 `/code-review` | 코드가 바뀐 PR. 깊이는 양쪽 문 `low`, 한쪽 문·위험 변경 `high` |
 | Security | Claude Code 내장 `/security-review`. Semgrep CLI가 있으면 함께 실행 | 신뢰 경계 변경. 열린 지적은 고치거나 오탐 이유를 남기기 전에는 병합하지 않는다 |
+| 외부 | 공개 저장소는 CodeRabbit, 비공개 저장소는 다른 모델 | 아래 외부 리뷰 대상 |
+| 정기 Security 감사 | Cloudflare `security-audit` | 릴리스 전, 인증·외부 입력·결제 같은 새 공격면이 생길 때, 분기마다 한 번 이상 |
 
+- 역할마다 결정적 검사와 LLM 리뷰를 각각 하나까지만 둔다. 다른 모델의 두 번째 의견은 외부 리뷰 대상에만 둔다. 순서는 결정적 검사 → LLM 리뷰 → 사람이다. 선택 도구와 설치·확인 방법은 `docs/development-workflow.md`에 둔다.
+- 가벼운 경로: 문서나 신뢰 경계가 아닌 설정만 바꾸는 양쪽 문 PR은 Standards·Spec 리뷰 하나만 받는다.
 - 내장 명령이 없는 런타임은 같은 역할의 리뷰를 쓰고 무엇을 썼는지 리뷰 기록에 남긴다. CodeQL을 쓰더라도 Security 리뷰를 대신하지 않는다.
+- 리뷰 기록: 필수 리뷰를 마친 에이전트는 리뷰한 head SHA에 commit status를 남긴다. context는 `review/independent`(Standards·Spec·버그 찾기)와 `review/security`다. 신뢰 경계 변경이 아니면 `review/security`는 `success`로 두고 비해당이라고 적는다. description에 도구·모델·지적 수를 적는다. PR 댓글은 사람이 읽는 기록으로 함께 남길 수 있다. 새 push의 SHA에는 status가 없으므로, 필수 체크로 등록하면(§9) 리뷰 뒤에 더한 커밋은 다시 리뷰할 때까지 병합되지 않는다. 같은 GitHub 계정이 남긴 status는 사람과 에이전트를 구분하지 못한다. 절차가 실행됐다는 기록이지 보안 경계가 아니다.
 - 신뢰 경계 변경은 누가 무엇을 할 수 있는지, 또는 신뢰하지 않는 입력이 더 높은 권한에 닿는지를 바꾸는 변경이다. 작성자의 판단이 아니라 diff로 정한다. 아래 중 하나라도 걸리면 신뢰 경계 변경이다. 애매하면 신뢰 경계 변경으로 본다.
 
 | 종류 | 기준 | 정하는 사람 |
 | --- | --- | --- |
-| 공통 경로 | `.github/workflows/**`, `.github/repository-settings.json`, `.github/dependabot.yml`, 의존성 manifest·lockfile, `Dockerfile`, `.env*` | 이 저장소(공통값) |
-| 프로젝트 경로 | 인증·결제·권한 검사·migration 등 프로젝트가 정한 경로 | 프로젝트 소유자. 프로젝트 리뷰 문서에 적는다 |
+| 공통 경로 | `.github/workflows/**`, `.github/repository-settings.json`, `.github/dependabot.yml`, `.github/CODEOWNERS`, `.claude/settings.json`, 의존성 manifest·lockfile, `Dockerfile`, `.env*` | 이 저장소(공통값) |
+| 프로젝트 경로 | 인증·결제·권한 검사·migration 등 프로젝트가 정한 경로 | 프로젝트 소유자(팀 프로필은 CODEOWNERS의 소유자). 프로젝트 리뷰 문서에 적는다 |
 | 내용 | workflow `permissions`·`pull_request_target`, Secret·token 참조, 셸 실행·`eval`, 데이터·파일·브랜치 삭제, 외부 입력을 처음 받는 코드 | diff를 읽는 에이전트 |
 
 - 사람은 어느 PR에든 Security 리뷰를 더 요청할 수 있다. 경로 기준에 걸린 PR은 에이전트가 Security 리뷰를 빼지 않는다. 예외는 아래 Dependabot 버전 갱신 하나다. PR 본문 Merge Danger에 걸린 기준을 적고, 걸린 것이 없으면 없다고 적는다.
@@ -74,10 +80,11 @@
 - 신뢰 경계 변경은 Security 리뷰 대상일 뿐이다. 사람 승인이 필요한 위험 변경인지는 `prompts/pr-ci-setup.md` §10으로 따로 판정한다.
 - 리뷰는 수렴해야 한다. 리뷰·수정 라운드 상한은 3이다(공통값). 재리뷰 범위와 지적 표시는 `prompts/pr-ci-setup.md` §5를 따른다.
 - 외부 리뷰: 권한·Secret·workflow·저장소 설정·dependency 정책을 바꾸는 PR과 `prompts/pr-ci-setup.md` §10의 위험 변경에는 작성자 세션 밖의 리뷰를 하나 더한다. 공개 저장소는 CodeRabbit 무료 플랜의 리뷰로 충족한다. CodeRabbit 리뷰를 받을 수 없는 비공개 저장소는 다른 모델의 리뷰를 받거나, 받지 못한 사실을 기록하고 사람 승인 여부를 위험 기준으로 판단한다. 같은 모델을 별도 컨텍스트로 돌린 리뷰는 외부 리뷰로 세지 않는다. 그 외 PR은 선택이다.
-- CodeRabbit은 참고용 리뷰다. 필수 체크로 두지 않는다. 지적은 확인해 맞는 것만 고치고, 스레드마다 반영 여부를 답한 뒤 해결한다. Autofix·수정안 바로 커밋·docstring·테스트 생성은 쓰지 않는다. 다시 리뷰가 필요하면 `@coderabbitai full review`를 쓴다.
+- CodeRabbit은 참고용 리뷰다. 필수 체크로 두지 않는다. 리뷰가 끝난 뒤에도 check가 `pending`으로 남아 병합을 막을 수 있기 때문이다. CodeRabbit이 외부 리뷰인 PR만 리뷰가 끝날 때까지 병합을 기다린다. 그 밖의 PR은 기다리지 않고, 병합 뒤 달린 지적은 후속 PR로 처리한다. 지적은 확인해 맞는 것만 고치고, 스레드마다 반영 여부를 답한 뒤 해결한다. Autofix·수정안 바로 커밋·docstring·테스트 생성은 쓰지 않는다. 다시 리뷰가 필요하면 `@coderabbitai full review`를 쓴다.
 - 병합 전에 PR 본문이 저장소 PR 양식을 따르는지 확인한다(관련 Issue 또는 생략 이유, 플래그 상태 등). Dependabot PR에는 사람용 양식을 강제하지 않는다.
 - 다른 사람이나 봇의 PR 브랜치에 커밋을 추가하면 PR 댓글로 알린다. 추가 커밋은 최종 head 리뷰와 필수 CI를 다시 거친다.
-- 병합 위험 기준은 `prompts/pr-ci-setup.md` §10을 따른다.
+- 병합 위험 기준은 `prompts/pr-ci-setup.md` §10을 따른다. 사람 승인과 병합 실행자는 §9의 프로필을 따른다.
+- 정기 Security 감사는 날짜·`source_ref`·감사 도구의 설치 commit·지적 수를 `security-audit` 라벨의 Issue로 남긴다. 공개 저장소에는 지적 내용을 쓰지 않고 비공개 security advisory에 둔다. 실행 방법은 `docs/development-workflow.md`를 따른다.
 
 ## 6. 회고
 
@@ -89,6 +96,7 @@
 
 ## 7. 프로젝트 스킬과 작업 진입
 
+- Claude Code 프로젝트 설정은 `templates/claude-settings.json`이다(두 프로필 공통). Matt Pocock 마켓플레이스를 태그로 고정해 등록하고 플러그인을 켜며, `.env` 파일 읽기를 막는다. 이 파일은 지침 파일이 아니라 설정 파일이다.
 - 개발 절차는 Matt Pocock 스킬을 설치된 원문대로 쓴다. 이 저장소는 스킬의 단계를 다시 정하지 않는다. 초기 설정에서 이 기준이 고르는 것(`AGENTS.md`만 사용, 검증 스킬 하나만 예외)과 `main`에 들어가는 경계는 `docs/development-workflow.md`를 따른다.
 - pstack 스킬은 Matt Pocock 스킬이 다루지 않는 단계에만 사람이 불러 쓴다. 단계별 배치는 `docs/development-workflow.md`를 따른다. 설치되지 않았으면 건너뛴다.
 
@@ -102,6 +110,38 @@
 | hotfix로 보는 범위 | 14일 안에 병합된 PR을 고친 PR |
 | CI 시간 비교 | 이전 4주 중앙값보다 20% 넘게 늘면 표시 |
 | 멈춘 PR | 7일 넘게 갱신이 없는 열린 PR, 열린 지 7일이 넘은 Dependabot PR |
+| 리뷰 기록 누락 | 병합된 PR의 최종 head에 §5의 리뷰 status가 없거나 `success`가 아님 |
+| 정기 감사 지연 | 마지막 `security-audit` Issue가 3개월보다 오래됨. 없으면 없다고 표시 |
 
 - 점검은 회고 후보를 모을 뿐이다. 회고는 §6대로 사용자가 지정할 때만 한다.
 - 점검 결과로 고칠 것이 생기면 PR로만 반영하고 같은 리뷰·필수 CI·위험별 병합을 거친다. 일정 실행 설정은 이 저장소에 두지 않는다.
+
+## 9. 프로필
+
+두 프로필은 GitHub 승인 설정·CODEOWNERS·병합 실행자만 다르다. 리뷰·CI·위험 판정은 같다. 프로젝트는 `AGENTS.md`에 프로필을 한 줄로 적는다. 적지 않으면 1인 프로필이다.
+
+| 항목 | 1인(기본) | 팀(2~6명) |
+| --- | --- | --- |
+| `required_approving_review_count` | 0 | 1 |
+| `dismiss_stale_reviews` | `true` | `true` |
+| `require_code_owner_reviews` | `false` | `true` |
+| `require_last_push_approval` | `false` | `true` |
+| CODEOWNERS | 두지 않는다 | `templates/CODEOWNERS`로 §5 공통 경로와 프로젝트 경로의 소유자를 정한다 |
+| §5 리뷰 status의 필수 체크 등록 | GitHub auto-merge를 쓸 때 | 등록한다 |
+| 사람 승인 | 저장소 소유자 | 쓰기 권한이 있고 PR 책임자가 아닌 팀원 |
+| 양쪽 문 병합 | 필수 CI·리뷰 뒤 맡은 에이전트 | 필수 승인·CI·리뷰 뒤 맡은 에이전트 |
+| 한쪽 문 병합 | 소유자가 최종 head를 승인한 뒤 | 승인한 사람이나 PR 책임자 |
+
+- `templates/repository-settings.json`은 1인 프로필 값이다. 팀 프로필은 복사한 뒤 위 표의 값으로 바꾼다. 리뷰 status를 필수 체크로 등록할 때는 `checks`에 `{"context": "review/independent", "app_id": -1}`과 `review/security`를 더한다. `-1`은 모든 출처를 허용한다는 뜻이다(GitHub REST API). 검사기는 API가 `null`로 돌려줘도 같은 값으로 본다.
+- 팀 프로필의 사람 승인:
+  - PR 책임자는 PR을 연 사람이다. 에이전트가 연 PR은 그 에이전트를 시킨 사람이 책임자다. 책임자의 승인은 세지 않는다.
+  - 에이전트와 봇의 승인은 사람 승인이 아니다. 에이전트는 PR을 승인하지 않는다. 에이전트가 사람 계정으로 승인하면 GitHub는 그 사람의 승인으로 기록하기 때문이다. Actions의 PR 승인은 §4 기준선에서 꺼져 있다.
+  - 승인 뒤 새 push가 오면 마지막으로 push한 사람이 아닌 사람이 다시 승인해야 병합된다. 에이전트가 책임자 계정으로 push했으면 책임자는 그 head의 승인자가 될 수 없다.
+  - 신뢰하는 작성자의 PR을 덜 읽고 승인하는 가벼운 승인 경로는 두지 않는다.
+- CODEOWNERS 소유자는 저장소 쓰기 권한이 있어야 한다. 소유자가 한 명이면 그 사람의 PR을 승인할 소유자가 없으므로 두 명 이상이나 GitHub 팀을 적는다. GitHub 팀을 소유자로 쓰려면 조직 소유 저장소여야 한다.
+- 조직 소유 저장소에서 달라지는 점(GitHub 공식 문서, 2026-11-03 확인). 기준선 값에는 아래 기능이 없다. 쓰려면 이 저장소에서 공통값으로 정한다.
+  - 브랜치 보호·저장소 ruleset: 공개 저장소는 Free, 비공개 저장소는 Pro·Team·Enterprise Cloud.
+  - 조직 단위 ruleset: Enterprise 요금제의 조직.
+  - Merge queue: 조직 소유 공개 저장소, 또는 Enterprise Cloud 조직의 비공개 저장소. 개인 계정 저장소에는 없다.
+  - 보호 우회 목록: 조직 소유 저장소에만 있다. 기준선은 우회를 두지 않는다.
+- 비공개 팀 저장소의 외부 리뷰: CodeRabbit 무료 리뷰는 공개 저장소만 대상이고, 비공개 저장소는 PR을 여는 개발자마다 유료다(2026-11-03 확인). 기준선은 유료 서비스를 고르지 않는다. §5대로 다른 모델의 리뷰를 받는다.

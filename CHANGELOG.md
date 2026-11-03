@@ -1,5 +1,16 @@
 # 변경 기록
 
+## 2026-11-04 — 1인·팀 프로필과 리뷰 도구 배치
+
+- `POLICY.md` §9(새 절): 1인(기본)과 팀(2~6명) 프로필. 팀 프로필은 GitHub 필수 승인 1명·코드 소유자 리뷰·마지막 push 승인을 켜고 `templates/CODEOWNERS`로 신뢰 경계 경로의 소유자를 둔다. PR 책임자(에이전트를 시킨 사람 포함)와 에이전트·봇의 승인은 세지 않는다. 에이전트는 PR을 승인하지 않는다. 가벼운 승인 경로는 두지 않는다. 양쪽 문은 승인·CI·리뷰 뒤 에이전트가, 한쪽 문은 승인한 사람이나 PR 책임자가 병합한다. 조직 소유 저장소의 ruleset·merge queue·우회 목록 지원 범위와 비공개 팀 저장소의 CodeRabbit 비용을 공식 문서로 확인해 적었다.
+- `POLICY.md` §5: 리뷰 표에 "언제"·외부 리뷰·정기 Security 감사(Cloudflare `security-audit`)를 넣었다. 버그 찾기는 코드가 바뀐 PR에만 한다. 문서·신뢰 경계가 아닌 설정만 바꾸는 양쪽 문은 Standards·Spec 하나만 받는다(가벼운 경로). 역할마다 결정적 검사와 LLM 리뷰를 하나씩만 둔다. 공통 신뢰 경계 경로에 `.github/CODEOWNERS`와 `.claude/settings.json`을 더했다.
+- `POLICY.md` §5·셋업 프롬프트 §5·§10: 리뷰를 마치면 리뷰한 head SHA에 commit status(`review/independent`, `review/security`)를 남긴다. 필수 체크로 등록하면(팀은 등록, 1인은 auto-merge를 쓸 때) 리뷰 뒤 더한 커밋은 다시 리뷰할 때까지 병합되지 않고, 양쪽 문에 GitHub auto-merge를 예약할 수 있다. 같은 계정의 status는 사람과 에이전트를 구분하지 못하는 절차 기록이다. CodeRabbit은 외부 리뷰 대상 PR에서만 기다린다.
+- 셋업 프롬프트 §5: 마지막 리뷰 뒤 수정 커밋이 없으면 최종 전체 diff 리뷰를 다시 하지 않는다.
+- `scripts/check_github_settings.py`: 모든 출처를 허용하는 필수 체크(`app_id: -1`)를 API가 `null`로 돌려줘도 같은 값으로 본다.
+- `templates/claude-settings.json`(두 프로필 공통): Matt Pocock 마켓플레이스를 태그로 고정해 켜고 `.env` 읽기를 막는다. 설정 파일은 지침 파일이 아니다. 설치·확인 방법, 선택 도구(`/simplify`, Semgrep), 런타임별 도구는 `docs/development-workflow.md`에 적었다.
+- `POLICY.md` §8·주간 점검: 리뷰 status가 없는 병합 PR과 정기 감사 지연을 표시한다.
+- 1인 프로필 값은 바뀌지 않아 Smallnext·BGLike·Runstir는 그대로 둬도 된다. 리뷰 status를 필수 체크로 등록하거나 `.claude/settings.json`을 둘 때 최신 `main`으로 다시 적용한다(검사기가 `-1`을 읽어야 한다).
+
 ## 2026-11-03 — 리뷰 수렴과 위험 판정
 
 - 근거: [How the Claude Code team does code review](https://claude.dev/blog/solving-code-review-at-anthropic/)(2026-10-15).
