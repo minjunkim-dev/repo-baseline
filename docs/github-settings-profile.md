@@ -14,7 +14,7 @@
 6. 계획 단계에서 도구가 쓰는 설정 항목의 조회가 404면 "아직 설정 안 됨"으로 보고 쓰기 대상에 넣는다. 저장소 자체의 조회가 404면 멈추고, `MANUAL` 항목은 404여도 `MANUAL`로 보고한다. 403 같은 다른 오류는 아무것도 쓰지 않고 실패로 끝난다. 기준선 오류(schema·저장소 이름·브랜치·남은 `REPLACE` 값)는 조회 전에 멈춘다. `--apply`가 쓴 뒤의 감사에서 조회가 실패하면 쓰기는 이미 끝났으므로, 출력된 쓰기 목록을 보고 계획을 다시 실행한다.
 7. 쓰기가 중간에 실패하면 이미 쓴 요청과 결과를 알 수 없는 요청(시간 초과 등)을 출력하고 멈춘다. 계획을 다시 실행해 현재 상태를 본다.
 8. CodeQL default setup은 비동기로 켜지므로 최대 2분 기다린 뒤 감사한다.
-9. 기준선 밖의 설정(Grouped security updates, private vulnerability reporting, Actions 이벤트 정책, Wiki 등)은 다루지 않는다.
+9. 기준선 밖의 설정(Grouped security updates, private vulnerability reporting, Actions 이벤트 정책, Wiki 등)은 다루지 않는다. 이벤트 정책은 이 도구가 쓰지 않는다. 공개 저장소는 README "새 프로젝트에 적용" 2단계에서 `templates/review-status-policy.json`으로 먼저 만든다.
 
 ## 기존 기준선과 예외
 

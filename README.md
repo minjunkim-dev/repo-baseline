@@ -29,7 +29,16 @@
 ## 새 프로젝트에 적용
 
 1. `templates/repo-baseline.json`을 프로젝트의 `.github/repo-baseline.json`으로 복사한다.
-2. `templates/claude-settings.json`을 프로젝트의 `.claude/settings.json`으로 둔다. 이미 있으면 합친다. `templates/review-status.yml`은 별도 파일 `.github/workflows/review-status.yml`로 둔다. 다른 workflow와 합치거나 이벤트를 더하지 않는다(`POLICY.md` §9).
+2. `templates/claude-settings.json`을 프로젝트의 `.claude/settings.json`으로 둔다. 이미 있으면 합친다.
+   공개 저장소는 `review-status.yml`을 기본 브랜치에 병합하기 전에 Actions 이벤트 정책을 만든다. 비공개 저장소는 이 단락을 건너뛴다. 이 저장소 루트에서, 대상 프로젝트의 `OWNER/NAME`으로 실행한다. 쓰기는 저장소 관리자 승인을 받는다. 먼저 조회하고, 같은 workflow 경로에 `pull_request_target`을 허용하는 정책이 있으면 다시 만들지 않는다.
+
+   ```bash
+   gh api repos/OWNER/NAME/actions/policies
+   gh api repos/OWNER/NAME/actions/policies --method POST --input templates/review-status-policy.json
+   gh api repos/OWNER/NAME/actions/policies
+   ```
+
+   재조회에서 그 허용이 보이기 전에는 workflow를 병합하지 않는다. 그다음 `templates/review-status.yml`을 별도 파일 `.github/workflows/review-status.yml`로 둔다. 다른 workflow와 합치거나 이벤트를 더하지 않는다(`POLICY.md` §9).
 3. `.github/dependabot.yml` 항목의 `ecosystems`에 GitHub Actions 외의 실제 생태계를 적는다. 예: `{"package-ecosystem": "cargo", "directory": "/services/api"}`.
 4. 테스트를 다른 폴더에서 실행하면 `files`의 대상 경로를 바꾼다. 예: `"scripts/source-only/test_github_settings.py": {"source": "scripts/test_github_settings.py"}`.
 5. 이 저장소에서 다음을 실행한다.
@@ -38,7 +47,7 @@
    python3 tools/apply_baseline.py /path/to/project
    ```
 
-6. 두 프롬프트를 같은 채팅에 첨부하고 순서대로 적용한다. [프로젝트 초기 설정과 일상 개발](docs/development-workflow.md)을 프로젝트 작업 문서에 연결하고 스킬의 tracker·도메인 설정(`triage`가 설치돼 있으면 라벨도)까지 확인한다.
+6. 두 프롬프트를 같은 채팅에 첨부하고 순서대로 적용한다. [프로젝트 초기 설정과 일상 개발](docs/development-workflow.md)을 프로젝트 작업 문서에 연결한다. 사용자가 "처음 한 번"을 마친 뒤 tracker·도메인 설정(`triage`가 설치돼 있으면 라벨도)이 연결됐는지 확인한다.
 7. 복사 파일 해시 검사와 테스트가 기존 필수 CI job에서 실행되는지 확인한다. [GitHub 설정 기준선과 기능 지원](docs/github-settings-profile.md)의 예외·결과 구분을 따른다.
 8. 필수 CI가 실제 PR에서 성공한 뒤 GitHub 서버 설정을 적용한다(GitHub 설정 프롬프트 §4·§10).
    1. `templates/repository-settings.json`을 프로젝트의 `.github/repository-settings.json`으로 복사한다.
@@ -77,7 +86,7 @@
 
 프로필은 1인이다(팀이면 "팀"으로 바꿔 보낸다. POLICY.md §9). 별도 컨텍스트의 자체 리뷰를 기준으로 해. 공개 배포와 production 변경은 하지 마.
 
-최종 독립 리뷰·필수 CI 후 위험별 병합 기준을 적용해. `POLICY.md` §5의 외부 리뷰 대상은 외부 리뷰(공개 저장소는 CodeRabbit)도 받아. 한쪽 문은 사람이 최종 head를 승인하게 하고, 팀 프로필이면 POLICY.md §9의 승인 규칙을 따라. 완료 항목과 미확인 항목을 구분해 보고해.
+최종 독립 리뷰·필수 CI 후 위험별 병합 기준을 적용해. 문 판정은 `POLICY.md` §10만 따라. `POLICY.md` §5의 외부 리뷰 대상은 외부 리뷰(공개 저장소는 CodeRabbit)도 받고, 그 PR은 auto-merge하지 마. 한쪽 문은 사람이 최종 head를 승인하게 하고, 1인 프로필은 §10의 승인 댓글을 남겨. 팀 프로필이면 POLICY.md §9의 승인 규칙을 따라. `disable-model-invocation: true`인 스킬은 사용자가 실행한다. 완료 항목과 미확인 항목을 구분해 보고해.
 ```
 
 ## 기존 프로젝트를 다시 맞춤
@@ -90,11 +99,11 @@
    ```
 
 3. 다른 파일이 프로젝트의 의도된 변경이면 이 저장소로 옮긴다. 의도하지 않은 drift면 다시 적용한다.
-4. 적용한 결과를 PR로 올리고 프로젝트의 리뷰·CI·병합 기준을 따른다.
+4. 적용한 결과를 PR로 올리고 프로젝트의 리뷰·CI·병합 기준을 따른다. `review-status.yml`을 처음 두는 공개 저장소는 그 파일을 기본 브랜치에 병합하기 전에 위 "새 프로젝트에 적용" 2단계의 이벤트 정책을 만든다.
 
 ## 일상 개발 시작
 
-개발 절차는 Matt Pocock 스킬을 그대로 쓴다. 어떤 스킬로 시작할지는 `/ask-matt`에 묻는다. 처음 셋업과 이 기준이 더하는 `main` 경계는 [프로젝트 초기 설정과 일상 개발](docs/development-workflow.md)을 따른다.
+개발 절차는 Matt Pocock 스킬을 그대로 쓴다. 어떤 스킬로 시작할지는 사용자가 `/ask-matt`를 실행한다. `disable-model-invocation: true`인 스킬은 사용자가 실행한다. 처음 셋업과 이 기준이 더하는 `main` 경계는 [프로젝트 초기 설정과 일상 개발](docs/development-workflow.md)을 따른다.
 
 ## 자체 리뷰와 회고
 

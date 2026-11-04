@@ -1,5 +1,15 @@
 # 변경 기록
 
+## 2026-11-04 — 문 판정, 이벤트 정책 절차, 리뷰 호출
+
+- `POLICY.md` §10(새 절): 문 판정의 단일 기준. 판정 질문은 "망가지면 사용자가 무엇을 잃나"다. Matt `/pr`의 되돌리기 비용 문장은 원문 그대로 두고(vendor에는 `matt-code-review`만 있다) Door 값만 이 절을 따른다. CI workflow와 리뷰 게이트 파일(`.github/workflows/**`, `templates/review-status.yml`, `scripts/check_review_status.py`, `templates/review-status-policy.json`, repository-settings)은 Dependabot을 포함해 한쪽 문이다. Security 리뷰만으로 병합하지 않는다. 1인 프로필의 한쪽 문 승인은 PR 댓글 `한쪽 문 승인: <head sha>`로 남긴 뒤에만 `--match-head-commit`으로 병합한다. auto-merge는 §9 ②를 마친 프로젝트의 양쪽 문 가운데 외부 리뷰 대상이 아닌 PR만 예약한다.
+- `POLICY.md` §5: 병합 전에 달린 CodeRabbit 스레드는 PR 종류와 관계없이 답하고 해결한다. 병합 뒤에 달린 지적은 후속 PR로 처리한다. 외부 리뷰 대상 PR은 auto-merge를 예약하지 않는다. `interrogate` 같은 추가 의견은 외부 리뷰로 세지 않는다. Standards·Spec은 `/matt-code-review`만 부르고, `/implement` 안의 `code-review`는 `review/independent`로 세지 않는다.
+- `POLICY.md` §9: 이 저장소는 `Review status` 게이트의 예외다. 검사기 원본을 바꾸는 PR은 §10의 한쪽 문으로 사람이 최종 head를 승인한다. 소비 프로젝트의 ①②는 그대로다.
+- README 새 프로젝트 절차: 공개 저장소는 `review-status.yml`을 병합하기 전에 `templates/review-status-policy.json`으로 Actions 이벤트 정책을 만든다.
+- `docs/development-workflow.md`: `disable-model-invocation: true`인 Matt 스킬은 사용자가 실행한다. PR 담당자(Dependabot 주간 처리, CodeRabbit 대기, 병합 뒤 후속)를 정의했다. 필수 리뷰는 Claude Code에서 돌린다.
+- 셋업 프롬프트 §5: 최종 전체 diff 리뷰를 건너뛰는 조건은 전체 diff로 리뷰한 SHA가 현재 head와 같을 때뿐이다. 바뀐 diff만 본 SHA는 그 조건에 들어가지 않는다. `/matt-code-review`에는 고정점(PR base SHA), spec 위치(Issue 또는 없음), 기준 브랜치의 표준 문서 경로를 넘긴다.
+- 문서만 바뀌어 소비 프로젝트 재적용은 필요 없다.
+
 ## 2026-11-04 — 1인·팀 프로필, 리뷰 기록, 도구 층
 
 - `POLICY.md` §9(새 절): 1인(기본)과 팀(2~6명) 프로필. 팀 프로필은 GitHub 필수 승인 1명·코드 소유자 리뷰·마지막 push 승인을 켜고 `templates/CODEOWNERS`로 신뢰 경계 경로의 소유자를 둔다. PR 책임자(에이전트를 시킨 사람 포함)와 에이전트·봇의 승인은 세지 않는다. 에이전트는 PR을 승인하지 않는다. 가벼운 승인 경로는 두지 않는다. 양쪽 문은 승인·CI·리뷰 뒤 에이전트가, 한쪽 문은 승인한 사람이나 PR 책임자가 병합한다. 조직 소유 저장소의 ruleset(조직 ruleset은 Team·Enterprise)·merge queue·우회 목록 지원 범위와 비공개 팀 저장소의 CodeRabbit 비용을 공식 문서로 확인해 적었다. 프로젝트는 `AGENTS.md`에 프로필을 한 줄로 적는다.

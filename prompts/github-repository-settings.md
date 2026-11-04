@@ -55,11 +55,11 @@ GitHub 최종 확인은 두 번째 작업의 마무리다. 세 번째 프롬프�
 | 브랜치 잠금 | Off |
 | Release 불변성(immutable releases) | On |
 
-1인 프로필에서 본인 PR에 다른 사람의 승인 1명을 강제하지 마. 승인 0명이어도 한쪽 문과 넓은 영향의 변경은 사람이 최종 커밋을 승인한다.
+1인 프로필에서 본인 PR에 다른 사람의 승인 1명을 강제하지 마. 승인 0명이어도 `POLICY.md` §10의 한쪽 문은 사람이 최종 head를 승인한다.
 팀 프로필은 `templates/CODEOWNERS`로 `.github/CODEOWNERS`를 두는 작업을 PR·CI/CD 작업에 인계해. 소유자마다 쓰기 권한이 있는지, 소유자가 두 명 이상이거나 팀인지 확인해. 저장소가 개인 계정 소유인지 조직 소유인지 기록하고, 조직 소유 저장소의 차이는 `POLICY.md` §9를 따라.
 기존 협업·release 운영과 충돌하면 근거를 확인해. 다른 목적의 보호를 삭제하거나 보호 공백을 만들지 마.
 branch protection·ruleset·상속 규칙의 중복과 충돌을 확인해. 관리자 우회와 일시적인 보호 해제로 병합하지 마.
-Allow auto-merge는 사용 가능한 상태로만 둬. 모든 PR에 자동 병합을 예약하거나 자동 병합 workflow를 만들지 마.
+Allow auto-merge는 사용 가능한 상태로만 둬. 모든 PR에 자동 병합을 예약하거나 자동 병합 workflow를 만들지 마. 예약 조건은 `POLICY.md` §10이다.
 Release를 사용하는 저장소는 미래 공개 Release의 immutability 지원과 영향을 확인해. 설정 변경과 실제 Release 생성·공개를 구분해.
 
 ## 4. 실제 CI와 필수 체크 연결
@@ -68,7 +68,7 @@ Release를 사용하는 저장소는 미래 공개 Release의 immutability 지�
 2. aggregate가 선택된 실제 하위 job의 결과를 반영하는지 확인해. 실패·취소·누락은 성공으로 취급하지 마. 불필요한 job의 skip은 명시된 기존 정책을 확인해.
 3. head·base·run ID·최신 attempt를 대조해. 이름이 같다는 이유로 과거 결과나 다른 출처의 결과를 사용하지 마.
 4. 새 CI가 없거나 실행되지 않았으면 필수 이름을 추측해 등록하지 마. 파일 구현과 실행 검증을 PR·CI/CD 작업에 인계해.
-5. 공개 저장소는 `Review status` workflow를 병합하기 전에 `gh api repos/<owner>/<name>/actions/policies --method POST --input templates/review-status-policy.json`으로 Actions 이벤트 정책을 만들어(`POLICY.md` §9). 이 쓰기는 승인을 받아. `gh api repos/<owner>/<name>/actions/policies`로 재조회해. 쓰기가 거부되면 등록을 멈추고 보고해. `POLICY.md` §5의 `Review status` job 등록은 `POLICY.md` §9의 두 번째 단계다. 에이전트가 status를 남기기 시작한 뒤, 실제 PR에서 status가 있을 때 성공을, status가 없는 새 push에서 실패를 확인하고 프로젝트마다 승인받아 등록해. 등록하면 Dependabot PR도 리뷰 뒤 status를 남겨야 병합된다.
+5. 공개 저장소는 `Review status` workflow를 기본 브랜치에 병합하기 전에 Actions 이벤트 정책을 만들어(`POLICY.md` §9, README 새 프로젝트 절차). `gh api repos/<owner>/<name>/actions/policies`로 먼저 조회해. 같은 workflow 경로에 `pull_request_target`을 허용하는 정책이 없으면 `gh api repos/<owner>/<name>/actions/policies --method POST --input templates/review-status-policy.json`으로 만들어. 입력 파일은 `repo-baseline` 루트의 템플릿이다. 이 쓰기는 승인을 받아. 다시 조회해 허용이 보이기 전에는 workflow를 병합하지 마. 이미 있으면 POST하지 마. 쓰기가 거부되면 등록을 멈추고 보고해. `POLICY.md` §5의 `Review status` job 등록은 `POLICY.md` §9의 두 번째 단계다. 에이전트가 status를 남기기 시작한 뒤, 실제 PR에서 status가 있을 때 성공을, status가 없는 새 push에서 실패를 확인하고 프로젝트마다 승인받아 등록해. 등록하면 Dependabot PR도 리뷰 뒤 status를 남겨야 병합된다.
 6. 기존 필수 체크를 교체하면 전환 계획을 먼저 확인해. 새 검사가 검증될 때까지 유효한 기존 검사를 유지해. 보호 우회나 검사 실패 은폐로 이름 변경을 처리하지 마.
 
 빌드·테스트·린트·보안·dependency 검사와 trusted aggregation은 보존해. 검사 구현과 CI 실패 복구는 PR·CI/CD 프롬프트의 책임이다.
@@ -143,5 +143,5 @@ PR·CI/CD 작업에서 다음 근거를 받은 뒤 필요한 최종 서버 적�
 
 최종 보고는 설정 적용·파일 준비·PR 검증·main 반영·미공개 Draft 실행·공개 배포를 구분해.
 각 항목은 PASS·FAIL·보류·미확인·비해당을 근거와 함께 기록해. 필수 품질 게이트가 미검증이면 전체 완료로 표시하지 마. 선택 기능과 공식 미지원은 필요한 잔여 항목으로만 보고해.
-1인 프로필의 승인 0명은 사람 승인 경계를 없애지 않는다. 위험별 승인과 병합 실행의 상세 기준은 PR·CI/CD 프롬프트가 관리한다.
+1인 프로필의 승인 0명은 사람 승인 경계를 없애지 않는다. 문 판정은 `POLICY.md` §10이고, 병합 실행은 PR·CI/CD 프롬프트 §10이 관리한다.
 한국어로 간단명료하게 보고해. 재현 가능한 설정 조회 명령도 제공해.
