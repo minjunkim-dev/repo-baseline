@@ -36,12 +36,21 @@
    set -euo pipefail
    ids=$(gh api --paginate repos/OWNER/NAME/actions/policies --jq '.policies[].id')
    found=0
+   narrow=
    for id in $ids; do
-     hit=$(gh api "repos/OWNER/NAME/actions/policies/$id" --jq 'if .enforcement=="active" and ((.conditions.workflow_path.include // []) | index(".github/workflows/review-status.yml")) and any(.rules[]?; .type=="restrict_action_events" and ((.parameters.allowed_events // []) | sort) == ["issue_comment","pull_request_target"]) then 1 else 0 end')
-     if [ "$hit" = "1" ]; then found=1; fi
+     kind=$(gh api "repos/OWNER/NAME/actions/policies/$id" --jq 'if .enforcement=="active" and ((.conditions.workflow_path.include // []) | index(".github/workflows/review-status.yml")) then (if any(.rules[]?; .type=="restrict_action_events" and ((.parameters.allowed_events // []) | sort) == ["issue_comment","pull_request_target"]) then "both" elif any(.rules[]?; .type=="restrict_action_events" and .parameters.allowed_events==["pull_request_target"]) then "narrow" else "other" end) else "other" end')
+     if [ "$kind" = "both" ]; then found=1; fi
+     if [ "$kind" = "narrow" ]; then narrow="$narrow $id"; fi
    done
    if [ "$found" = "0" ]; then
-     gh api repos/OWNER/NAME/actions/policies --method POST --input templates/review-status-policy.json
+     updated=0
+     for id in $narrow; do
+       gh api "repos/OWNER/NAME/actions/policies/$id" --method PUT --input templates/review-status-policy.json
+       updated=1
+     done
+     if [ "$updated" = "0" ]; then
+       gh api repos/OWNER/NAME/actions/policies --method POST --input templates/review-status-policy.json
+     fi
    fi
    gh api --paginate repos/OWNER/NAME/actions/policies
    ```

@@ -48,7 +48,6 @@ jobs:
     timeout-minutes: 5
     permissions:
       actions: write
-      contents: read
       pull-requests: read
     steps:
       - name: Re-run Review status for the current head

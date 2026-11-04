@@ -269,10 +269,10 @@ def profile_line_changes(files):
     return False
 
 
-def team_profile(repo, base, read):
-    """True only when the base AGENTS.md has the exact team line. A missing file is the 1-person profile."""
+def blob_has_team_line(repo, ref, read):
+    """True when that ref's AGENTS.md has the exact team line. A missing file does not."""
     try:
-        found = read(f"repos/{repo}/contents/AGENTS.md?ref={base}")
+        found = read(f"repos/{repo}/contents/AGENTS.md?ref={ref}")
     except subprocess.CalledProcessError as error:
         if "404" in (error.stderr or ""):
             return False
@@ -281,6 +281,37 @@ def team_profile(repo, base, read):
         raise ValueError("AGENTS.md")
     text = base64.b64decode(found["content"]).decode("utf-8")
     return any(line.strip() == TEAM_LINE for line in text.splitlines())
+
+
+def team_profile(repo, base, read):
+    """The profile comes from the base branch. The pull request head cannot opt out."""
+    return blob_has_team_line(repo, base, read)
+
+
+def pinned_change(repo, base, head, read):
+    """Files and commits for this base...head. None files means the compare is too large to trust.
+    The open pull request's current file list can move after the event SHA and is not used here."""
+    try:
+        found = read(f"repos/{repo}/compare/{base}...{head}")
+    except subprocess.CalledProcessError as error:
+        if "406" in (error.stderr or ""):
+            return None, None
+        raise
+    if not isinstance(found, dict):
+        raise ValueError("compare")
+    files = found.get("files")
+    commits = found.get("commits")
+    # Compare returns at most 300 files and 250 commits. A full list is not a complete diff.
+    if not isinstance(files, list) or len(files) >= 300:
+        return None, None
+    if not isinstance(commits, list) or len(commits) >= 250:
+        commits = None
+    return files, commits
+
+
+def touches_agents(files):
+    return any((entry.get("filename") or "") == "AGENTS.md" or (entry.get("previous_filename") or "") == "AGENTS.md"
+               for entry in files)
 
 
 def owner_approved(repo, number, head, read):
@@ -423,8 +454,16 @@ def missing(repo, number, head, base, read=read_api, read_diff=None):
             repo, number, head, base, reusable, read, read_diff or read_diff_api, pull.get("commits"))
         result = [context for context in absent if context not in carried]
     # The owner comment is tied to this SHA, so an unchanged diff does not carry it. A posted status does not either.
-    # The team line is read from the base. Changing it while the base is still 1-person needs the comment too.
-    if (one_way(files, truncated) or profile_line_changes(files)) and not bump and not team_profile(repo, base, read) and not owner_approved(repo, number, head, read):
+    # Gate paths come from compare(base, head), not the pull request's live file list.
+    pinned, pinned_commits = pinned_change(repo, base, head, read)
+    if pinned is None:
+        needs_owner = True
+        version_only = False
+    else:
+        introduced = touches_agents(pinned) and blob_has_team_line(repo, head, read)
+        needs_owner = one_way(pinned, False) or profile_line_changes(pinned) or introduced
+        version_only = pinned_commits is not None and dependabot_bump(pull, pinned_commits, pinned)
+    if needs_owner and not version_only and not team_profile(repo, base, read) and not owner_approved(repo, number, head, read):
         result.append(OWNER)
     return result
 

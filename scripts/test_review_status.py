@@ -12,14 +12,16 @@ import check_review_status as tool
 
 def api(files, statuses=(), author="alice", commits=("alice",), project=None, changed=None, verified=True,
         committer=tool.WEB_FLOW, commit_shas=None, extra_status=None, force_pushes=None, commit_count=None,
-        owner="owner", comments=(), agents=None, head="HEAD"):
+        owner="owner", comments=(), agents=None, head="HEAD", compare_files=None, compare_commits=None,
+        head_agents=None):
     pull = {"user": {"login": author}, "changed_files": len(files) if changed is None else changed,
             "head": {"sha": head}, "base": {"sha": "BASE"}}
+    commit_rows = [{"author": {"login": name}, "committer": {"login": committer},
+                    "commit": {"verification": {"verified": verified}}} for name in commits]
     routes = {
         "repos/o/n/pulls/1": pull,
         "repos/o/n/pulls/1/files?per_page=100": [files],
-        "repos/o/n/pulls/1/commits?per_page=100": [[{"author": {"login": name}, "committer": {"login": committer},
-                                                    "commit": {"verification": {"verified": verified}}} for name in commits]],
+        "repos/o/n/pulls/1/commits?per_page=100": [commit_rows],
         f"repos/o/n/commits/{head}/status?per_page=100": [{
             "statuses": [{"context": context, "state": state} for context, state in statuses]}],
         "repos/o/n": {"owner": {"login": owner}},
@@ -39,10 +41,17 @@ def api(files, statuses=(), author="alice", commits=("alice",), project=None, ch
         pull["commits"] = len(list(commits))
     if commit_shas is not None:
         names = list(commits)
-        routes["repos/o/n/pulls/1/commits?per_page=100"] = [[{
+        commit_rows = [{
             "sha": sha, "author": {"login": names[index] if index < len(names) else author},
             "committer": {"login": committer}, "commit": {"verification": {"verified": verified}},
-        } for index, sha in enumerate(commit_shas)]]
+        } for index, sha in enumerate(commit_shas)]
+        routes["repos/o/n/pulls/1/commits?per_page=100"] = [commit_rows]
+    pinned = list(files if compare_files is None else compare_files)
+    routes[f"repos/o/n/compare/BASE...{head}"] = {
+        "files": pinned, "commits": commit_rows if compare_commits is None else compare_commits}
+    if head_agents is not None:
+        routes[f"repos/o/n/contents/AGENTS.md?ref={head}"] = {
+            "content": base64.b64encode(head_agents.encode()).decode()}
     if extra_status:
         for sha, pairs in extra_status.items():
             routes[f"repos/o/n/commits/{sha}/status?per_page=100"] = [{
@@ -135,7 +144,7 @@ class ReviewStatusTests(unittest.TestCase):
                 self.assertEqual(run(api(files, [OK], project=spelling + "\n")), [tool.SECURITY])
 
     def test_more_files_than_the_api_lists_needs_security(self):
-        self.assertEqual(run(api([{"filename": "src/app.py"}], [OK], changed=5000)), [tool.SECURITY, tool.OWNER])
+        self.assertEqual(run(api([{"filename": "src/app.py"}], [OK], changed=5000)), [tool.SECURITY])
 
     def test_dependabot_version_bump_is_not_a_trust_boundary_change(self):
         files = [{"filename": ".github/workflows/ci.yml", "patch": BUMP},
@@ -195,7 +204,11 @@ class ReviewStatusTests(unittest.TestCase):
         self.assertEqual(run(api(files, [(tool.INDEPENDENT, "failure")], author=bot, commits=[bot])), [tool.INDEPENDENT])
         self.assertEqual(run(api(files, [OK, (tool.SECURITY, "failure")], author=bot, commits=[bot])), [tool.SECURITY])
         short = api(files, author=bot, commits=[bot], commit_count=251)
-        self.assertEqual(run(short), [tool.INDEPENDENT, tool.SECURITY, tool.OWNER])
+        self.assertEqual(run(short), [tool.INDEPENDENT, tool.SECURITY])
+        row = {"author": {"login": bot}, "committer": {"login": tool.WEB_FLOW},
+               "commit": {"verification": {"verified": True}}}
+        capped = api(files, author=bot, commits=[bot], compare_commits=[row] * 250)
+        self.assertEqual(run(capped), [tool.OWNER])
 
     def test_an_unchanged_diff_reuses_the_prior_success(self):
         files = [{"filename": "src/app.py"}]
@@ -358,6 +371,27 @@ class ReviewStatusTests(unittest.TestCase):
         self.assertEqual(run(api([{"filename": "AGENTS.md", "patch": "@@\n+다른 줄\n"}], [OK])), [])
         self.assertEqual(run(api([{"filename": "AGENTS.md"}], [OK])), [tool.OWNER])
         self.assertEqual(run(api([{"filename": "AGENTS.md", "patch": "@@\n-프로필: 팀\n"}], [OK], agents="프로필: 팀\n")), [])
+        renamed = [{"filename": "AGENTS.md", "previous_filename": "notes.md", "patch": "@@\n 프로필 안내\n+다른 줄\n"}]
+        self.assertEqual(run(api(renamed, [OK], head_agents="프로필: 팀\n")), [tool.OWNER])
+
+    def test_owner_approval_uses_the_compare_for_this_head(self):
+        head = "d" * 40
+        reviews = [OK, (tool.SECURITY, "success")]
+        swapped = api([{"filename": "src/app.py"}], reviews, head=head,
+                      compare_files=[{"filename": ".github/workflows/ci.yml"}])
+        self.assertEqual(tool.missing("o/n", "1", head, "BASE", swapped), [tool.OWNER])
+        current = api([{"filename": ".github/workflows/ci.yml"}], reviews, head=head,
+                      compare_files=[{"filename": "src/app.py"}])
+        self.assertEqual(tool.missing("o/n", "1", head, "BASE", current), [])
+        huge = api([{"filename": "src/app.py"}], [OK], compare_files=[{"filename": "src/app.py"}] * 300)
+        self.assertEqual(run(huge), [tool.OWNER])
+        base = api([{"filename": "src/app.py"}], [OK])
+
+        def too_big(endpoint):
+            if "/compare/" in endpoint:
+                raise subprocess.CalledProcessError(1, "gh", stderr="HTTP 406")
+            return base(endpoint)
+        self.assertEqual(run(too_big), [tool.OWNER])
 
     def test_a_new_head_invalidates_the_owner_comment(self):
         files = [{"filename": "scripts/check_review_status.py"}]
