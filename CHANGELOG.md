@@ -5,7 +5,7 @@
 - 주간 점검: 한쪽 문 승인 댓글의 `updated_at`이 병합 시각보다 늦으면 병합 뒤에 고친 것으로 보고 승인으로 세지 않는다.
 - `scripts/check_review_status.py`: Dependabot 버전 전용 면제는 받은 커밋 수가 PR의 `commits`와 같을 때만 준다. 250개 상한으로 목록이 잘리면 면제하지 않는다.
 - 이어받기 테스트 가운데 상태·diff를 보려는 경우는 `force_pushes=[]`로 이력을 읽은 뒤 그 경로까지 간다.
-- `POLICY.md` §5: 한 라운드는 작성자의 수정 push 한 번이고, 그 push의 CodeRabbit 증분 리뷰는 같은 라운드다. check가 SKIPPED이거나 `Review paused`이면 외부 리뷰는 끝나지 않아 `@coderabbitai full review`를 요청한다. 이미 리뷰된 PR들의 충돌만 main에서 푼 head는 소유자가 재리뷰 없이 승인할 수 있다. 상한에 닿으면 남은 지적은 답하고 해결한 뒤 후속 Issue에 적고, 병합 뒤 후속 PR에서 고친다. 상한을 넘는 라운드는 소유자만 승인한다.
+- `POLICY.md` §5: 한 라운드는 작성자의 수정 push 한 번이고, 그 push의 CodeRabbit 증분 리뷰는 같은 라운드다. check가 SKIPPED이거나 `Review paused`이면 외부 리뷰는 끝나지 않아 `@coderabbitai full review`를 요청한다. 이미 리뷰된 PR들의 충돌만 main에서 푼 head는 소유자가 재리뷰 없이 승인할 수 있다. 상한에 닿으면 남은 CodeRabbit 지적은 답하고 해결한 뒤 후속 Issue에 적고, 병합 뒤 후속 PR에서 고친다. 상한을 넘는 라운드는 소유자만 승인한다.
 - 다시 적용할 프로젝트: Smallnext·BGLike·Runstir. `scripts/check_review_status.py`와 `scripts/test_review_status.py`를 `tools/apply_baseline.py`로 다시 복사한다.
 
 ## 2026-11-04 — 문 판정, 이벤트 정책 절차, 리뷰 호출
