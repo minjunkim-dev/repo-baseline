@@ -68,7 +68,7 @@
 - 가벼운 경로: 문서나 신뢰 경계가 아닌 설정만 바꾸는 양쪽 문 PR은 Standards·Spec 리뷰 하나만 받는다.
 - 내장 명령이 없는 런타임은 같은 역할의 리뷰를 쓰고 무엇을 썼는지 리뷰 기록에 남긴다. CodeQL을 쓰더라도 Security 리뷰를 대신하지 않는다.
 - 리뷰 기록: 필수 리뷰를 마친 에이전트는 리뷰한 head SHA에 commit status를 남긴다. context는 `review/independent`(Standards·Spec·버그 찾기)와, Security 리뷰를 실행했으면 `review/security`다. description에 도구·모델·지적 수를 적는다. PR 댓글은 사람이 읽는 기록으로 함께 남길 수 있다.
-- `Review status` CI job(`scripts/check_review_status.py`, `templates/review-status.yml`)이 바뀐 파일 경로로 필요한 status를 정하고, 그 head에 없으면 실패한다. 모든 PR에 `review/independent`가 필요하다. 아래 표의 공통 경로나 프로젝트 경로에 걸리면 `review/security`도 필요하다. 경로에 걸리지 않아도 `review/security`가 있으면 `success`여야 한다. 아래 Dependabot 예외는 그대로 적용한다. 내용 기준은 오탐이 많아 이 job이 보지 않고 리뷰어가 판단한다. 이 job은 `pull_request_target`으로 기본 브랜치의 workflow와 검사기를 실행하고(PR 대상이 다른 브랜치여도 같다) PR 코드를 실행하지 않는다. 그래서 PR은 이 검사 코드를 고칠 수 없고, 검사 변경은 기본 브랜치에 병합된 뒤에 적용된다. 다만 PR이 `pull_request` workflow로 같은 이름의 job을 더할 수는 있다. GitHub가 같은 이름의 체크를 어떻게 판정하는지는 확인하지 못했으므로, `.github/workflows/**`를 바꾸는 PR의 Security 리뷰에서 이를 본다. 새 push의 SHA에는 status가 없으므로, 이 job을 필수 체크로 등록하면(§9) 리뷰 뒤에 더한 커밋과 기준 브랜치 갱신은 다시 리뷰할 때까지 병합되지 않는다. 같은 GitHub 계정이 남긴 status는 사람과 에이전트를 구분하지 못한다. 절차가 실행됐다는 기록이지 보안 경계가 아니다.
+- `Review status` CI job(`scripts/check_review_status.py`, `templates/review-status.yml`)이 바뀐 파일 경로로 필요한 status를 정하고, 그 head에 없으면 실패한다. `review/independent`는 아래 Dependabot 예외가 아닌 모든 PR에 필요하다. 아래 표의 공통 경로나 프로젝트 경로에 걸리면 `review/security`도 필요하다. 예외는 둘 다 면제한다. 경로에 걸리지 않아도 그 head에 `review/security`나 `review/independent`가 있으면 `success`여야 한다. 내용 기준은 오탐이 많아 이 job이 보지 않고 리뷰어가 판단한다. 이 job은 `pull_request_target`으로 기본 브랜치의 workflow와 검사기를 실행하고(PR 대상이 다른 브랜치여도 같다) PR 코드를 실행하지 않는다. 그래서 PR은 이 검사 코드를 고칠 수 없고, 검사 변경은 기본 브랜치에 병합된 뒤에 적용된다. 다만 PR이 `pull_request` workflow로 같은 이름의 job을 더할 수는 있다. GitHub가 같은 이름의 체크를 어떻게 판정하는지는 확인하지 못했으므로, `.github/workflows/**`를 바꾸는 PR의 Security 리뷰에서 이를 본다. 새 push의 SHA에는 status가 없으므로, 이 job을 필수 체크로 등록하면(§9) 리뷰 뒤에 더한 커밋은 다시 리뷰할 때까지 병합되지 않는다. 기준 브랜치 갱신으로 head만 바뀌고, 추가·삭제한 줄과 바이너리 blob SHA가 이미 `success`인 status의 diff와 같으면 이 job이 그 status를 이어받아 통과한다. 줄 번호와 주변 줄은 같지 않아도 된다. 공백이 다르거나 diff를 확인하지 못하면 이어받지 않는다. 같은 GitHub 계정이 남긴 status는 사람과 에이전트를 구분하지 못한다. 절차가 실행됐다는 기록이지 보안 경계가 아니다. 이어받기도 같다.
 - 신뢰 경계 변경은 누가 무엇을 할 수 있는지, 또는 신뢰하지 않는 입력이 더 높은 권한에 닿는지를 바꾸는 변경이다. 작성자의 판단이 아니라 diff로 정한다. 아래 중 하나라도 걸리면 신뢰 경계 변경이다. 애매하면 신뢰 경계 변경으로 본다.
 
 | 종류 | 기준 | 정하는 사람 |
@@ -78,7 +78,7 @@
 | 내용 | workflow `permissions`·`pull_request_target`, Secret·token 참조, 셸 실행·`eval`, 데이터·파일·브랜치 삭제, 외부 입력을 처음 받는 코드 | diff를 읽는 에이전트 |
 
 - 사람은 어느 PR에든 Security 리뷰를 더 요청할 수 있다. 경로 기준에 걸린 PR은 에이전트가 Security 리뷰를 빼지 않는다. 예외는 아래 Dependabot 버전 갱신 하나다. PR 본문 Merge Danger에 걸린 기준을 적고, 걸린 것이 없으면 없다고 적는다.
-- 예외: Dependabot이 연 PR이고 diff가 의존성 manifest·lockfile의 버전·해시와 workflow `uses:`의 Action 버전·SHA만 바꾸면 신뢰 경계 변경으로 보지 않는다. 다른 줄이 하나라도 바뀌거나 다른 사람이 커밋을 더하면 예외가 아니다. 이름에 붙은 숫자(`pkg-2`, `x-1.2.3.tgz`)는 패키지·파일 이름의 일부로 보므로, `resolved` URL이 바뀌는 npm·yarn lockfile은 예외가 아니다. 예외인 PR은 필수 CI와 §2의 매주 처리를 따른다.
+- 예외: Dependabot이 연 PR이고 diff가 의존성 manifest·lockfile의 버전·해시와 workflow `uses:`의 Action 버전·SHA만 바꾸면 신뢰 경계 변경으로 보지 않는다. 다른 줄이 하나라도 바뀌거나 다른 사람이 커밋을 더하면 예외가 아니다. 이름에 붙은 숫자(`pkg-2`, `x-1.2.3.tgz`)는 패키지·파일 이름의 일부로 보므로, `resolved` URL이 바뀌는 npm·yarn lockfile은 예외가 아니다. 예외인 PR은 필수 CI와 §2의 매주 처리를 따른다. 이 예외는 `review/security`와 `review/independent`를 모두 면제하고, 외부 리뷰 대상에서도 뺀다. 그 head에 리뷰 status가 있으면 `success`여야 한다. 문 유형은 이 면제와 따로 정한다.
 - 신뢰 경계 변경은 Security 리뷰 대상일 뿐이다. 사람 승인이 필요한 위험 변경인지는 `prompts/pr-ci-setup.md` §10으로 따로 판정한다.
 - 리뷰는 수렴해야 한다. 리뷰·수정 라운드 상한은 3이다(공통값). 재리뷰 범위와 지적 표시는 `prompts/pr-ci-setup.md` §5를 따른다.
 - 외부 리뷰: 권한·Secret·workflow·저장소 설정·dependency 정책을 바꾸는 PR과 `prompts/pr-ci-setup.md` §10의 위험 변경에는 작성자 세션 밖의 리뷰를 하나 더한다. 공개 저장소는 CodeRabbit 무료 플랜의 리뷰로 충족한다. CodeRabbit 리뷰를 받을 수 없는 비공개 저장소는 다른 모델의 리뷰를 받거나, 받지 못한 사실을 기록하고 사람 승인 여부를 위험 기준으로 판단한다. 같은 모델을 별도 컨텍스트로 돌린 리뷰는 외부 리뷰로 세지 않는다. 그 외 PR에 CodeRabbit이 남긴 지적은 참고용이다.
@@ -118,6 +118,7 @@
 | hotfix 비율 | 병합 PR 중 위 hotfix 범위에 드는 PR의 비율. 참고용이고 병합·auto-merge의 조건이 아니다 |
 | 정기 감사 지연 | 마지막 `security-audit` Issue가 3개월보다 오래됨. 없으면 없다고 표시 |
 | 마켓플레이스 태그 | §7의 태그가 가리키는 commit이 §7의 commit과 다르면 표시 |
+| 이벤트 정책 | 공개 저장소에 `.github/workflows/review-status.yml`이 있으면, Actions 이벤트 정책이 그 파일의 `pull_request_target`을 허용함. 없거나 다른 이벤트까지 허용하면 표시. 비공개 저장소와 workflow가 없는 저장소는 비해당 |
 
 - 점검은 회고 후보를 모을 뿐이다. 회고는 §6대로 사용자가 지정할 때만 한다.
 - 점검 결과로 고칠 것이 생기면 PR로만 반영하고 같은 리뷰·필수 CI·위험별 병합을 거친다. 일정 실행 설정은 이 저장소에 두지 않는다.

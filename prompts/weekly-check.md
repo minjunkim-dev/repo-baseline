@@ -14,10 +14,11 @@
 5. 리뷰 기록 누락: 점검 항목 1의 PR마다 `gh pr view <번호> --repo <owner/name> --json headRefOid`로 최종 head를 받고, `gh run list --repo <owner/name> --workflow review-status.yml --commit <headRefOid> --event pull_request_target --limit 1 --json conclusion`으로 결과를 읽어. `success`가 아니면 누락으로, job이 없으면 미적용으로 표시해.
 6. 정기 감사: `gh issue list --repo <owner/name> --label security-audit --state all --limit 1 --json createdAt,title`로 마지막 기록 날짜를 봐. §8 기준보다 오래됐거나 없으면 표시해.
 7. 마켓플레이스 태그: `gh api repos/mattpocock/skills/commits/<POLICY.md §7의 태그> --jq .sha`가 §7의 commit으로 시작하는지 봐. 다르면 사용자 결정에 적어.
+8. 이벤트 정책: `gh api repos/<owner>/<name> --jq .visibility`와 기본 브랜치의 `.github/workflows/review-status.yml` 존재를 봐. 비공개이거나 workflow가 없으면 비해당으로 적어. 공개이고 workflow가 있으면 `gh api --paginate repos/<owner>/<name>/actions/policies`에서 그 경로를 포함하고 `pull_request_target`만 허용하는(`restrict_action_events`의 `allowed_events`) 정책이 있는지 봐. 없거나 다른 이벤트까지 허용하면 표시해.
 
 ## 2. 보고
 
-1. 프로젝트별 표: 병합 수, revert·hotfix 수, CI 시간 중앙값(이번 기간·비교 기간·증가 표시), 멈춘 PR 수, 리뷰 기록 누락 수, hotfix 비율(참고용), 마지막 정기 감사 날짜.
+1. 프로젝트별 표: 병합 수, revert·hotfix 수, CI 시간 중앙값(이번 기간·비교 기간·증가 표시), 멈춘 PR 수, 리뷰 기록 누락 수, hotfix 비율(참고용), 마지막 정기 감사 날짜, 이벤트 정책(있음·없음·비해당).
 2. 병합 PR 목록: 점검 항목 1의 필드와 리뷰 기록 누락 여부를 PR마다 적어.
 3. 회고 후보: revert·hotfix PR 목록. 회고는 실행하지 마(`POLICY.md` §6).
 4. 사용자 결정: 결정이 필요한 항목만 적어. 없으면 없다고 써. 위 1~3은 결정 항목이 없어도 빼지 마. 근거가 없는 항목을 PASS로 적지 마.
