@@ -93,7 +93,8 @@ def diff_identity(diff):
     pull request. Whitespace does count. None means the diff is not safe to treat as unchanged."""
     if diff is None:
         return None
-    text = diff.replace("\r\n", "\n")
+    # GitHub's diff is LF. splitlines() would also cut Unicode separators inside a line.
+    text = diff.replace("\r\n", "\n").replace("\r", "\n")
     stripped = text.lstrip()
     if not stripped:
         return "empty"
@@ -103,6 +104,7 @@ def diff_identity(diff):
     current = index_line = None
     header, body = [], []
     binary = False
+    in_hunk = False
 
     def flush():
         nonlocal current, index_line, header, body, binary
@@ -117,11 +119,12 @@ def diff_identity(diff):
         header, body, binary = [], [], False
         return True
 
-    for line in text.splitlines():
+    for line in text.split("\n"):
         if line.startswith("diff --git "):
             if not flush():
                 return None
             current = line
+            in_hunk = False
             continue
         if current is None:
             if line.strip() == "":
@@ -134,7 +137,12 @@ def diff_identity(diff):
                             "rename from ", "rename to ", "copy from ", "copy to ")):
             header.append(line)
             continue
-        if line.startswith(("--- ", "+++ ", "@@", "similarity index ", "dissimilarity index ")):
+        # "--- a/file" is a header. A removed line "-- note" is also "--- note", so only skip headers
+        # before the first hunk.
+        if line.startswith("@@"):
+            in_hunk = True
+            continue
+        if not in_hunk and line.startswith(("--- ", "+++ ", "similarity index ", "dissimilarity index ")):
             continue
         if line.startswith("Binary files ") or line.startswith("GIT binary patch"):
             binary = True

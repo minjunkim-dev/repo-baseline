@@ -240,6 +240,17 @@ class ReviewStatusTests(unittest.TestCase):
         swapped = SHIFTED + ADDED.replace("src/app.py", "src/b.py")
         reverse = ADDED.replace("src/app.py", "src/b.py") + SHIFTED
         self.assertEqual(tool.diff_identity(swapped), tool.diff_identity(reverse))
+        removed = ("diff --git a/a.sql b/a.sql\nindex 1111111..2222222 100644\n--- a/a.sql\n+++ b/a.sql\n"
+                   "@@ -1 +1 @@\n--- note\n+-- note 2\n")
+        self.assertNotEqual(tool.diff_identity(removed), tool.diff_identity(removed.replace("+-- note 2", "+-- note 3")))
+        self.assertEqual(tool.diff_identity(removed), tool.diff_identity(removed.replace("--- a/a.sql", "--- a/other")))
+        plus = ("diff --git a/a.hs b/a.hs\nindex 1111111..2222222 100644\n--- a/a.hs\n+++ b/a.hs\n"
+                "@@ -1 +1 @@\n-x\n+++ x\n")
+        self.assertNotEqual(tool.diff_identity(plus), tool.diff_identity(plus.replace("+++ x", "+++ y")))
+        one_line = "diff --git a/a b/a\n@@ -1 +1 @@\n+a\u2028+b\n"
+        two_lines = "diff --git a/a b/a\n@@ -1 +1 @@\n+a\n+b\n"
+        self.assertNotEqual(tool.diff_identity(one_line), tool.diff_identity(two_lines))
+        self.assertIsNotNone(tool.diff_identity("diff --git a/a b/a\n@@ -1 +1 @@\n \x0c\n+x\n"))
 
     def test_cli_exit_codes(self):
         env = {"REPO": "o/n", "PR_NUMBER": "1", "HEAD_SHA": "HEAD", "BASE_SHA": "BASE"}

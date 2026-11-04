@@ -2,8 +2,8 @@
 
 ## 2026-11-04 — 같은 diff의 리뷰 status 이어받기
 
-- `scripts/check_review_status.py`: `strict: true`에서 기준 브랜치 갱신이 새 head SHA를 만들어도, 추가·삭제한 줄과 바이너리 blob SHA가 이미 `success`인 status의 diff와 같으면 `Review status`가 그 status로 통과한다. 줄 번호와 주변 줄은 보지 않는다. 공백이 다르거나 diff를 읽지 못하면 이어받지 않는다. 이 head에 `failure`가 있으면 이전 성공으로 덮지 않는다. rebase로 커밋 목록에서 빠진 SHA는 pull request의 force-push 이전 head에서 찾는다. `git patch-id`는 공백을 지워서 쓰지 않았다. 이어받기는 절차 기록이고 보안 경계가 아니다.
-- Dependabot이 버전·해시·Action SHA만 바꾼 PR은 `review/independent`도 면제한다. 조건은 기존 `review/security` 예외와 같다. 외부 리뷰 대상에서도 뺀다. 그 head에 리뷰 status가 있으면 `success`여야 한다. 문 유형은 이 면제와 별개다.
+- `scripts/check_review_status.py`: `strict: true`에서 기준 브랜치 갱신이 새 head SHA를 만들어도, diff identity가 이미 `success`인 status와 같으면 `Review status`가 그 status로 통과한다. identity는 경로, 파일 모드, rename·copy, 추가·삭제한 줄, 바이너리 blob SHA다. 줄 번호와 주변 줄은 보지 않는다. 공백이 다르거나 diff를 읽지 못하면 이어받지 않는다. 이 head에 `failure`가 있으면 이전 성공으로 덮지 않는다. rebase로 커밋 목록에서 빠진 SHA는 pull request의 force-push 이전 head에서 찾는다. `git patch-id`는 공백을 지워서 쓰지 않았다. 이어받기는 절차 기록이고 보안 경계가 아니다. 이 검사기는 주 버전과 문 유형을 판정하지 않는다.
+- Dependabot이 버전·해시·Action SHA만 바꾼 PR은 `review/independent`도 면제한다. 조건은 기존 `review/security` 예외와 같다. 외부 리뷰 대상에서도 뺀다. 그 head에 리뷰 status가 있으면 `success`여야 한다. 이 면제는 리뷰 status만 뺀다. 사람 한쪽 문 승인은 문 판정이 정하고, 주 버전 변경과 `scripts/check_review_status.py` 변경은 그 승인에서 빼지 않는다.
 - `POLICY.md` §8·`prompts/weekly-check.md`: 공개 저장소에 `review-status.yml`이 있으면 Actions 이벤트 정책이 그 파일의 `pull_request_target`만 허용하는지 본다.
 - 다시 적용할 프로젝트: Smallnext·BGLike·Runstir. `tools/apply_baseline.py`로 `scripts/check_review_status.py`와 `scripts/test_review_status.py`를 다시 복사한다. 각 프로젝트의 ②(필수 체크) 전에는 이 검사기가 기본 브랜치에 있어야 이어받기가 동작한다.
 

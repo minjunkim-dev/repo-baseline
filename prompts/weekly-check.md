@@ -14,7 +14,7 @@
 5. 리뷰 기록 누락: 점검 항목 1의 PR마다 `gh pr view <번호> --repo <owner/name> --json headRefOid`로 최종 head를 받고, `gh run list --repo <owner/name> --workflow review-status.yml --commit <headRefOid> --event pull_request_target --limit 1 --json conclusion`으로 결과를 읽어. `success`가 아니면 누락으로, job이 없으면 미적용으로 표시해.
 6. 정기 감사: `gh issue list --repo <owner/name> --label security-audit --state all --limit 1 --json createdAt,title`로 마지막 기록 날짜를 봐. §8 기준보다 오래됐거나 없으면 표시해.
 7. 마켓플레이스 태그: `gh api repos/mattpocock/skills/commits/<POLICY.md §7의 태그> --jq .sha`가 §7의 commit으로 시작하는지 봐. 다르면 사용자 결정에 적어.
-8. 이벤트 정책: `gh api repos/<owner>/<name> --jq .visibility`와 기본 브랜치의 `.github/workflows/review-status.yml` 존재를 봐. 비공개이거나 workflow가 없으면 비해당으로 적어. 공개이고 workflow가 있으면 `gh api --paginate repos/<owner>/<name>/actions/policies`에서 그 경로를 포함하고 `pull_request_target`만 허용하는(`restrict_action_events`의 `allowed_events`) 정책이 있는지 봐. 없거나 다른 이벤트까지 허용하면 표시해.
+8. 이벤트 정책: `gh api repos/<owner>/<name> --jq .visibility`와 기본 브랜치의 `.github/workflows/review-status.yml` 존재를 봐. 비공개이거나 workflow가 없으면 비해당으로 적어. 공개이고 workflow가 있으면 `gh api --paginate repos/<owner>/<name>/actions/policies`로 정책을 받아. `has_parents` 기본값이 true라 상위 정책도 들어 있다. 항목에 `conditions.workflow_path`나 `rules`가 없으면 `GET /repos/<owner>/<name>/actions/policies/<id>`로 상세를 봐. `enforcement`가 `active`이고, include에 `.github/workflows/review-status.yml`이 있으며, `restrict_action_events`의 `allowed_events`가 `pull_request_target`뿐인 정책이 있는지 봐. 없거나 다른 이벤트까지 허용하면 표시해.
 
 ## 2. 보고
 
