@@ -98,6 +98,29 @@ class TrustBoundaryPathTests(unittest.TestCase):
         for path in COMMON_PATHS:
             self.assertIn(f"`{path}`", row)
 
+    def test_owner_approval_paths_match_policy_section_10(self):
+        sys.path.insert(0, str(ROOT / "scripts"))
+        from check_review_status import ONE_WAY_PATHS, TEAM_LINE
+        text = (ROOT / "POLICY.md").read_text(encoding="utf-8")
+        section = text.split("## 10. 문 판정", 1)[1]
+        for path in ONE_WAY_PATHS:
+            self.assertIn(f"`{path}`", section)
+        self.assertIn(TEAM_LINE, text.split("## 9. 프로필", 1)[1].split("## 10.", 1)[0])
+
+    def test_review_status_workflow_reruns_a_comment_without_the_pull_request(self):
+        text = (ROOT / "templates/review-status.yml").read_text(encoding="utf-8")
+        policy = (ROOT / "templates/review-status-policy.json").read_text(encoding="utf-8")
+        self.assertIn("issue_comment:", text)
+        self.assertIn("types: [created, edited, deleted]", text)
+        self.assertIn("ref: ${{ github.event.repository.default_branch }}", text)
+        self.assertNotIn("github.event.pull_request.head.ref", text)
+        self.assertNotIn("github.event.comment", text)
+        self.assertIn("actions: write", text)
+        self.assertNotIn("contents: write", text)
+        self.assertNotIn("ref: ${{ github.event.pull_request.head.sha }}", text)
+        self.assertIn('"issue_comment"', policy)
+        self.assertIn('"pull_request_target"', policy)
+
 
 if __name__ == "__main__":
     unittest.main()

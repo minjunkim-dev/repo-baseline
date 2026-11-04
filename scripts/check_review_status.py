@@ -3,7 +3,9 @@
 Paths only: content signals stay a reviewer judgement. This shows the process ran on this exact
 head; a status from the same account cannot tell a person from an agent, so it is no security boundary.
 A base update creates a new head SHA. When the added and removed lines and binary blobs match a prior
-success, that status covers this head. Reuse is still only a process record."""
+success, that status covers this head. Reuse is still only a process record.
+A 1-person pull request that changes a POLICY.md §10 gate path also needs the repository owner's
+approval comment on this head. That comment is not reused from an older head."""
 
 import base64
 import fnmatch
@@ -16,8 +18,13 @@ import sys
 
 INDEPENDENT = "review/independent"
 SECURITY = "review/security"
+# Not a commit status. The job fails with this name when the owner comment is missing.
+# A status posted under this name does not count: the same account can post one without the comment.
+OWNER = "review/owner-approval"
 DEPENDABOT = "dependabot[bot]"
 WEB_FLOW = "web-flow"
+TEAM_LINE = "프로필: 팀"
+APPROVAL_LINE = re.compile(r"한쪽 문 승인:[ \t]*([0-9a-fA-F]{40})(?:[ \t].*)?\Z")
 FORCE_PUSHES = "graphql://force-push-befores/"
 PRIOR_LIMIT = 40
 PROJECT_PATHS = ".github/trust-boundary-paths"
@@ -27,6 +34,12 @@ COMMON_PATHS = (
     ".github/dependabot.yaml", ".github/CODEOWNERS", ".github/repo-baseline.json", PROJECT_PATHS, "scripts/check_*.py",
     ".claude/settings.json", ".claude/hooks/**", ".claude/agents/**", ".claude/commands/**", ".agents/skills/**",
     ".claude/skills/**", ".mcp.json", "Dockerfile", ".env*",
+)
+# POLICY.md §10 gate paths. A change here needs the 1-person owner comment unless the Dependabot
+# version-only exception applies. Other one-way doors (money, account, migration) are not in this list.
+ONE_WAY_PATHS = (
+    ".github/workflows/**", "templates/review-status.yml", "scripts/check_review_status.py",
+    "templates/review-status-policy.json", ".github/repository-settings.json", "templates/repository-settings.json",
 )
 # Dependency manifests and lockfiles; a project adds other ecosystems to PROJECT_PATHS.
 DEPENDENCY_FILES = (
@@ -218,6 +231,81 @@ def dependabot_bump(pull, commits, files):
             and all(only_versions(entry) for entry in files))
 
 
+def approval_sha(body):
+    """Full SHA from a comment that starts with the owner approval line. None when it does not."""
+    if not isinstance(body, str) or body == "":
+        return None
+    found = APPROVAL_LINE.fullmatch(body.split("\n", 1)[0])
+    if not found:
+        return None
+    return found.group(1).lower()
+
+
+def same_login(left, right):
+    return isinstance(left, str) and isinstance(right, str) and left.casefold() == right.casefold()
+
+
+def one_way(files, truncated):
+    """True when a gate path changed, or the file list is short so a gate path could be hidden."""
+    if truncated:
+        return True
+    return any(matches(entry.get(key) or "", ONE_WAY_PATHS)
+               for entry in files for key in ("filename", "previous_filename"))
+
+
+def profile_line_changes(files):
+    """True when a diff adds or removes the team line, or that diff cannot be read.
+    The base file decides the profile, so a pull request must not be able to opt out without the comment."""
+    for entry in files:
+        names = {entry.get("filename") or "", entry.get("previous_filename") or ""}
+        if "AGENTS.md" not in names:
+            continue
+        patch = entry.get("patch")
+        if not isinstance(patch, str):
+            return True
+        for line in patch.splitlines():
+            if line[:1] in "+-" and line[1:].strip() == TEAM_LINE:
+                return True
+    return False
+
+
+def team_profile(repo, base, read):
+    """True only when the base AGENTS.md has the exact team line. A missing file is the 1-person profile."""
+    try:
+        found = read(f"repos/{repo}/contents/AGENTS.md?ref={base}")
+    except subprocess.CalledProcessError as error:
+        if "404" in (error.stderr or ""):
+            return False
+        raise
+    if not isinstance(found, dict) or "content" not in found:
+        raise ValueError("AGENTS.md")
+    text = base64.b64decode(found["content"]).decode("utf-8")
+    return any(line.strip() == TEAM_LINE for line in text.splitlines())
+
+
+def owner_approved(repo, number, head, read):
+    """True when the repository owner has an issue comment for this exact head. Edits are the current body."""
+    info = read(f"repos/{repo}")
+    owner = (info.get("owner") or {}).get("login") if isinstance(info, dict) else None
+    if not isinstance(owner, str) or owner == "":
+        raise ValueError("repository owner")
+    pages = read(f"repos/{repo}/issues/{number}/comments?per_page=100")
+    if not isinstance(pages, list):
+        raise ValueError("approval comments")
+    wanted = head.lower()
+    for page in pages:
+        if not isinstance(page, list):
+            raise ValueError("approval comments")
+        for comment in page:
+            if not isinstance(comment, dict):
+                continue
+            user = comment.get("user")
+            login = user.get("login") if isinstance(user, dict) else None
+            if same_login(login, owner) and approval_sha(comment.get("body")) == wanted:
+                return True
+    return False
+
+
 def latest_state(statuses, context):
     """The combined status lists the newest state of each context first."""
     for status in statuses:
@@ -329,22 +417,36 @@ def missing(repo, number, head, base, read=read_api, read_diff=None):
     # A failure or pending state on this head stands. Only a missing context can reuse an unchanged diff.
     reusable = [context for context in absent if context not in present]
     if not reusable:
-        return absent
-    carried = carried_contexts(repo, number, head, base, reusable, read, read_diff or read_diff_api, pull.get("commits"))
-    return [context for context in absent if context not in carried]
+        result = list(absent)
+    else:
+        carried = carried_contexts(
+            repo, number, head, base, reusable, read, read_diff or read_diff_api, pull.get("commits"))
+        result = [context for context in absent if context not in carried]
+    # The owner comment is tied to this SHA, so an unchanged diff does not carry it. A posted status does not either.
+    # The team line is read from the base. Changing it while the base is still 1-person needs the comment too.
+    if (one_way(files, truncated) or profile_line_changes(files)) and not bump and not team_profile(repo, base, read) and not owner_approved(repo, number, head, read):
+        result.append(OWNER)
+    return result
 
 
 def main(env=os.environ, read=read_api, read_diff=None):
     try:
-        absent = missing(env["REPO"], env["PR_NUMBER"], env["HEAD_SHA"], env["BASE_SHA"], read, read_diff)
+        repo, number = env["REPO"], env["PR_NUMBER"]
+        head, base = env.get("HEAD_SHA") or "", env.get("BASE_SHA") or ""
+        # issue_comment has no pull_request sha. Read the current head so a new push invalidates the old comment.
+        if head == "" or base == "":
+            pull = read(f"repos/{repo}/pulls/{number}")
+            head = head or pull["head"]["sha"]
+            base = base or pull["base"]["sha"]
+        absent = missing(repo, number, head, base, read, read_diff)
     except (KeyError, OSError, ValueError, subprocess.SubprocessError) as error:
         print(f"review status UNVERIFIED: {error}", file=sys.stderr)
         return 2
     if absent:
-        print(f"review status MISSING on {env['HEAD_SHA']}: " + ", ".join(absent)
+        print(f"review status MISSING on {head}: " + ", ".join(absent)
               + "; run the review, set the status on this head, then re-run this job")
         return 1
-    print(f"review status PASS on {env['HEAD_SHA']}")
+    print(f"review status PASS on {head}")
     return 0
 
 

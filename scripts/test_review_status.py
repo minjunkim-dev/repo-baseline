@@ -11,19 +11,26 @@ import check_review_status as tool
 
 
 def api(files, statuses=(), author="alice", commits=("alice",), project=None, changed=None, verified=True,
-        committer=tool.WEB_FLOW, commit_shas=None, extra_status=None, force_pushes=None, commit_count=None):
-    pull = {"user": {"login": author}, "changed_files": len(files) if changed is None else changed}
+        committer=tool.WEB_FLOW, commit_shas=None, extra_status=None, force_pushes=None, commit_count=None,
+        owner="owner", comments=(), agents=None, head="HEAD"):
+    pull = {"user": {"login": author}, "changed_files": len(files) if changed is None else changed,
+            "head": {"sha": head}, "base": {"sha": "BASE"}}
     routes = {
         "repos/o/n/pulls/1": pull,
         "repos/o/n/pulls/1/files?per_page=100": [files],
         "repos/o/n/pulls/1/commits?per_page=100": [[{"author": {"login": name}, "committer": {"login": committer},
                                                     "commit": {"verification": {"verified": verified}}} for name in commits]],
-        "repos/o/n/commits/HEAD/status?per_page=100": [{
+        f"repos/o/n/commits/{head}/status?per_page=100": [{
             "statuses": [{"context": context, "state": state} for context, state in statuses]}],
+        "repos/o/n": {"owner": {"login": owner}},
+        "repos/o/n/issues/1/comments?per_page=100": [list(comments)],
     }
     if project is not None:
         routes[f"repos/o/n/contents/{tool.PROJECT_PATHS}?ref=BASE"] = {
             "content": base64.b64encode(project.encode()).decode()}
+    if agents is not None:
+        routes["repos/o/n/contents/AGENTS.md?ref=BASE"] = {
+            "content": base64.b64encode(agents.encode()).decode()}
     if commit_count is not None:
         pull["commits"] = commit_count
     elif commit_shas is not None:
@@ -52,6 +59,10 @@ def api(files, statuses=(), author="alice", commits=("alice",), project=None, ch
 
 def run(read):
     return tool.missing("o/n", "1", "HEAD", "BASE", read)
+
+
+def comment(body, login="owner"):
+    return {"user": {"login": login}, "body": body}
 
 
 OK = (tool.INDEPENDENT, "success")
@@ -102,12 +113,13 @@ class ReviewStatusTests(unittest.TestCase):
                      ".github/repo-baseline.json", "api/.env.local", "svc/Dockerfile", "web/package-lock.json",
                      ".claude/skills/x/SKILL.md", ".mcp.json", tool.PROJECT_PATHS):
             with self.subTest(path=path):
-                self.assertEqual(run(api([{"filename": path}], [OK])), [tool.SECURITY])
-                self.assertEqual(run(api([{"filename": path}], [OK, (tool.SECURITY, "success")])), [])
+                owner = [tool.OWNER] if path in {".github/workflows/ci.yml", "scripts/check_review_status.py"} else []
+                self.assertEqual(run(api([{"filename": path}], [OK])), [tool.SECURITY, *owner])
+                self.assertEqual(run(api([{"filename": path}], [OK, (tool.SECURITY, "success")])), owner)
 
     def test_renaming_a_file_out_of_a_trust_boundary_path_still_counts(self):
         files = [{"filename": "docs/x.yml", "previous_filename": ".github/workflows/x.yml"}]
-        self.assertEqual(run(api(files, [OK])), [tool.SECURITY])
+        self.assertEqual(run(api(files, [OK])), [tool.SECURITY, tool.OWNER])
 
     def test_project_paths_come_from_the_base_commit(self):
         files = [{"filename": "src/auth/login.py"}]
@@ -123,7 +135,7 @@ class ReviewStatusTests(unittest.TestCase):
                 self.assertEqual(run(api(files, [OK], project=spelling + "\n")), [tool.SECURITY])
 
     def test_more_files_than_the_api_lists_needs_security(self):
-        self.assertEqual(run(api([{"filename": "src/app.py"}], [OK], changed=5000)), [tool.SECURITY])
+        self.assertEqual(run(api([{"filename": "src/app.py"}], [OK], changed=5000)), [tool.SECURITY, tool.OWNER])
 
     def test_dependabot_version_bump_is_not_a_trust_boundary_change(self):
         files = [{"filename": ".github/workflows/ci.yml", "patch": BUMP},
@@ -170,9 +182,11 @@ class ReviewStatusTests(unittest.TestCase):
             "other path": (api([{"filename": "Dockerfile", "patch": "@@\n-FROM a:1\n+FROM a:2"}], [OK],
                                author=bot, commits=[bot]),),
         }
+        gate = {"added commit", "workflow line", "amended by a person", "forged author", "other action"}
         for name, (read,) in cases.items():
             with self.subTest(name):
-                self.assertEqual(run(read), [tool.SECURITY])
+                expected = [tool.SECURITY, tool.OWNER] if name in gate else [tool.SECURITY]
+                self.assertEqual(run(read), expected)
 
     def test_dependabot_version_bump_needs_no_independent_review(self):
         bot = tool.DEPENDABOT
@@ -181,7 +195,7 @@ class ReviewStatusTests(unittest.TestCase):
         self.assertEqual(run(api(files, [(tool.INDEPENDENT, "failure")], author=bot, commits=[bot])), [tool.INDEPENDENT])
         self.assertEqual(run(api(files, [OK, (tool.SECURITY, "failure")], author=bot, commits=[bot])), [tool.SECURITY])
         short = api(files, author=bot, commits=[bot], commit_count=251)
-        self.assertEqual(run(short), [tool.INDEPENDENT, tool.SECURITY])
+        self.assertEqual(run(short), [tool.INDEPENDENT, tool.SECURITY, tool.OWNER])
 
     def test_an_unchanged_diff_reuses_the_prior_success(self):
         files = [{"filename": "src/app.py"}]
@@ -222,9 +236,9 @@ class ReviewStatusTests(unittest.TestCase):
         both = {"OLD": [OK, (tool.SECURITY, "success")]}
         read = api(files, commit_shas=["OLD", "HEAD"], extra_status=both, force_pushes=[])
         same = diffs({"OLD": ADDED, "HEAD": SHIFTED})
-        self.assertEqual(tool.missing("o/n", "1", "HEAD", "BASE", read, same), [])
+        self.assertEqual(tool.missing("o/n", "1", "HEAD", "BASE", read, same), [tool.OWNER])
         only_independent = api(files, commit_shas=["OLD", "HEAD"], extra_status={"OLD": [OK]}, force_pushes=[])
-        self.assertEqual(tool.missing("o/n", "1", "HEAD", "BASE", only_independent, same), [tool.SECURITY])
+        self.assertEqual(tool.missing("o/n", "1", "HEAD", "BASE", only_independent, same), [tool.SECURITY, tool.OWNER])
 
     def test_an_unreadable_newer_status_does_not_fall_through(self):
         files = [{"filename": "src/app.py"}]
@@ -314,6 +328,68 @@ class ReviewStatusTests(unittest.TestCase):
         two_lines = "diff --git a/a b/a\n@@ -1 +1 @@\n+a\n+b\n"
         self.assertNotEqual(tool.diff_identity(one_line), tool.diff_identity(two_lines))
         self.assertIsNotNone(tool.diff_identity("diff --git a/a b/a\n@@ -1 +1 @@\n \x0c\n+x\n"))
+
+    def test_owner_comment_matches_only_this_head(self):
+        head = "a" * 40
+        other = "b" * 40
+        files = [{"filename": "templates/review-status.yml"}]
+        reviews = [OK, (tool.SECURITY, "success")]
+
+        def check(comments, expected, **kwargs):
+            read = api(files, reviews, comments=comments, head=head, **kwargs)
+            self.assertEqual(tool.missing("o/n", "1", head, "BASE", read), expected)
+
+        check([comment(f"한쪽 문 승인: {head} 메모", login="Owner")], [], owner="owner")
+        check([comment(f"한쪽 문 승인: {other}")], [tool.OWNER])
+        check([comment(f"한쪽 문 승인: {head}", login="alice")], [tool.OWNER])
+        check([], [tool.OWNER])
+        check([comment(f"참고\n한쪽 문 승인: {head}")], [tool.OWNER])
+        check([comment("한쪽 문 승인: " + "a" * 39)], [tool.OWNER])
+        check([], [tool.OWNER], agents="설명 프로필: 팀\n")
+        check([], [], agents="프로필: 팀\n")
+        posted = api(files, reviews + [(tool.OWNER, "success")], head=head)
+        self.assertEqual(tool.missing("o/n", "1", head, "BASE", posted), [tool.OWNER])
+        self.assertEqual(run(api([{"filename": "src/app.py"}], [OK])), [])
+        bot = tool.DEPENDABOT
+        bump = [{"filename": ".github/workflows/ci.yml", "patch": BUMP}]
+        self.assertEqual(run(api(bump, author=bot, commits=[bot])), [])
+        self.assertEqual(run(api([{"filename": "scripts/check_repo_baseline.py"}], [OK, (tool.SECURITY, "success")])), [])
+        self.assertEqual(run(api([{"filename": "AGENTS.md", "patch": "@@\n+프로필: 팀\n"}], [OK])), [tool.OWNER])
+        self.assertEqual(run(api([{"filename": "AGENTS.md", "patch": "@@\n+다른 줄\n"}], [OK])), [])
+        self.assertEqual(run(api([{"filename": "AGENTS.md"}], [OK])), [tool.OWNER])
+        self.assertEqual(run(api([{"filename": "AGENTS.md", "patch": "@@\n-프로필: 팀\n"}], [OK], agents="프로필: 팀\n")), [])
+
+    def test_a_new_head_invalidates_the_owner_comment(self):
+        files = [{"filename": "scripts/check_review_status.py"}]
+        old = "b" * 40
+        read = api(files, commit_shas=[old, "HEAD"], extra_status={old: [OK, (tool.SECURITY, "success")]},
+                   force_pushes=[], comments=[comment(f"한쪽 문 승인: {old}")])
+        same = diffs({old: ADDED, "HEAD": SHIFTED})
+        self.assertEqual(tool.missing("o/n", "1", "HEAD", "BASE", read, same), [tool.OWNER])
+        matched = "c" * 40
+        passed = api(files, [OK, (tool.SECURITY, "success")], comments=[comment(f"한쪽 문 승인: {matched}")], head=matched)
+        self.assertEqual(tool.missing("o/n", "1", matched, "BASE", passed), [])
+
+    def test_unreadable_approval_comments_do_not_pass(self):
+        files = [{"filename": "templates/review-status-policy.json"}]
+        base = api(files, [OK, (tool.SECURITY, "success")])
+
+        def read(endpoint):
+            if endpoint.endswith("/comments?per_page=100"):
+                raise subprocess.CalledProcessError(1, "gh", stderr="HTTP 500")
+            return base(endpoint)
+        env = {"REPO": "o/n", "PR_NUMBER": "1", "HEAD_SHA": "HEAD", "BASE_SHA": "BASE"}
+        self.assertEqual(tool.main(env, read), 2)
+
+        def broken_profile(endpoint):
+            if endpoint.endswith("/contents/AGENTS.md?ref=BASE"):
+                raise subprocess.CalledProcessError(1, "gh", stderr="HTTP 500")
+            return base(endpoint)
+        self.assertEqual(tool.main(env, broken_profile), 2)
+
+    def test_a_comment_event_without_shas_reads_the_pull_request(self):
+        env = {"REPO": "o/n", "PR_NUMBER": "1"}
+        self.assertEqual(tool.main(env, api([{"filename": "src/app.py"}], [OK])), 0)
 
     def test_cli_exit_codes(self):
         env = {"REPO": "o/n", "PR_NUMBER": "1", "HEAD_SHA": "HEAD", "BASE_SHA": "BASE"}

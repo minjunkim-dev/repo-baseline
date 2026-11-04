@@ -15,7 +15,7 @@
 | `templates/repo-baseline.json` | 복사 목록(manifest) 시작점 | 예. `.github/repo-baseline.json`으로 둔다 |
 | `templates/repository-settings.json` | GitHub 설정 기준선 시작점(1인 프로필 값) | 예. `.github/repository-settings.json`으로 두고 `REPLACE` 값과 저장소 정보를 채운다. 팀 프로필은 `POLICY.md` §9의 값으로 바꾼다 |
 | `templates/review-status.yml` | 리뷰 status를 경로로 검사하는 workflow | 예. `.github/workflows/review-status.yml`로 둔다. 프로젝트 파일이라 해시로 검사하지 않고 Dependabot이 pin을 올린다 |
-| `templates/review-status-policy.json` | 공개 저장소에서 `Review status` workflow의 `pull_request_target`을 허용하는 Actions 이벤트 정책 | 아니요. GitHub API로 만든다(`POLICY.md` §9) |
+| `templates/review-status-policy.json` | 공개 저장소에서 `Review status` workflow의 `pull_request_target`과 `issue_comment`만 허용하는 Actions 이벤트 정책 | 아니요. GitHub API로 만든다(`POLICY.md` §9) |
 | `templates/CODEOWNERS` | 팀 프로필의 신뢰 경계 경로 소유자 | 팀 프로필만. `.github/CODEOWNERS`로 두고 소유자를 채운다 |
 | `templates/claude-settings.json` | Claude Code 프로젝트 설정(Matt Pocock 플러그인, `.env` 읽기 차단) | 예. `.claude/settings.json`으로 둔다 |
 | `scripts/` | 프로젝트에 그대로 복사하는 검사기와 테스트 | 예. 수정하지 않는다 |
@@ -30,14 +30,14 @@
 
 1. `templates/repo-baseline.json`을 프로젝트의 `.github/repo-baseline.json`으로 복사한다.
 2. `templates/claude-settings.json`을 프로젝트의 `.claude/settings.json`으로 둔다. 이미 있으면 합친다.
-   공개 저장소는 `review-status.yml`을 기본 브랜치에 병합하기 전에 Actions 이벤트 정책을 만든다. 비공개 저장소는 이 단락을 건너뛴다. 이 저장소 루트에서, 대상 프로젝트의 `OWNER/NAME`으로 실행한다. 쓰기는 저장소 관리자 승인을 받는다. 먼저 조회하고, 같은 workflow 경로에 `pull_request_target`을 허용하는 정책이 있으면 다시 만들지 않는다.
+   공개 저장소는 `review-status.yml`을 기본 브랜치에 병합하기 전에 Actions 이벤트 정책을 만든다. 비공개 저장소는 이 단락을 건너뛴다. 이 저장소 루트에서, 대상 프로젝트의 `OWNER/NAME`으로 실행한다. 쓰기는 저장소 관리자 승인을 받는다. 먼저 조회하고, 같은 workflow 경로에 `pull_request_target`과 `issue_comment`만 허용하는 정책이 있으면 다시 만들지 않는다. `pull_request_target`만 허용하는 정책이 있으면 POST하지 말고 `PUT /repos/OWNER/NAME/actions/policies/<id>`로 템플릿 내용으로 고친다.
 
    ```bash
    set -euo pipefail
    ids=$(gh api --paginate repos/OWNER/NAME/actions/policies --jq '.policies[].id')
    found=0
    for id in $ids; do
-     hit=$(gh api "repos/OWNER/NAME/actions/policies/$id" --jq 'if .enforcement=="active" and ((.conditions.workflow_path.include // []) | index(".github/workflows/review-status.yml")) and any(.rules[]?; .type=="restrict_action_events" and .parameters.allowed_events==["pull_request_target"]) then 1 else 0 end')
+     hit=$(gh api "repos/OWNER/NAME/actions/policies/$id" --jq 'if .enforcement=="active" and ((.conditions.workflow_path.include // []) | index(".github/workflows/review-status.yml")) and any(.rules[]?; .type=="restrict_action_events" and ((.parameters.allowed_events // []) | sort) == ["issue_comment","pull_request_target"]) then 1 else 0 end')
      if [ "$hit" = "1" ]; then found=1; fi
    done
    if [ "$found" = "0" ]; then
@@ -48,7 +48,7 @@
 
    목록이나 상세 조회가 실패하면 멈춘다. 실패를 정책이 없는 것으로 보고 POST하지 않는다.
 
-   재조회에서 그 허용이 보이기 전에는 workflow를 병합하지 않는다. 그다음 `templates/review-status.yml`을 별도 파일 `.github/workflows/review-status.yml`로 둔다. 다른 workflow와 합치거나 이벤트를 더하지 않는다(`POLICY.md` §9).
+   재조회에서 그 허용이 보이기 전에는 workflow를 병합하지 않는다. 그다음 `templates/review-status.yml`을 별도 파일 `.github/workflows/review-status.yml`로 둔다. 다른 workflow와 합치거나 이 두 이벤트 외의 이벤트를 더하지 않는다(`POLICY.md` §9).
 3. `.github/dependabot.yml` 항목의 `ecosystems`에 GitHub Actions 외의 실제 생태계를 적는다. 예: `{"package-ecosystem": "cargo", "directory": "/services/api"}`.
 4. 테스트를 다른 폴더에서 실행하면 `files`의 대상 경로를 바꾼다. 예: `"scripts/source-only/test_github_settings.py": {"source": "scripts/test_github_settings.py"}`.
 5. 이 저장소에서 다음을 실행한다.
