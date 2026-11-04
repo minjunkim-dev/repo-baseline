@@ -2,7 +2,7 @@
 
 ## 2026-11-04 — 문 판정, 이벤트 정책 절차, 리뷰 호출
 
-- `POLICY.md` §10(새 절): 문 판정의 단일 기준. 판정 질문은 "망가지면 사용자가 무엇을 잃나"다. Matt `/pr`의 되돌리기 비용 문장은 원문 그대로 두고(vendor에는 `matt-code-review`만 있다) Door 값만 이 절을 따른다. CI workflow와 리뷰 게이트 파일(`.github/workflows/**`, `templates/review-status.yml`, `scripts/check_review_status.py`, `templates/review-status-policy.json`, repository-settings)은 Dependabot을 포함해 한쪽 문이다. Security 리뷰만으로 병합하지 않는다. 1인 프로필의 한쪽 문 승인은 PR 댓글 `한쪽 문 승인: <head sha>`로 남긴 뒤에만 `--match-head-commit`으로 병합한다. auto-merge는 §9 ②를 마친 프로젝트의 양쪽 문 가운데 외부 리뷰 대상이 아닌 PR만 예약한다.
+- `POLICY.md` §10(새 절): 문 판정의 단일 기준. 판정 질문은 "망가지면 사용자가 무엇을 잃나"다. Matt `/pr`의 되돌리기 비용 문장은 원문 그대로 두고(vendor에는 `matt-code-review`만 있다) Door 값만 이 절을 따른다. CI workflow와 리뷰 게이트 파일(`.github/workflows/**`, `templates/review-status.yml`, `scripts/check_review_status.py`, `templates/review-status-policy.json`, repository-settings)은 한쪽 문이다. Security 리뷰만으로 병합하지 않는다. Dependabot의 버전·해시·Action SHA만 바꾼 PR은 그 경로여도 사람 한쪽 문 승인에서 뺀다(§5와 같은 버전 전용 조건). 주 버전 변경(버전 주석·태그의 첫 숫자, 모르면 한쪽 문)과 `scripts/check_review_status.py` 변경(작성자 무관)은 빼지 않는다. 1인 프로필의 한쪽 문 승인은 저장소 소유자의 PR 댓글 `한쪽 문 승인: <head sha>`로 남긴 뒤에만 `--match-head-commit`으로 병합한다. auto-merge는 §9 ②를 마친 프로젝트의 양쪽 문 가운데 외부 리뷰 대상이 아닌 PR만 예약한다.
 - `POLICY.md` §5: 병합 전에 달린 CodeRabbit 스레드는 PR 종류와 관계없이 답하고 해결한다. 병합 뒤에 달린 지적은 후속 PR로 처리한다. 외부 리뷰 대상 PR은 auto-merge를 예약하지 않는다. `interrogate` 같은 추가 의견은 외부 리뷰로 세지 않는다. Standards·Spec은 `/matt-code-review`만 부르고, `/implement` 안의 `code-review`는 `review/independent`로 세지 않는다.
 - `POLICY.md` §9: 이 저장소는 `Review status` 게이트의 예외다. 검사기 원본을 바꾸는 PR은 §10의 한쪽 문으로 사람이 최종 head를 승인한다. 소비 프로젝트의 ①②는 그대로다.
 - README 새 프로젝트 절차: 공개 저장소는 `review-status.yml`을 병합하기 전에 `templates/review-status-policy.json`으로 Actions 이벤트 정책을 만든다.

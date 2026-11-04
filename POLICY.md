@@ -79,7 +79,7 @@
 | 내용 | workflow `permissions`·`pull_request_target`, Secret·token 참조, 셸 실행·`eval`, 데이터·파일·브랜치 삭제, 외부 입력을 처음 받는 코드 | diff를 읽는 에이전트 |
 
 - 사람은 어느 PR에든 Security 리뷰를 더 요청할 수 있다. 경로 기준에 걸린 PR은 에이전트가 Security 리뷰를 빼지 않는다. 예외는 아래 Dependabot 버전 갱신 하나다. PR 본문 Merge Danger에 걸린 기준을 적고, 걸린 것이 없으면 없다고 적는다.
-- 예외: Dependabot이 연 PR이고 diff가 의존성 manifest·lockfile의 버전·해시와 workflow `uses:`의 Action 버전·SHA만 바꾸면 신뢰 경계 변경으로 보지 않는다. 다른 줄이 하나라도 바뀌거나 다른 사람이 커밋을 더하면 예외가 아니다. 이름에 붙은 숫자(`pkg-2`, `x-1.2.3.tgz`)는 패키지·파일 이름의 일부로 보므로, `resolved` URL이 바뀌는 npm·yarn lockfile은 예외가 아니다. 예외인 PR은 필수 CI와 §2의 매주 처리를 따른다.
+- 예외: Dependabot이 연 PR이고 diff가 의존성 manifest·lockfile의 버전·해시와 workflow `uses:`의 Action 버전·SHA만 바꾸면 신뢰 경계 변경으로 보지 않는다. 다른 줄이 하나라도 바뀌거나 다른 사람이 커밋을 더하면 예외가 아니다. 이름에 붙은 숫자(`pkg-2`, `x-1.2.3.tgz`)는 패키지·파일 이름의 일부로 보므로, `resolved` URL이 바뀌는 npm·yarn lockfile은 예외가 아니다. 예외인 PR은 필수 CI와 §2의 매주 처리를 따른다. 이 예외와 같은 버전 전용 diff가 §10의 게이트 경로를 바꾸면 사람 한쪽 문 승인에서도 뺀다. 그 경로의 Action·의존성 주 버전이 바뀌거나 `scripts/check_review_status.py`가 바뀌면 빼지 않는다(§10).
 - 신뢰 경계 변경은 Security 리뷰 대상일 뿐이다. 사람 승인이 필요한 한쪽 문인지는 §10으로 판정한다. CI workflow와 리뷰 게이트 파일은 Security 리뷰만으로 병합하지 않는다(§10).
 - 리뷰는 수렴해야 한다. 리뷰·수정 라운드 상한은 3이다(공통값). 재리뷰 범위와 지적 표시는 `prompts/pr-ci-setup.md` §5를 따른다.
 - 외부 리뷰: 권한·Secret·workflow·저장소 설정·dependency 정책을 바꾸는 PR과 §10의 한쪽 문에는 작성자 세션 밖의 리뷰를 하나 더한다. 공개 저장소는 CodeRabbit 무료 플랜의 리뷰로 충족한다. CodeRabbit 리뷰를 받을 수 없는 비공개 저장소는 다른 모델의 리뷰를 받거나, 받지 못한 사실을 기록하고 사람 승인 여부를 §10으로 판단한다. 같은 모델을 별도 컨텍스트로 돌린 리뷰는 외부 리뷰로 세지 않는다. `interrogate`를 포함한 추가 의견도 외부 리뷰로 세지 않는다. 그 외 PR에 CodeRabbit이 남긴 지적은 참고용이다.
@@ -170,20 +170,23 @@
 
 한쪽 문은 위험 변경이다. 사람 승인 전에 §5의 외부 리뷰를 받는다. 버그 찾기 깊이는 §5 표대로 한쪽 문이면 `high`다.
 
-게이트 경로를 바꾸는 PR은 프로필과 관계없이, Dependabot PR을 포함해 한쪽 문이다. Security 리뷰만으로 병합하지 않는다.
+게이트 경로를 바꾸는 PR은 프로필과 관계없이 한쪽 문이다. Security 리뷰만으로 병합하지 않는다. Dependabot이 연 PR이고 diff가 §5의 버전 전용 예외와 같으면(버전·해시·Action SHA만 바꾸고 다른 줄은 없음) 그 경로여도 사람 한쪽 문 승인에서 뺀다. 아래 둘은 그 승인에서 빼지 않는다.
+
+- 게이트 경로의 Action이나 의존성 주 버전이 바뀌는 경우. 주 번호는 `uses:` 줄의 버전 주석(`# v4.2.1`)이나 태그(`v4`)의 첫 숫자로 본다. `v4`에서 `v5`, `v4.2.1`에서 `v5.0.0`은 주 버전이다. `v4.2.1`에서 `v4.3.0`은 아니다. 주석과 태그가 없어 주 번호를 모르면 한쪽 문으로 본다.
+- `scripts/check_review_status.py`가 바뀌는 경우. 작성자가 Dependabot이든 사람이든 같다.
 
 | 경로 | 어디서 |
 | --- | --- |
 | `.github/workflows/**` | 소비 프로젝트와 이 저장소. `review-status.yml`을 포함한다 |
 | `templates/review-status.yml` | 이 저장소의 workflow 템플릿 |
-| `scripts/check_review_status.py` | 리뷰 게이트 검사기 |
+| `scripts/check_review_status.py` | 리뷰 게이트 검사기. 버전 전용 예외 없이 항상 한쪽 문 |
 | `templates/review-status-policy.json` | 이벤트 정책 템플릿. 이 정책의 서버 값을 바꾸는 작업도 같다 |
 | `.github/repository-settings.json`, `templates/repository-settings.json` | 저장소 설정 기준선 |
 
 사람 승인:
 
 - 승인 대상은 최종 head SHA 하나다. 그 뒤 push가 있으면 그 SHA로 다시 승인한다.
-- 1인 프로필: 소유자가 PR 댓글을 남긴다. 댓글은 `한쪽 문 승인: <head sha>`로 시작한다. `<head sha>`는 승인하는 head의 전체 SHA다. 이 댓글의 SHA가 현재 head와 같기 전에는 병합하지 않는다. 병합은 `--match-head-commit`으로 그 SHA를 고정한다. auto-merge는 하지 않는다.
+- 1인 프로필: 저장소 소유자가 PR 댓글을 남긴다. 댓글은 `한쪽 문 승인: <head sha>`로 시작한다. `<head sha>`는 승인하는 head의 전체 SHA다. 작성자가 소유자가 아니거나 SHA가 현재 head와 다르면 승인이 아니다. 그 전에는 병합하지 않는다. 병합은 `--match-head-commit`으로 그 SHA를 고정한다. auto-merge는 하지 않는다.
 - 팀 프로필: §9의 사람 승인으로 최종 head를 승인한다. 에이전트와 봇의 승인은 세지 않는다. auto-merge는 하지 않는다.
 - 1인 프로필의 GitHub 필수 승인 0명은 이 승인을 없애지 않는다. 에이전트는 PR을 승인하지 않는다.
 
