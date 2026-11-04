@@ -8,20 +8,30 @@
 
 1. Matt Pocock 스킬을 설치한다. Claude Code는 아래 "도구 설치와 확인"대로 프로젝트 설정으로 선언한다. 다른 런타임은 그 저장소 README의 Installation을 따른다. 설치와 유료 서비스 활성화는 별도 승인 범위다.
 2. 기존 `CLAUDE.md`가 있으면 고유 규칙을 `AGENTS.md`로 옮기고 `CLAUDE.md`는 지운다. `@AGENTS.md` 한 줄만 있는 `CLAUDE.md`도 이 단계에서 잠시 지운다. 개인·전역 지침은 건드리지 않는다. 셋업 스킬은 `CLAUDE.md`가 있으면 그 파일을 고치므로 이 단계를 먼저 한다.
-3. `/setup-matt-pocock-skills`를 실행한다. 지침 파일을 물으면 `AGENTS.md`를 고른다. tracker·도메인 문서(`triage`가 설치돼 있으면 라벨도)는 스킬의 질문에 답해 정하고, 기존 프로젝트의 관례가 있으면 그것을 고른다.
+3. 사용자가 `/setup-matt-pocock-skills`를 실행한다. 에이전트는 실행을 요청만 한다. 지침 파일을 물으면 사용자가 `AGENTS.md`를 고른다. tracker·도메인 문서(`triage`가 설치돼 있으면 라벨도)는 사용자가 스킬의 질문에 답해 정한다. 기존 프로젝트의 관례가 있으면 사용자가 그것을 고른다.
 4. 사용하는 런타임이 `AGENTS.md`를 읽는지 확인한다. Claude Code가 `AGENTS.md`를 읽지 못하는 환경이 있으면(버전·세션 종류) `@AGENTS.md` 한 줄만 있는 `CLAUDE.md`를 둔다. 셋업 스킬을 다시 실행할 때는 2단계처럼 이 파일을 잠시 지우고 끝난 뒤 되돌린다. 내용을 복제한 블록·shim·symlink는 만들지 않는다.
 
 완료 조건: `AGENTS.md`의 `## Agent skills` 블록에서 tracker·도메인 문서에 도달할 수 있다. `triage`가 설치돼 있으면 라벨 문서도 포함한다. 이미 설정된 프로젝트는 바뀐 항목만 갱신한다. 초기 셋업을 이유로 제품 기능 구현을 새로 시작하지 않는다.
 
 ## 일상 개발
 
-어떤 스킬로 시작할지는 `/ask-matt`에 묻는다. 각 스킬의 단계와 사용자 확인은 설치된 원문대로 따른다.
+어떤 스킬로 시작할지는 사용자가 `/ask-matt`를 실행해 정한다. `disable-model-invocation: true`인 Matt 스킬은 사용자가 실행한다. 에이전트는 실행을 요청만 하고, 스킬의 질문에는 사용자가 답한다. v1.3.2에서 이 플래그가 있는 스킬은 `/ask-matt`, `/setup-matt-pocock-skills`, `/grill-with-docs`, `/to-spec`, `/to-tickets`, `/triage`, `/implement`, `/retro`, `/wayfinder`다. 태그를 올리면 플래그를 다시 보고 이 목록을 고친다. 각 스킬의 단계는 설치된 원문대로 따른다.
 
 이 기준이 스킬에 더하는 것은 `main`에 들어가는 경계, `POLICY.md` §5의 리뷰 도구, 아래 절의 pstack 배치다.
 
-- 모든 변경은 PR로 `main`에 들어가고 필수 CI가 통과해야 한다. 병합은 위험별로 한다. 위험이 낮고 되돌리기 쉬운 양쪽 문은 맡은 에이전트가 병합할 수 있고, 한쪽 문·넓은 영향·위험 변경은 사람이 최종 head를 승인한다(셋업 프롬프트 §10). 팀 프로필은 모든 PR에 다른 팀원의 GitHub 승인이 필요하다(`POLICY.md` §9).
-- 리뷰·수정은 셋업 프롬프트 §5와 `POLICY.md` §5를 따른다. Security 리뷰와 외부 리뷰(공개 저장소는 CodeRabbit)를 더할 변경도 거기서 정한다. 병합 위험과 사람 승인은 셋업 프롬프트 §10을 따른다.
-- 에이전트 환경 개선은 사용자가 대상을 지정할 때 `/retro`로 한다(`POLICY.md` §6).
+- 모든 변경은 PR로 `main`에 들어가고 필수 CI가 통과해야 한다. 문 유형은 `POLICY.md` §10만 따른다. 양쪽 문은 맡은 에이전트가 병합할 수 있고, 한쪽 문은 사람이 최종 head를 승인한다(셋업 프롬프트 §10은 그 판정의 병합 절차다). 팀 프로필은 모든 PR에 다른 팀원의 GitHub 승인이 필요하다(`POLICY.md` §9).
+- 리뷰·수정은 셋업 프롬프트 §5와 `POLICY.md` §5를 따른다. Security 리뷰와 외부 리뷰(공개 저장소는 CodeRabbit)를 더할 변경도 거기서 정한다. Standards·Spec의 독립 리뷰 이름은 `/matt-code-review` 하나다. `/implement` 안의 리뷰는 `review/independent`로 세지 않는다.
+- 에이전트 환경 개선은 사용자가 `/retro`를 실행할 때 한다(`POLICY.md` §6). 에이전트는 실행을 요청만 한다.
+
+## PR 담당자
+
+PR이 열린 뒤의 루프는 PR 담당자가 맡는다. 실행 주체는 저장소 밖의 매니저 봇이거나, 사람이 연 세션이다. 일정을 이 저장소에 두지 않는다(`POLICY.md` §8). 별도 상시 감시 서비스를 이 저장소에 만들었다고 보고하지 않는다. 주간 점검(`prompts/weekly-check.md`)은 읽기 전용이다. 점검으로 고칠 것이 생기면 담당자가 PR로 반영한다.
+
+맡는 일:
+
+- Dependabot PR을 매주 처리한다(`POLICY.md` §2). 문 유형은 `POLICY.md` §10, 리뷰는 §5를 따른다.
+- 외부 리뷰 대상 PR은 CodeRabbit 리뷰가 끝날 때까지 기다린다. 병합 전에 달린 CodeRabbit 스레드는 PR 종류와 관계없이 답하고 해결한다. 병합 뒤에 달린 지적은 후속 PR로 처리한다.
+- 리뷰 status를 남긴 뒤 `Review status`를 다시 돌린다. 기준 브랜치 갱신으로 멈춘 PR과, 병합 뒤의 main CI를 확인한다.
 
 ## pstack을 함께 쓸 때
 
@@ -31,7 +41,7 @@
 | --- | --- | --- |
 | 자기 검증 | `create-verification-skill` | 앱을 사용자처럼 실행해 증거를 남기는 방법이 프로젝트에 없을 때. 프로젝트당 한 번 |
 | PR 전 리뷰 | `blast-radius` | 영향이 diff 밖으로 번질 수 있는 변경 |
-| 위험 변경 | `interrogate` | 셋업 프롬프트 §10의 위험 변경. 외부 리뷰로 세는 조건은 `POLICY.md` §5를 따른다 |
+| 위험 변경 | `interrogate` | `POLICY.md` §10의 한쪽 문. 외부 리뷰로 세지 않는 추가 의견이다(`POLICY.md` §5) |
 | 개선 반영 | `correct` | `retro`로 고른 개선을 `POLICY.md` §6 순서로 막을 때 |
 
 - 같은 일을 하는 pstack `tdd`·`reflect`·`teach`는 쓰지 않는다. `retro`는 다른 회고 스킬로 바꾸지 않는다(`POLICY.md` §6).
@@ -76,4 +86,4 @@
 | Codex | `matt-code-review`(`.agents/skills/`) | 미확인 | 미확인 |
 | Cursor | `matt-code-review`(`.agents/skills/`) | 미확인 | 미확인 |
 
-미확인 칸은 `POLICY.md` §5대로 같은 역할의 리뷰를 쓰고 무엇을 썼는지 리뷰 기록에 남긴다.
+필수 리뷰는 Claude Code에서 돌린다. 미확인 칸은 Claude Code가 없을 때만 `POLICY.md` §5의 대체 규칙을 쓰고, 무엇을 썼는지 리뷰 기록에 남긴다.
