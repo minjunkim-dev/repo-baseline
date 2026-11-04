@@ -89,8 +89,8 @@ pstack이 Cursor 클라우드 에이전트에서 실행되는지는 확인하지
 
 리뷰가 보는 것과 남기는 것은 런타임과 상관없이 같다.
 
-- 본다: 그 PR의 diff, 기준 커밋(PR base SHA), `POLICY.md`의 리뷰 체크리스트(§5의 언제·신뢰 경계·문 유형).
-- 남긴다: 지적 목록, 결과(통과 또는 열린 지적), 그리고 그 head의 `review/independent`. Security를 실행했으면 `review/security`도 남긴다. 결과에는 리뷰한 모델 이름을 적는다.
+- 본다: 그 PR의 diff, 기준 커밋(PR base SHA), `POLICY.md` §5의 언제와 신뢰 경계. 문 유형은 §10만 정한다.
+- 남긴다: 지적 목록과 결과(통과 또는 열린 지적). 결과에는 리뷰한 모델 이름을 적는다. 그 기록의 status 이름은 `review/independent`이고, Security를 실행했으면 `review/security`다. 누가 그 status를 쓰는지는 아래 "리뷰 status를 남기는 사람"이 정한다. 리뷰를 돌린 에이전트가 통과를 찍는 것이 아니다.
 
 런타임 표는 그 기준을 각 런타임에서 어떻게 돌리는지만 적는다. 칸을 확인됨으로 바꾸려면 그 런타임으로 실제 PR을 한 번 돌린 뒤, 확인한 날짜와 그 PR 링크를 이 표 아래에 적는다. 문서로만 읽은 기능은 확인됨이 아니다.
 
@@ -104,7 +104,7 @@ Cursor 공식 문서(2026-11-04 읽음, 이 저장소 PR에서 실행하지 않�
 
 교차 모델: Claude Code가 작성한 PR의 버그 찾기는 Cursor에서 Claude가 아닌 모델(GPT, Grok 등)로 돌린다. Cursor가 작성한 PR은 Claude Code에서 리뷰한다. 어느 쪽이든 리뷰 결과에 그 모델 이름을 남긴다.
 
-이미 문서로 정한 한계는 다시 구현하지 않는다. 신뢰 경계의 내용 신호는 검사기가 보지 않고 리뷰어가 판단한다(`POLICY.md` §5). 가벼운 revert 승인 경로는 없다(§9). 사람 시간이나 hotfix 비율은 병합 조건이 아니다(§8).
+이미 문서로 정한 한계는 다시 구현하지 않는다. 신뢰 경계의 내용 신호는 검사기가 보지 않고 리뷰어가 판단한다(`POLICY.md` §5). 신뢰하는 작성자를 덜 읽고 승인하는 경로는 없다(§9). hotfix 비율은 병합 조건이 아니다(§8). 사람 시간을 재는 항목은 §8에 없다.
 
 ## 리뷰 status를 남기는 사람
 
@@ -117,6 +117,6 @@ Cursor 공식 문서(2026-11-04 읽음, 이 저장소 PR에서 실행하지 않�
 1. GitHub App을 개인 계정에 등록한다. 권한은 저장소의 Commit statuses 쓰기만 켠다. 다른 권한과 webhook은 켜지 않는다. 직접 등록하는 앱은 Marketplace의 유료 플랜이 아니다([앱 등록](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/registering-a-github-app), [Commit statuses](https://docs.github.com/en/rest/authentication/permissions-required-for-github-apps)). 이 계정에서 요금을 실제로 청구해 보지는 않았다.
 2. 비밀키(private key)는 Mac Studio 서버에만 둔다. Mac의 개발용 `gh` 토큰, Grok Bot의 공유 컴퓨터, 저장소에는 두지 않는다.
 3. 키를 바꿀 때: 앱 설정에서 새 키를 만들고 서버에 넣은 뒤, 이전 키를 지운다. 폐기할 때: 서버에서 키 파일을 지우고 GitHub에서 그 키와, 필요하면 앱 설치를 제거한다. 폐기 뒤에는 아래 되돌리기대로 Mac의 `gh`가 다시 status를 남긴다.
-4. 옮기는 순서: 앱을 저장소에 설치하고, 서버에서 시험용 SHA에 `review/independent` success를 한 번 남겨 그 앱 이름으로 보이는지 확인한다. 그 다음에 1인 프로필의 일상 기록을 서버 앱으로 바꾼다. Mac의 `gh`로는 더 이상 이 status를 남기지 않는다.
+4. 옮기는 순서: 앱을 저장소에 설치하고, 열린 PR의 head가 아닌 시험 커밋에 `review/independent` success를 한 번 남겨 그 앱 이름으로 보이는지 확인한다. 확인이 끝나면 그 SHA에 같은 context로 `failure`를 덮어, 이어받기에 쓰이지 않게 한다. 그 다음에 1인 프로필의 일상 기록을 서버 앱으로 바꾼다. Mac의 `gh`로는 더 이상 이 status를 남기지 않는다.
 5. 되돌리기: 서버 앱으로 status를 남기는 일을 멈추고, 소유자가 Mac의 `gh`로 다시 남긴다. 앱 설치를 제거해도 이미 남은 status는 지워지지 않는다. 잘못된 status는 그 SHA에 같은 context로 새 상태를 덮어 고친다.
 6. 팀 프로필로 바꿀 때 같이 바꾼다. `AGENTS.md`에 `프로필: 팀` 한 줄을 넣는다. `templates/repository-settings.json`을 복사한 값에서 `required_approving_review_count` 1, `require_code_owner_reviews` true, `require_last_push_approval` true로 두고 `templates/CODEOWNERS`로 `.github/CODEOWNERS`를 둔다(`POLICY.md` §9). 이 설정 쓰기는 소유자 승인 뒤에 `tools/apply_github_settings.py`로 한다.
