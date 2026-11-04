@@ -33,8 +33,10 @@
    공개 저장소는 `review-status.yml`을 기본 브랜치에 병합하기 전에 Actions 이벤트 정책을 만든다. 비공개 저장소는 이 단락을 건너뛴다. 이 저장소 루트에서, 대상 프로젝트의 `OWNER/NAME`으로 실행한다. 쓰기는 저장소 관리자 승인을 받는다. 먼저 조회하고, 같은 workflow 경로에 `pull_request_target`을 허용하는 정책이 있으면 다시 만들지 않는다.
 
    ```bash
+   set -euo pipefail
+   ids=$(gh api --paginate repos/OWNER/NAME/actions/policies --jq '.policies[].id')
    found=0
-   for id in $(gh api --paginate repos/OWNER/NAME/actions/policies --jq '.policies[].id'); do
+   for id in $ids; do
      hit=$(gh api "repos/OWNER/NAME/actions/policies/$id" --jq 'if .enforcement=="active" and ((.conditions.workflow_path.include // []) | index(".github/workflows/review-status.yml")) and any(.rules[]?; .type=="restrict_action_events" and .parameters.allowed_events==["pull_request_target"]) then 1 else 0 end')
      if [ "$hit" = "1" ]; then found=1; fi
    done
@@ -43,6 +45,8 @@
    fi
    gh api --paginate repos/OWNER/NAME/actions/policies
    ```
+
+   목록이나 상세 조회가 실패하면 멈춘다. 실패를 정책이 없는 것으로 보고 POST하지 않는다.
 
    재조회에서 그 허용이 보이기 전에는 workflow를 병합하지 않는다. 그다음 `templates/review-status.yml`을 별도 파일 `.github/workflows/review-status.yml`로 둔다. 다른 workflow와 합치거나 이벤트를 더하지 않는다(`POLICY.md` §9).
 3. `.github/dependabot.yml` 항목의 `ecosystems`에 GitHub Actions 외의 실제 생태계를 적는다. 예: `{"package-ecosystem": "cargo", "directory": "/services/api"}`.
