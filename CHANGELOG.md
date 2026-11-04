@@ -7,6 +7,8 @@
 - 승인 댓글의 첫 줄은 CRLF여도 SHA를 읽는다.
 - 게이트 경로의 Action 주 버전 변경과, `# vN`·`@vN`이 없어 주 번호를 모르는 `uses:`는 승인 댓글 예외가 아니다. 리뷰 status 면제는 그대로다.
 - 댓글 재실행은 `pull_request_target` 실행을 head SHA로 찾지 않는다. 그 이벤트는 실행을 base 커밋에 적는다. 실행의 `pull_requests`에서 PR 번호와 head SHA가 같은 것만 다시 돌린다.
+- 1인 승인 댓글의 작성자는 저장소 `owner.login`이다. 재실행도 그 로그인만 본다. 조직 소유 저장소는 그 로그인이 조직 이름이라 1인 프로필을 쓰지 않고 팀 프로필을 쓴다.
+- 이벤트 정책 분류는 `workflow_path.exclude`에 `review-status.yml`이 있으면 그 정책을 대상으로 보지 않는다.
 - `templates/review-status-policy.json`: 허용 이벤트는 `issue_comment`와 `pull_request_target`뿐이다.
 - `POLICY.md` §9: 이 저장소도 `Review status`를 둔다. 예전 게이트 예외 문장은 뺐다. 순서는 이벤트 정책, workflow 파일, 그 다음 필수 체크 `Review status`다. 검사기를 바꾸는 PR은 정책·workflow 설치·필수 체크 등록을 하지 않는다.
 - `POLICY.md` §10: 1인 승인 댓글은 필수 체크 `Review status`가 검사한다.

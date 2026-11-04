@@ -126,6 +126,34 @@ class TrustBoundaryPathTests(unittest.TestCase):
         self.assertIn('"issue_comment"', policy)
         self.assertIn('"pull_request_target"', policy)
 
+    def test_a_policy_that_excludes_review_status_is_not_a_parent_block(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        marker = "def inc:"
+        start = readme.index(marker)
+        program = readme[start:readme.index("')", start)]
+        excluded = {
+            "enforcement": "active",
+            "source_type": "Organization",
+            "conditions": {"workflow_path": {
+                "include": ["~ALL"],
+                "exclude": [".github/workflows/review-status.yml"],
+            }},
+            "rules": [{"type": "restrict_action_events", "parameters": {"allowed_events": ["pull_request_target"]}}],
+        }
+        self.assertEqual(self.policy_kind(program, excluded), "other")
+        empty = json.loads(json.dumps(excluded))
+        empty["conditions"]["workflow_path"]["include"] = []
+        self.assertEqual(self.policy_kind(program, empty), "other")
+        blocked = json.loads(json.dumps(excluded))
+        blocked["conditions"]["workflow_path"]["exclude"] = []
+        self.assertEqual(self.policy_kind(program, blocked), "parent")
+
+    def policy_kind(self, program, policy):
+        result = subprocess.run(["jq", "-r", program], input=json.dumps(policy),
+                                capture_output=True, text=True, timeout=10)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return result.stdout.strip()
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -6,7 +6,8 @@ name: Review status
 # issue_comment runs are not pull request checks (their SHA is the default branch). That job only re-runs the
 # pull_request_target run for the current head, so the owner comment can turn Review status green without a push.
 # It does not read the comment body. Only an open pull request, and only a comment whose author is the
-# repository owner: other people's comments cannot change the approval. Deleting that comment still
+# repository owner (github.repository_owner, the same login the checker compares). An organization
+# name is not a user, so a member comment does not rerun and is not an approval. Deleting that comment still
 # reruns, because the payload's comment author stays the owner. review-status-policy.json allows only these two events.
 on:
   pull_request_target:
