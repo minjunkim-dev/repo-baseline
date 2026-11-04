@@ -1,6 +1,6 @@
 # repo-baseline
 
-1인 개발 저장소의 GitHub 설정·CI 기준을 한 곳에서 관리하는 원본 저장소다.
+1인 개발과 소규모 팀(2~6명) 저장소의 GitHub 설정·CI 기준을 한 곳에서 관리하는 원본 저장소다. 두 프로필의 차이는 `POLICY.md` §9에 있고, 기본은 1인 프로필이다.
 새 프로젝트를 셋업하거나 기존 프로젝트를 다시 맞출 때 같은 결과가 나오게 한다.
 
 ## 구조
@@ -13,9 +13,14 @@
 | `prompts/weekly-check.md` | 적용 중인 프로젝트의 주간 읽기 전용 점검 | 아니요. 이 저장소에서 에이전트에게 준다 |
 | `templates/dependabot.yml`, `templates/dependabot-ecosystem.yml` | Dependabot 설정 원본 | 예. manifest의 `ecosystems` 목록으로 `.github/dependabot.yml`을 생성한다 |
 | `templates/repo-baseline.json` | 복사 목록(manifest) 시작점 | 예. `.github/repo-baseline.json`으로 둔다 |
-| `templates/repository-settings.json` | GitHub 설정 기준선 시작점 | 예. `.github/repository-settings.json`으로 두고 `REPLACE` 값과 저장소 정보를 채운다 |
+| `templates/repository-settings.json` | GitHub 설정 기준선 시작점(1인 프로필 값) | 예. `.github/repository-settings.json`으로 두고 `REPLACE` 값과 저장소 정보를 채운다. 팀 프로필은 `POLICY.md` §9의 값으로 바꾼다 |
+| `templates/review-status.yml` | 리뷰 status를 경로로 검사하는 workflow | 예. `.github/workflows/review-status.yml`로 둔다. 프로젝트 파일이라 해시로 검사하지 않고 Dependabot이 pin을 올린다 |
+| `templates/review-status-policy.json` | 공개 저장소에서 `Review status` workflow의 `pull_request_target`을 허용하는 Actions 이벤트 정책 | 아니요. GitHub API로 만든다(`POLICY.md` §9) |
+| `templates/CODEOWNERS` | 팀 프로필의 신뢰 경계 경로 소유자 | 팀 프로필만. `.github/CODEOWNERS`로 두고 소유자를 채운다 |
+| `templates/claude-settings.json` | Claude Code 프로젝트 설정(Matt Pocock 플러그인, `.env` 읽기 차단) | 예. `.claude/settings.json`으로 둔다 |
 | `scripts/` | 프로젝트에 그대로 복사하는 검사기와 테스트 | 예. 수정하지 않는다 |
-| `tools/apply_baseline.py` | `scripts/`를 프로젝트에 복사하고 해시를 기록 | 아니요 |
+| `vendor/mattpocock-skills/matt-code-review/` | 리뷰 관문 스킬(Matt Pocock `code-review`, 이름만 바꿈, MIT) | 예. manifest대로 `.agents/skills/`와 `.claude/skills/`에 복사한다 |
+| `tools/apply_baseline.py` | manifest대로 `scripts/`와 `vendor/`의 스킬을 프로젝트에 복사하고 해시를 기록 | 아니요 |
 | `tools/apply_github_settings.py` | 설정 기준선과 다른 GitHub 서버 설정을 계획·적용 | 아니요 |
 
 `scripts/`의 파일과 생성한 `.github/dependabot.yml`은 프로젝트에서 직접 고치지 않는다. 이 저장소에서 고친 뒤 다시 적용한다.
@@ -24,27 +29,29 @@
 ## 새 프로젝트에 적용
 
 1. `templates/repo-baseline.json`을 프로젝트의 `.github/repo-baseline.json`으로 복사한다.
-2. `.github/dependabot.yml` 항목의 `ecosystems`에 GitHub Actions 외의 실제 생태계를 적는다. 예: `{"package-ecosystem": "cargo", "directory": "/services/api"}`.
-3. 테스트를 다른 폴더에서 실행하면 `files`의 대상 경로를 바꾼다. 예: `"scripts/source-only/test_github_settings.py": {"source": "scripts/test_github_settings.py"}`.
-4. 이 저장소에서 다음을 실행한다.
+2. `templates/claude-settings.json`을 프로젝트의 `.claude/settings.json`으로 둔다. 이미 있으면 합친다. `templates/review-status.yml`은 별도 파일 `.github/workflows/review-status.yml`로 둔다. 다른 workflow와 합치거나 이벤트를 더하지 않는다(`POLICY.md` §9).
+3. `.github/dependabot.yml` 항목의 `ecosystems`에 GitHub Actions 외의 실제 생태계를 적는다. 예: `{"package-ecosystem": "cargo", "directory": "/services/api"}`.
+4. 테스트를 다른 폴더에서 실행하면 `files`의 대상 경로를 바꾼다. 예: `"scripts/source-only/test_github_settings.py": {"source": "scripts/test_github_settings.py"}`.
+5. 이 저장소에서 다음을 실행한다.
 
    ```bash
    python3 tools/apply_baseline.py /path/to/project
    ```
 
-5. 두 프롬프트를 같은 채팅에 첨부하고 순서대로 적용한다. [프로젝트 초기 설정과 일상 개발](docs/development-workflow.md)을 프로젝트 작업 문서에 연결하고 스킬의 tracker·도메인 설정(`triage`가 설치돼 있으면 라벨도)까지 확인한다.
-6. 복사 파일 해시 검사와 테스트가 기존 필수 CI job에서 실행되는지 확인한다. [GitHub 설정 기준선과 기능 지원](docs/github-settings-profile.md)의 예외·결과 구분을 따른다.
-7. 필수 CI가 실제 PR에서 성공한 뒤 GitHub 서버 설정을 적용한다(GitHub 설정 프롬프트 §4·§10).
+6. 두 프롬프트를 같은 채팅에 첨부하고 순서대로 적용한다. [프로젝트 초기 설정과 일상 개발](docs/development-workflow.md)을 프로젝트 작업 문서에 연결하고 스킬의 tracker·도메인 설정(`triage`가 설치돼 있으면 라벨도)까지 확인한다.
+7. 복사 파일 해시 검사와 테스트가 기존 필수 CI job에서 실행되는지 확인한다. [GitHub 설정 기준선과 기능 지원](docs/github-settings-profile.md)의 예외·결과 구분을 따른다.
+8. 필수 CI가 실제 PR에서 성공한 뒤 GitHub 서버 설정을 적용한다(GitHub 설정 프롬프트 §4·§10).
    1. `templates/repository-settings.json`을 프로젝트의 `.github/repository-settings.json`으로 복사한다.
    2. `REPLACE`로 시작하는 값과 저장소 정보를 채운다. 남아 있으면 도구가 아무것도 읽지 않고 멈춘다.
       - `repository`: `owner/name`. `repository_id`: `gh api repos/OWNER/NAME --jq .id`의 값.
       - `default_branch`와 `expected.repository.default_branch`: 실제 기본 브랜치. 둘이 같아야 한다.
       - `visibility`: `public` 또는 `private`.
-      - `checks`: 실제 PR에서 성공한 필수 job 이름. GitHub Actions면 `app_id`는 15368이다.
+      - `checks`: 실제 PR에서 성공한 필수 job 이름. GitHub Actions면 `app_id`는 15368이다. `POLICY.md` §9의 `Review status` job도 같다.
+      - 팀 프로필이면 리뷰 설정 네 값을 `POLICY.md` §9의 표대로 바꾸고 `templates/CODEOWNERS`를 `.github/CODEOWNERS`로 둔다.
       - `patterns_allowed`: workflow의 `uses:` 중 GitHub 소유가 아닌 action(`owner/repo@*`). 없으면 빈 목록.
       - CodeQL을 workflow 파일(advanced setup)로 돌리면 `codeql.state`를 `not-configured`로 바꾸고 `codeql_workflow`·`codeql_main_source`를 넣는다(`POLICY.md` §3).
       - 비공개 저장소에서 요금제로 쓸 수 없는 기능은 [GitHub 설정 기준선과 기능 지원](docs/github-settings-profile.md)의 예외로 옮긴다.
-   3. `gh auth status`가 저장소 소유자로 로그인된 곳에서, 이 저장소를 기준으로 계획을 본다. 읽기만 한다.
+   3. `gh auth status`가 저장소 관리자(admin) 권한 계정으로 로그인된 곳에서, 이 저장소를 기준으로 계획을 본다. 읽기만 한다.
 
       ```bash
       python3 tools/apply_github_settings.py /path/to/project
@@ -68,21 +75,22 @@
 같은 채팅에서 GitHub 초기 점검 → PR·CI/CD 셋업 → GitHub 최종 적용·검증 순서로 진행해. 중복 작업은 피하고 보류 항목까지 마무리해.
 공통값은 repo-baseline의 POLICY.md와 templates를 따르고, 공통 검사기는 tools/apply_baseline.py로 복사해. 값을 새로 고르지 마.
 
-1인 개발·별도 컨텍스트의 자체 리뷰를 기준으로 해. 공개 배포와 production 변경은 하지 마.
+프로필은 1인이다(팀이면 "팀"으로 바꿔 보낸다. POLICY.md §9). 별도 컨텍스트의 자체 리뷰를 기준으로 해. 공개 배포와 production 변경은 하지 마.
 
-최종 독립 리뷰·필수 CI 후 위험별 병합 기준을 적용해. `POLICY.md` §5의 외부 리뷰 대상은 외부 리뷰(공개 저장소는 CodeRabbit)도 받아. 한쪽 문은 사람이 최종 head를 승인하게 해. 완료 항목과 미확인 항목을 구분해 보고해.
+최종 독립 리뷰·필수 CI 후 위험별 병합 기준을 적용해. `POLICY.md` §5의 외부 리뷰 대상은 외부 리뷰(공개 저장소는 CodeRabbit)도 받아. 한쪽 문은 사람이 최종 head를 승인하게 하고, 팀 프로필이면 POLICY.md §9의 승인 규칙을 따라. 완료 항목과 미확인 항목을 구분해 보고해.
 ```
 
 ## 기존 프로젝트를 다시 맞춤
 
-1. 먼저 차이를 본다. 아무것도 쓰지 않는다.
+1. `templates/repo-baseline.json`에 프로젝트 manifest에 없는 항목이 생겼으면(CHANGELOG에 적는다) 프로젝트의 `.github/repo-baseline.json`에 더한다. `--check`는 manifest에 이미 있는 항목만 비교한다.
+2. 먼저 차이를 본다. 아무것도 쓰지 않는다.
 
    ```bash
    python3 tools/apply_baseline.py /path/to/project --check
    ```
 
-2. 다른 파일이 프로젝트의 의도된 변경이면 이 저장소로 옮긴다. 의도하지 않은 drift면 다시 적용한다.
-3. 적용한 결과를 PR로 올리고 프로젝트의 리뷰·CI·병합 기준을 따른다.
+3. 다른 파일이 프로젝트의 의도된 변경이면 이 저장소로 옮긴다. 의도하지 않은 drift면 다시 적용한다.
+4. 적용한 결과를 PR로 올리고 프로젝트의 리뷰·CI·병합 기준을 따른다.
 
 ## 일상 개발 시작
 
@@ -90,7 +98,7 @@
 
 ## 자체 리뷰와 회고
 
-기본 흐름은 구현 → 자동 검사 → 별도 Standards·Spec·버그 찾기 리뷰(신뢰 경계 변경은 Security 추가) → 확실한 결함 수정·커밋 → 최종 변경의 리뷰·검사 → 위험별 병합이다. 상세 기준은 `prompts/pr-ci-setup.md` §5·§6을 따른다.
+기본 흐름은 구현 → 자동 검사 → 별도 Standards·Spec·버그 찾기 리뷰(버그 찾기는 코드 변경만, 신뢰 경계 변경은 Security 추가) → 확실한 결함 수정·커밋 → 최종 변경의 리뷰·검사 → 위험별 병합이다. 상세 기준은 `prompts/pr-ci-setup.md` §5·§6을 따른다.
 
 같은 실수나 탐색·도구 사용 문제가 있었던 작업은 Matt Pocock의 `retro`에 대상 세션·PR을 지정해 돌아본다. 사용자가 고른 개선만 반영하며, 회고 자체는 정기 실행하지 않는다. 같은 프롬프트 §7을 따른다.
 
