@@ -23,26 +23,35 @@
 - 리뷰·수정은 셋업 프롬프트 §5와 `POLICY.md` §5를 따른다. Security 리뷰와 외부 리뷰(공개 저장소는 CodeRabbit)를 더할 변경도 거기서 정한다. Standards·Spec의 독립 리뷰 이름은 `/matt-code-review` 하나다. `/implement` 안의 리뷰는 `review/independent`로 세지 않는다.
 - 에이전트 환경 개선은 사용자가 `/retro`를 실행할 때 한다(`POLICY.md` §6). 에이전트는 실행을 요청만 한다.
 
-## PR 담당자
+## 역할 분담
 
-PR이 열린 뒤의 루프는 PR 담당자가 맡는다. 실행 주체는 저장소 밖의 매니저 봇이거나, 사람이 연 세션이다. 일정을 이 저장소에 두지 않는다(`POLICY.md` §8). 별도 상시 감시 서비스를 이 저장소에 만들었다고 보고하지 않는다. 주간 점검(`prompts/weekly-check.md`)은 읽기 전용이다. 점검으로 고칠 것이 생기면 담당자가 PR로 반영한다.
+코드를 쓰는 곳과 쓰지 않는 곳을 나눈다.
+
+- Grok Bot은 접수, Issue, 작업 분해, 배정, CI와 리뷰 추적, 근거 확인, 보고를 맡는다. 코드를 쓰지 않는다.
+- 코드는 Claude Code(Mac)와 Cursor 클라우드 에이전트가 쓴다.
+- 비밀 정보는 Mac에만 둔다. Claude Code와 `gh` 토큰이 그렇다. Grok Bot이 쓰는 공유 컴퓨터에는 두지 않는다.
+
+PR이 열린 뒤의 루프는 Grok Bot이 맡는다. 사람이 연 세션이 같은 일을 해도 된다. 일정을 이 저장소에 두지 않는다(`POLICY.md` §8). 별도 상시 감시 서비스를 이 저장소에 만들었다고 보고하지 않는다. 주간 점검(`prompts/weekly-check.md`)은 읽기 전용이다. 점검으로 고칠 것이 생기면 코드를 쓰는 쪽이 PR로 반영한다.
 
 맡는 일:
 
 - Dependabot PR을 매주 처리한다(`POLICY.md` §2). 문 유형은 `POLICY.md` §10, 리뷰는 §5를 따른다.
 - 외부 리뷰 대상 PR은 CodeRabbit 리뷰가 끝날 때까지 기다린다. 병합 전에 달린 CodeRabbit 스레드는 PR 종류와 관계없이 답하고 해결한다. 병합 뒤에 달린 지적은 후속 PR로 처리한다. CodeRabbit check가 SKIPPED이거나 `Review paused`이면 외부 리뷰는 끝나지 않았고, `@coderabbitai full review`를 요청한다. 예외는, CodeRabbit 리뷰가 끝난 head와 견줘 바뀐 것이 이미 리뷰된 PR들 사이의 충돌을 푼 main 병합뿐인 head다. 소유자는 그 사실을 승인에 적고 외부 리뷰를 다시 받지 않고 승인할 수 있다.
-- 리뷰 status를 남긴 뒤 `Review status`를 다시 돌린다. 1인 한쪽 문은 소유자 댓글 뒤에 그 job이 다시 성공하는지 본다. 기준 브랜치 갱신으로 멈춘 PR과, 병합 뒤의 main CI를 확인한다.
+- 1인 프로필에서 `review/independent`와 `review/security`는 아래 "리뷰 status를 남기는 사람"대로 소유자가 Mac에서 남긴 뒤에 `Review status`를 다시 돌린다. 에이전트는 자기 PR에 그 status를 찍지 않는다. 1인 한쪽 문은 소유자 댓글 뒤에 그 job이 다시 성공하는지 본다. 기준 브랜치 갱신으로 멈춘 PR과, 병합 뒤의 main CI를 확인한다.
+- 병합 가능이라고 알리기 전에 근거를 본다. 테스트 결과가 요청한 검사와 맞는지, UI를 바꾼 PR이면 전후 스크린샷이 요청한 화면과 맞는지를 본다. 안 맞으면 병합 가능이라고 하지 않고 그 에이전트에게 돌려보낸다.
 
 ## pstack을 함께 쓸 때
 
 [pstack](https://github.com/cursor/plugins/tree/main/pstack)이 설치돼 있으면 Matt Pocock 스킬이 다루지 않는 단계에만 쓴다. pstack 스킬은 사람이 부른다. 에이전트는 아래 경우에 실행을 제안만 한다. 설치되지 않았으면 이 절을 건너뛴다.
 
-| 단계 | pstack 스킬 | 제안할 때 |
-| --- | --- | --- |
-| 자기 검증 | `create-verification-skill` | 앱을 사용자처럼 실행해 증거를 남기는 방법이 프로젝트에 없을 때. 프로젝트당 한 번 |
-| PR 전 리뷰 | `blast-radius` | 영향이 diff 밖으로 번질 수 있는 변경 |
-| 위험 변경 | `interrogate` | `POLICY.md` §10의 한쪽 문. 외부 리뷰로 세지 않는 추가 의견이다(`POLICY.md` §5) |
-| 개선 반영 | `correct` | `retro`로 고른 개선을 `POLICY.md` §6 순서로 막을 때 |
+pstack이 Cursor 클라우드 에이전트에서 실행되는지는 확인하지 않았다. 아래 런타임은 Claude Code다.
+
+| 단계 | pstack 스킬 | 언제 | 실행 |
+| --- | --- | --- | --- |
+| 설계 결정 | `interrogate` | `POLICY.md` §10의 한쪽 문을 설계할 때. 외부 리뷰로 세지 않는 추가 의견이다(`POLICY.md` §5) | Claude Code |
+| 한쪽 문 PR 전 | `blast-radius` | 한쪽 문 PR을 열기 전, 영향이 diff 밖으로 번질 수 있을 때 | Claude Code |
+| 구현과 검증 중 | `create-verification-skill` | 앱을 사용자처럼 실행해 증거를 남기는 방법이 프로젝트에 없을 때. 프로젝트당 한 번 | Claude Code |
+| 구현과 검증 중 | `correct` | `retro`로 고른 개선을 `POLICY.md` §6 순서로 막을 때 | Claude Code |
 
 - 같은 일을 하는 pstack `tdd`·`reflect`·`teach`는 쓰지 않는다. `retro`는 다른 회고 스킬로 바꾸지 않는다(`POLICY.md` §6).
 - 검증 스킬은 지침 파일을 `AGENTS.md` 하나로 두는 규칙(셋업 프롬프트 §3)의 유일한 예외다. `.claude/settings.json` 같은 런타임 설정 파일은 지침 파일이 아니다. 주로 쓰는 런타임의 프로젝트 스킬 경로에 하나만 두고 `AGENTS.md`에서 경로를 연결한다. 생성 기본 경로(`.cursor/skills/`)가 그 런타임과 다르면 옮긴다. 다른 런타임용 사본이나 symlink는 만들지 않는다. `tools/apply_baseline.py`가 복사한 스킬(`.github/repo-baseline.json`에 있는 `matt-code-review` 등)은 이 저장소가 관리하는 파일이라 이 규칙의 대상이 아니다. 지우거나 하나로 합치지 않는다.
@@ -78,7 +87,12 @@ PR이 열린 뒤의 루프는 PR 담당자가 맡는다. 실행 주체는 저장
   - Strix는 쓰지 않는다. Docker·LLM 키·쓰기 가능한 마운트와 실제 공격 실행이 필요하다.
 - `/simplify`(선택): 코드가 바뀐 PR에서만 쓴다. 정리는 필수 리뷰 역할이 아니다. 스타일만의 지적은 셋업 프롬프트 §5대로 버린다.
 
-런타임별 같은 역할의 도구:
+리뷰가 보는 것과 남기는 것은 런타임과 상관없이 같다.
+
+- 본다: 그 PR의 diff, 기준 커밋(PR base SHA), `POLICY.md`의 리뷰 체크리스트(§5의 언제·신뢰 경계·문 유형).
+- 남긴다: 지적 목록, 결과(통과 또는 열린 지적), 그리고 그 head의 `review/independent`. Security를 실행했으면 `review/security`도 남긴다. 결과에는 리뷰한 모델 이름을 적는다.
+
+런타임 표는 그 기준을 각 런타임에서 어떻게 돌리는지만 적는다. 칸을 확인됨으로 바꾸려면 그 런타임으로 실제 PR을 한 번 돌린 뒤, 확인한 날짜와 그 PR 링크를 이 표 아래에 적는다. 문서로만 읽은 기능은 확인됨이 아니다.
 
 | 런타임 | Standards·Spec | 버그 찾기 | Security |
 | --- | --- | --- | --- |
@@ -86,4 +100,23 @@ PR이 열린 뒤의 루프는 PR 담당자가 맡는다. 실행 주체는 저장
 | Codex | `matt-code-review`(`.agents/skills/`) | 미확인 | 미확인 |
 | Cursor | `matt-code-review`(`.agents/skills/`) | 미확인 | 미확인 |
 
-필수 리뷰는 Claude Code에서 돌린다. 미확인 칸은 Claude Code가 없을 때만 `POLICY.md` §5의 대체 규칙을 쓰고, 무엇을 썼는지 리뷰 기록에 남긴다.
+Cursor 공식 문서(2026-11-04 읽음, 이 저장소 PR에서 실행하지 않음): 채팅의 모델 선택은 입력창 위 모델 목록이거나 Cmd+/이고, 기본 모델은 Cursor Settings > Models다([Prompting agents](https://cursor.com/docs/agent/prompting)). Cloud Agent 모델은 실행할 때 고르거나, 지정하지 않으면 Cloud Agents 설정의 Default model이다([Cloud Agents](https://cursor.com/docs/cloud-agent), [설정](https://cursor.com/docs/cloud-agent/settings)). PR 리뷰 기능으로 Bugbot이 diff에 댓글을 남기고, 수동 실행은 PR 댓글 `cursor review` 또는 `bugbot run`이다. 에이전트 안에서는 `/review` 또는 `/review-bugbot`이다([Bugbot](https://cursor.com/docs/bugbot)). Automations에는 Bugbot과 Security Agents가 있다([Automations](https://cursor.com/docs/cloud-agent/automations)). 이 기능들로 이 저장소 PR의 버그 찾기·Security를 돌려 본 기록은 없으므로 위 칸은 미확인이다.
+
+교차 모델: Claude Code가 작성한 PR의 버그 찾기는 Cursor에서 Claude가 아닌 모델(GPT, Grok 등)로 돌린다. Cursor가 작성한 PR은 Claude Code에서 리뷰한다. 어느 쪽이든 리뷰 결과에 그 모델 이름을 남긴다.
+
+이미 문서로 정한 한계는 다시 구현하지 않는다. 신뢰 경계의 내용 신호는 검사기가 보지 않고 리뷰어가 판단한다(`POLICY.md` §5). 가벼운 revert 승인 경로는 없다(§9). 사람 시간이나 hotfix 비율은 병합 조건이 아니다(§8).
+
+## 리뷰 status를 남기는 사람
+
+1인 프로필에서 `review/independent`와 `review/security`는 Grok Bot이 근거를 확인한 뒤에 소유자가 Mac에서 `gh`로 남긴다. 근거는 리뷰 결과, 리뷰한 모델 이름, 그 status를 남길 head SHA다. 코드를 쓴 에이전트는 자기 PR에 통과를 찍지 않는다. `Review status` workflow는 이 status를 쓰지 않고, 그 head에 있는지만 읽는다(`POLICY.md` §5).
+
+## Mac Studio에서 팀으로 옮길 때
+
+서버가 생기기 전에는 이 절차를 실행하지 않는다. 생기면 아래 순서만 따른다. Linear와 Slack 연동은 나중 일이다.
+
+1. GitHub App을 개인 계정에 등록한다. 권한은 저장소의 Commit statuses 쓰기만 켠다. 다른 권한과 webhook은 켜지 않는다. 직접 등록하는 앱은 Marketplace의 유료 플랜이 아니다([앱 등록](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/registering-a-github-app), [Commit statuses](https://docs.github.com/en/rest/authentication/permissions-required-for-github-apps)). 이 계정에서 요금을 실제로 청구해 보지는 않았다.
+2. 비밀키(private key)는 Mac Studio 서버에만 둔다. Mac의 개발용 `gh` 토큰, Grok Bot의 공유 컴퓨터, 저장소에는 두지 않는다.
+3. 키를 바꿀 때: 앱 설정에서 새 키를 만들고 서버에 넣은 뒤, 이전 키를 지운다. 폐기할 때: 서버에서 키 파일을 지우고 GitHub에서 그 키와, 필요하면 앱 설치를 제거한다. 폐기 뒤에는 아래 되돌리기대로 Mac의 `gh`가 다시 status를 남긴다.
+4. 옮기는 순서: 앱을 저장소에 설치하고, 서버에서 시험용 SHA에 `review/independent` success를 한 번 남겨 그 앱 이름으로 보이는지 확인한다. 그 다음에 1인 프로필의 일상 기록을 서버 앱으로 바꾼다. Mac의 `gh`로는 더 이상 이 status를 남기지 않는다.
+5. 되돌리기: 서버 앱으로 status를 남기는 일을 멈추고, 소유자가 Mac의 `gh`로 다시 남긴다. 앱 설치를 제거해도 이미 남은 status는 지워지지 않는다. 잘못된 status는 그 SHA에 같은 context로 새 상태를 덮어 고친다.
+6. 팀 프로필로 바꿀 때 같이 바꾼다. `AGENTS.md`에 `프로필: 팀` 한 줄을 넣는다. `templates/repository-settings.json`을 복사한 값에서 `required_approving_review_count` 1, `require_code_owner_reviews` true, `require_last_push_approval` true로 두고 `templates/CODEOWNERS`로 `.github/CODEOWNERS`를 둔다(`POLICY.md` §9). 이 설정 쓰기는 소유자 승인 뒤에 `tools/apply_github_settings.py`로 한다.
