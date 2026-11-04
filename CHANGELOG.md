@@ -2,7 +2,7 @@
 
 ## 2026-11-04 — Review status workflow 설치
 
-- `.github/workflows/review-status.yml`: `templates/review-status.yml`을 그대로 복사했다. 다른 workflow와 합치지 않았고 이벤트를 더하지 않았다. 필수 체크 등록은 이 병합 뒤 소유자 승인으로 따로 한다.
+- `.github/workflows/review-status.yml`: `templates/review-status.yml`을 그대로 복사했다. 다른 workflow와 합치지 않았고 이벤트를 더하지 않았다. 필수 체크 등록은 이 병합 뒤 소유자 승인으로 따로 한다. 템플릿은 안 바뀌어 소비 프로젝트 재적용은 필요 없다.
 
 ## 2026-11-04 — 한쪽 문 승인 댓글을 검사기가 요구
 
