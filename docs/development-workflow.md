@@ -108,7 +108,7 @@ Cursor 공식 문서(2026-11-04 읽음, 이 저장소 PR에서 실행하지 않�
 
 ## 리뷰 status를 남기는 사람
 
-1인 프로필에서 `review/independent`와 `review/security`는 Grok Bot이 근거를 확인한 뒤에 소유자가 남긴다. 서버 절차를 마치기 전에는 Mac의 `gh`다. 근거는 리뷰 결과, 리뷰한 모델 이름, 그 status를 남길 head SHA다. 팀 프로필에서는 그 PR을 구현하지 않은 사람이 남긴다. 코드를 쓴 에이전트는 자기 PR에 통과를 찍지 않는다. `Review status` workflow는 이 status를 쓰지 않고, 그 head에 있는지만 읽는다(`POLICY.md` §5).
+1인 프로필에서 `review/independent`와 `review/security`는 Grok Bot이 근거를 확인한 뒤에 소유자가 남긴다. 서버 절차를 마치기 전에는 Mac의 `gh`이고, 마치면 그 서버의 앱이다. 근거는 리뷰 결과, 리뷰한 모델 이름, 그 status를 남길 head SHA다. 팀 프로필에서는 그 PR을 구현하지 않은 사람이 남긴다. 코드를 쓴 에이전트는 자기 PR에 통과를 찍지 않는다. `Review status` workflow는 이 status를 쓰지 않고, 그 head에 있는지만 읽는다(`POLICY.md` §5).
 
 ## Mac Studio에서 팀으로 옮길 때
 

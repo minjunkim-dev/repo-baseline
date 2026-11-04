@@ -2,7 +2,7 @@
 
 ## 2026-11-04 — 동결 전 역할과 리뷰 기록
 
-- `docs/development-workflow.md`: Grok Bot은 코드를 쓰지 않고 접수·추적·근거 확인·보고를 맡는다. 코드는 Claude Code(Mac)와 Cursor 클라우드 에이전트가 쓴다. 1인 프로필의 `review/independent`·`review/security`는 소유자가 Mac에서 `gh`로 남기고, 구현 에이전트와 `Review status` workflow는 쓰지 않는다. Cursor·Codex의 버그 찾기와 Security는 실제 PR로 확인하기 전까지 미확인이다. 템플릿과 검사기는 안 바뀌어 소비 프로젝트 재적용은 필요 없다.
+- `docs/development-workflow.md`: Grok Bot은 코드를 쓰지 않고 접수·추적·근거 확인·보고를 맡는다. 코드는 Claude Code(Mac)와 Cursor 클라우드 에이전트가 쓴다. 1인 프로필의 `review/independent`·`review/security`는 소유자가 남긴다. 서버 절차 전에는 Mac의 `gh`이고, 마치면 서버의 앱이다. 구현 에이전트와 `Review status` workflow는 쓰지 않는다. Cursor·Codex의 버그 찾기와 Security는 실제 PR로 확인하기 전까지 미확인이다. 템플릿과 검사기는 안 바뀌어 소비 프로젝트 재적용은 필요 없다.
 
 ## 2026-11-04 — Review status workflow 설치
 
