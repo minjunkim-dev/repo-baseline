@@ -1,5 +1,19 @@
 # 변경 기록
 
+## 2026-11-04 — 한쪽 문 승인 댓글을 검사기가 요구
+
+- `scripts/check_review_status.py`: 1인 프로필에서 §10 표의 게이트 경로를 바꾼 PR은 저장소 소유자의 이슈 댓글 `한쪽 문 승인: <현재 head의 전체 SHA>`가 있어야 `Review status`가 통과한다. 실패 이름은 `review/owner-approval`이다. commit status로 올리지 않는다. 그 이름의 status가 있어도 댓글을 대신하지 않는다. 다른 SHA, 다른 작성자, 댓글 없음은 실패다. 새 head는 이전 댓글을 잇지 않는다. 양쪽 문과 Dependabot 버전 전용 예외는 통과한다. 파일 목록이 잘리면 댓글을 요구한다. 기준 브랜치 `AGENTS.md`의 한 줄이 `프로필: 팀`이면 팀 프로필이라 이 댓글을 요구하지 않는다. 그 줄을 더하거나 빼는 diff는 기준 브랜치가 아직 1인이면 댓글을 요구한다. 판정은 그 head의 `compare`로 하고, 열린 PR의 최신 파일 목록으로 하지 않는다. 주 버전과 표 밖의 한쪽 문은 판정하지 않는다.
+- `templates/review-status.yml`: `issue_comment`의 생성·수정·삭제가 열린 PR의 댓글이고 작성자가 저장소 소유자이면, PR 코드를 checkout하지 않고 댓글 본문을 실행하지 않은 채 그 head의 `pull_request_target` 실행을 다시 돌린다. 다른 사람의 댓글은 다시 돌리지 않는다. 같은 PR의 이전 재실행은 취소한다. `issue_comment` 실행은 PR 체크가 아니기 때문이다. 평가하는 job의 권한은 읽기다. 재실행 job만 `actions: write`다.
+- 승인 댓글의 첫 줄은 CRLF여도 SHA를 읽는다.
+- 게이트 경로의 Action 주 버전 변경과, `# vN`·`@vN`이 없어 주 번호를 모르는 `uses:`는 승인 댓글 예외가 아니다. 리뷰 status 면제는 그대로다.
+- 댓글 재실행은 `pull_request_target` 실행을 head SHA로 찾지 않는다. 그 이벤트는 실행을 base 커밋에 적는다. 실행의 `pull_requests`에서 PR 번호와 head SHA가 같은 것만 다시 돌린다.
+- 1인 승인 댓글의 작성자는 저장소 `owner.login`이다. 재실행도 그 로그인만 본다. 조직 소유 저장소는 그 로그인이 조직 이름이라 1인 프로필을 쓰지 않고 팀 프로필을 쓴다.
+- 이벤트 정책 분류는 `workflow_path.exclude`에 `review-status.yml`이 있으면 그 정책을 대상으로 보지 않는다.
+- `templates/review-status-policy.json`: 허용 이벤트는 `issue_comment`와 `pull_request_target`뿐이다.
+- `POLICY.md` §9: 이 저장소도 `Review status`를 둔다. 예전 게이트 예외 문장은 뺐다. 순서는 이벤트 정책, workflow 파일, 그 다음 필수 체크 `Review status`다. 검사기를 바꾸는 PR은 정책·workflow 설치·필수 체크 등록을 하지 않는다.
+- `POLICY.md` §10: 1인 승인 댓글은 필수 체크 `Review status`가 검사한다.
+- 다시 적용할 프로젝트: Smallnext·BGLike·Runstir. `scripts/check_review_status.py`와 `scripts/test_review_status.py`를 `tools/apply_baseline.py`로 다시 복사한다. workflow 템플릿은 프로젝트의 `.github/workflows/review-status.yml`로 다시 복사한다. 그 파일을 병합하기 전에 이벤트 정책을 두 이벤트로 고친다. `pull_request_target`만 허용하는 정책이 있으면 PUT으로 고치고, 그 위에 POST로 더하지 않는다.
+
 ## 2026-11-04 — Issue #13 후속
 
 - 주간 점검: 한쪽 문 승인 댓글의 `updated_at`이 병합 시각보다 늦으면 병합 뒤에 고친 것으로 보고 승인으로 세지 않는다.

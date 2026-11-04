@@ -79,8 +79,9 @@
 | 내용 | workflow `permissions`·`pull_request_target`, Secret·token 참조, 셸 실행·`eval`, 데이터·파일·브랜치 삭제, 외부 입력을 처음 받는 코드 | diff를 읽는 에이전트 |
 
 - 사람은 어느 PR에든 Security 리뷰를 더 요청할 수 있다. 경로 기준에 걸린 PR은 에이전트가 Security 리뷰를 빼지 않는다. 예외는 아래 Dependabot 버전 갱신 하나다. PR 본문 Merge Danger에 걸린 기준을 적고, 걸린 것이 없으면 없다고 적는다.
-- 예외: Dependabot이 연 PR이고 diff가 의존성 manifest·lockfile의 버전·해시와 workflow `uses:`의 Action 버전·SHA만 바꾸면 신뢰 경계 변경으로 보지 않는다. 다른 줄이 하나라도 바뀌거나 다른 사람이 커밋을 더하면 예외가 아니다. 이름에 붙은 숫자(`pkg-2`, `x-1.2.3.tgz`)는 패키지·파일 이름의 일부로 보므로, `resolved` URL이 바뀌는 npm·yarn lockfile은 예외가 아니다. 예외인 PR은 필수 CI와 §2의 매주 처리를 따른다. 이 예외는 `review/security`와 `review/independent`를 모두 면제하고, 외부 리뷰 대상에서도 뺀다. 그 head에 리뷰 status가 있으면 `success`여야 한다. 이 면제는 리뷰 status와 외부 리뷰만 뺀다. 이 예외와 같은 버전 전용 diff가 §10의 게이트 경로를 바꾸면 사람 한쪽 문 승인에서도 뺀다. 그 경로의 Action·의존성 주 버전이 바뀌거나 `scripts/check_review_status.py`가 바뀌면 빼지 않는다(§10). 이 검사기는 주 버전과 문 유형을 판정하지 않는다.
+- 예외: Dependabot이 연 PR이고 diff가 의존성 manifest·lockfile의 버전·해시와 workflow `uses:`의 Action 버전·SHA만 바꾸면 신뢰 경계 변경으로 보지 않는다. 다른 줄이 하나라도 바뀌거나 다른 사람이 커밋을 더하면 예외가 아니다. 이름에 붙은 숫자(`pkg-2`, `x-1.2.3.tgz`)는 패키지·파일 이름의 일부로 보므로, `resolved` URL이 바뀌는 npm·yarn lockfile은 예외가 아니다. 예외인 PR은 필수 CI와 §2의 매주 처리를 따른다. 이 예외는 `review/security`와 `review/independent`를 모두 면제하고, 외부 리뷰 대상에서도 뺀다. 그 head에 리뷰 status가 있으면 `success`여야 한다. 이 면제는 리뷰 status와 외부 리뷰만 뺀다. 이 예외와 같은 버전 전용 diff가 §10의 게이트 경로를 바꾸면 사람 한쪽 문 승인에서도 뺀다. 그 경로의 Action·의존성 주 버전이 바뀌거나 `scripts/check_review_status.py`가 바뀌면 빼지 않는다(§10). 이 검사기는 승인 댓글에서 게이트 경로의 Action 주 버전을 본다. 표 밖의 문 유형은 판정하지 않는다. §10 표의 게이트 경로는 아래 승인 댓글로 본다.
 - 신뢰 경계 변경은 Security 리뷰 대상일 뿐이다. 사람 승인이 필요한 한쪽 문인지는 §10으로 판정한다. CI workflow와 리뷰 게이트 파일은 Security 리뷰만으로 병합하지 않는다(§10).
+- 1인 프로필의 승인 댓글: `Review status` job이 §10 표의 게이트 경로를 바꾼 PR에서 `review/owner-approval`을 실패로 넣는다. 이것은 commit status가 아니다. 같은 계정이 status를 올릴 수 있어, 그 이름의 status가 있어도 댓글을 대신하지 않는다. 필수 체크는 기존 job 이름 `Review status` 하나다. 저장소 소유자의 이슈 댓글이 `한쪽 문 승인: <현재 head의 전체 SHA>`로 시작하면 통과한다. 작성자는 저장소 `owner.login`과 같다. 댓글 재실행도 그 로그인만 본다. 둘은 같은 계정이다. 조직 소유 저장소의 `owner.login`은 조직 이름이라 사람 댓글과 같지 않다. 조직 저장소는 1인 프로필을 쓰지 않고 `프로필: 팀`을 쓴다. 1인으로 두면 멤버 댓글은 승인도 재실행도 아니다. 별도의 승인 계정 목록은 두지 않는다. SHA가 다르거나, 작성자가 그 로그인과 다르거나, 댓글이 없으면 실패다. 새 head는 이전 댓글을 잇지 않는다. diff가 같아도 같다. 병합 전에는 댓글을 고친 시각을 보지 않고 현재 본문만 본다. 양쪽 문과 위 Dependabot 버전 전용 예외는 통과한다. 파일 목록이 3000개에서 잘리면 게이트 경로가 숨었을 수 있어 댓글을 요구한다. 기준 브랜치 `AGENTS.md`에 한 줄 `프로필: 팀`이 있으면 팀 프로필이라 이 댓글을 요구하지 않는다. 그 줄이 없거나 파일이 없으면 1인이다. 그 줄을 더하거나 빼는 diff는, 기준 브랜치가 아직 1인이면 게이트 경로와 같이 댓글을 요구한다. diff를 읽지 못하면 그 파일이 바뀐 것으로 본다. 이름을 바꿔 `AGENTS.md`가 된 파일은 patch에 그 줄이 없어도, 그 head의 `AGENTS.md`에 줄이 있고 기준 브랜치에는 없으면 댓글을 요구한다. 이 판정의 파일 목록은 `compare(base, head)`다. 열린 PR의 최신 파일 목록이 아니다. 목록이 300개 이상이거나 diff가 너무 크면 댓글을 요구한다. 404가 아닌 읽기 오류면 확인 불가다. 게이트 경로의 Action 주 버전이 바뀌거나, `uses:`에 `# vN` 주석과 `@vN` 태그가 없어 주 번호를 모르면 승인 댓글 예외로 통과시키지 않는다. `review/security`와 `review/independent` 면제는 그대로다. 표 밖의 한쪽 문(돈·계정·migration 등)도 이 job이 보지 않는다.
 - 리뷰는 수렴해야 한다. 리뷰·수정 라운드 상한은 3이다(공통값). 한 라운드는 리뷰 뒤에 작성자가 수정 커밋을 한 번 push하는 것이다. 그 push에 커밋이 여러 개여도 한 라운드다. 그 push에 대한 CodeRabbit 증분 리뷰는 같은 라운드다. 재리뷰 범위와 지적 표시는 `prompts/pr-ci-setup.md` §5를 따른다. 상한에 닿았는데 아직 병합 전이면, 남은 CodeRabbit 지적에는 이유를 답하고 스레드를 해결한 뒤 후속 Issue에 적는다. 그 지적은 병합 뒤 후속 PR에서 고친다. 상한을 넘는 수정 라운드는 소유자만 승인한다.
 - 외부 리뷰: 권한·Secret·workflow·저장소 설정·dependency 정책을 바꾸는 PR과 §10의 한쪽 문에는 작성자 세션 밖의 리뷰를 하나 더한다. 공개 저장소는 CodeRabbit 무료 플랜의 리뷰로 충족한다. CodeRabbit 리뷰를 받을 수 없는 비공개 저장소는 다른 모델의 리뷰를 받거나, 받지 못한 사실을 기록하고 사람 승인 여부를 §10으로 판단한다. 같은 모델을 별도 컨텍스트로 돌린 리뷰는 외부 리뷰로 세지 않는다. `interrogate`를 포함한 추가 의견도 외부 리뷰로 세지 않는다. 그 외 PR에 CodeRabbit이 남긴 지적은 참고용이다.
 - CodeRabbit은 참고용 리뷰다. 필수 체크로 두지 않는다. 리뷰가 끝난 뒤에도 check가 `pending`으로 남아 병합을 막을 수 있기 때문이다. 브랜치 보호는 대화 해결을 필수로 두므로, 병합 전에 달린 스레드는 그 자체로 병합 조건이다. 병합 전에 달린 CodeRabbit 스레드는 PR 종류와 관계없이 답하고 해결한다. 병합 뒤에 달린 지적은 후속 PR로 처리한다. 외부 리뷰 대상 PR은 auto-merge를 예약하지 않는다. 그 리뷰가 끝나고 위 스레드를 해결한 뒤에 병합한다. 지적은 확인해 맞는 것만 고치고, 스레드마다 반영 여부를 답한 뒤 해결한다. Autofix·수정안 바로 커밋·docstring·테스트 생성은 쓰지 않는다. 다시 리뷰가 필요하면 `@coderabbitai full review`를 쓴다. CodeRabbit check가 SKIPPED이거나 `Review paused`이면 외부 리뷰는 끝나지 않았고, `@coderabbitai full review`를 요청한다. 예외는, CodeRabbit 리뷰가 끝난 head와 견줘 바뀐 것이 이미 리뷰된 PR들 사이의 충돌을 푼 main 병합뿐인 head다. 소유자는 그 사실을 승인에 적고 외부 리뷰를 다시 받지 않고 승인할 수 있다.
@@ -119,14 +120,14 @@
 | hotfix 비율 | 병합 PR 중 위 hotfix 범위에 드는 PR의 비율. 참고용이고 병합·auto-merge의 조건이 아니다 |
 | 정기 감사 지연 | 마지막 `security-audit` Issue가 3개월보다 오래됨. 없으면 없다고 표시 |
 | 마켓플레이스 태그 | §7의 태그가 가리키는 commit이 §7의 commit과 다르면 표시 |
-| 이벤트 정책 | 공개 저장소에 `.github/workflows/review-status.yml`이 있으면, Actions 이벤트 정책이 그 파일의 `pull_request_target`을 허용함. 없거나 다른 이벤트까지 허용하면 표시. 비공개 저장소와 workflow가 없는 저장소는 비해당 |
+| 이벤트 정책 | 공개 저장소에 `.github/workflows/review-status.yml`이 있으면, Actions 이벤트 정책이 그 파일에 `pull_request_target`과 `issue_comment`만 허용함. 없거나 다른 이벤트까지 허용하거나 둘 중 하나가 빠지면 표시. 비공개 저장소와 workflow가 없는 저장소는 비해당 |
 
 - 점검은 회고 후보를 모을 뿐이다. 회고는 §6대로 사용자가 지정할 때만 한다.
 - 점검 결과로 고칠 것이 생기면 PR로만 반영하고 같은 리뷰·필수 CI·위험별 병합을 거친다. 일정 실행 설정은 이 저장소에 두지 않는다.
 
 ## 9. 프로필
 
-두 프로필은 GitHub 승인 설정·CODEOWNERS·병합 실행자만 다르다. 리뷰·CI·위험 판정은 같다. 프로젝트는 `AGENTS.md`에 프로필을 한 줄로 적는다. 적지 않으면 1인 프로필이다.
+두 프로필은 GitHub 승인 설정·CODEOWNERS·병합 실행자만 다르다. 리뷰·CI·위험 판정은 같다. 프로젝트는 `AGENTS.md`에 프로필을 한 줄로 적는다. 팀이면 그 한 줄은 `프로필: 팀`이다. 적지 않으면 1인 프로필이다. `Review status`는 이 한 줄만 팀으로 본다.
 
 | 항목 | 1인(기본) | 팀(2~6명) |
 | --- | --- | --- |
@@ -140,9 +141,9 @@
 | 한쪽 문 병합 | 소유자가 §10의 승인 댓글을 남긴 뒤 | 승인한 사람이나 PR 책임자 |
 
 - `templates/repository-settings.json`은 1인 프로필 값이다. 팀 프로필은 복사한 뒤 위 표의 값으로 바꾼다.
-- 예외: 이 저장소(`minjunkim-dev/repo-baseline`)는 `Review status`를 필수 체크로 등록하지 않고 `templates/review-status.yml`도 `.github/workflows/`에 두지 않는다. Actions 이벤트 정책도 두지 않는다. 이 저장소의 PR은 검사기 원본을 바꾸므로, PR이 기본 브랜치의 검사기를 건드리지 못하게 막는 소비 프로젝트용 게이트 대신 §10의 한쪽 문으로 사람이 최종 head를 승인한다. 필수 체크는 검사기 테스트인 `Baseline checks` 둘이다. workflow 파일이 없으면 공개 저장소의 `pull_request_target` 기본 차단 대상이 아니다. 소비 프로젝트에는 이 예외가 없고, 아래 ①②를 그대로 적용한다.
-- §5의 `Review status` job은 두 프로필 모두 필수 체크로 등록한다. 이 저장소 예외는 위 문장이다. 기존 프로젝트의 PR이 아무도 남기지 않는 status를 기다리지 않게 두 단계로 도입한다. ① 공개 저장소는 Actions 이벤트 정책을 먼저 만든다(아래). `templates/review-status.yml`을 `.github/workflows/review-status.yml`로 두어 병합하고(`pull_request_target`은 기본 브랜치에 있어야 돈다), 에이전트가 리뷰 status를 남기기 시작한다(필수 아님). ② 그 뒤 프로젝트마다 사람이 승인해 `checks`에 `{"context": "Review status", "app_id": 15368}`을 더하고 `tools/apply_github_settings.py`로 등록한다.
-- Actions 이벤트 정책: GitHub는 공개 저장소의 `pull_request_target`을 2026-12-02부터 기본으로 막는다(2026-11-09·16 16:00~18:00 UTC에 미리 막아 본다). 막히면 job이 실패로 끝나 필수 체크가 병합을 막는다. `templates/review-status-policy.json`은 이 workflow 파일 하나에 이 이벤트만 허용한다. 다른 이벤트는 막히므로 이 workflow는 별도 파일로 두고 다른 이벤트를 더하지 않는다. 개인 계정의 공개 저장소에서도 만들 수 있다(2026-11-04 `repo-baseline`에서 생성·삭제로 확인). 비공개 저장소는 대상이 아니다. [변경 공지](https://github.blog/changelog/2026-11-02-pull_request_target-blocked-by-default-december-2/), [안전하게 쓰는 법](https://docs.github.com/en/actions/reference/security/securely-using-pull_request_target) (2026-11-04 확인).
+- 이 저장소(`minjunkim-dev/repo-baseline`)도 소비 프로젝트와 같이 `Review status`를 둔다. 검사기 원본이 기본 브랜치에 먼저 있어야 job이 승인 댓글을 본다. 순서는 다음과 같다. ① 공개 저장소는 Actions 이벤트 정책을 먼저 만든다(아래). 허용 이벤트는 `pull_request_target`과 `issue_comment`뿐이다. ② `templates/review-status.yml`을 `.github/workflows/review-status.yml`로 두어 병합한다. 재조회에서 두 이벤트가 보이기 전에는 병합하지 않는다. ③ 사람이 승인해 `checks`에 `{"context": "Review status", "app_id": 15368}`을 더하고 `tools/apply_github_settings.py`로 등록한다. ③은 workflow가 기본 브랜치에 있고 job이 한 번 돈 뒤에 한다. 그 전에 필수 체크 이름을 올리면 검사가 영원히 대기할 수 있다. 이 저장소의 필수 체크에는 `Baseline checks`가 이미 있다. `Review status`는 그 다음에 더한다. ①의 서버 정책과 ③의 필수 체크는 검사기를 바꾸는 PR이 적용하지 않는다. 그 PR을 병합한 뒤 소유자가 한다. ②의 workflow 파일도 그 PR에 넣지 않는다. 기본 브랜치에 없는 동안 이 PR 자신을 막지 않기 위해서다.
+- §5의 `Review status` job은 두 프로필 모두 필수 체크로 등록한다. 도입은 위 ①②③이다. 기존 프로젝트의 PR이 아무도 남기지 않는 status를 기다리지 않게, ①②로 job을 먼저 두고 에이전트가 리뷰 status를 남기기 시작한 뒤 ③을 한다. 저장소 정책이 `pull_request_target`만 허용하면, 둘 다 허용하는 정책이 이미 있어도 그 좁은 정책은 `PUT /repos/<owner>/<name>/actions/policies/<id>`로 고친다. 상위 조직·기업 정책이 더 좁으면 이 저장소 명령으로 고치지 못하고 멈춘다. 더 좁은 정책이 남아 있으면 `issue_comment`가 막힌다.
+- Actions 이벤트 정책: GitHub는 공개 저장소의 `pull_request_target`을 2026-12-02부터 기본으로 막는다(2026-11-09·16 16:00~18:00 UTC에 미리 막아 본다). 막히면 job이 실패로 끝나 필수 체크가 병합을 막는다. `templates/review-status-policy.json`은 이 workflow 파일 하나에 `pull_request_target`과 `issue_comment`만 허용한다. 다른 이벤트는 막히므로 이 workflow는 별도 파일로 두고 그 둘 외의 이벤트를 더하지 않는다. `issue_comment` 실행은 PR 체크가 아니다. 그 job은 PR 코드를 checkout하지 않고 댓글 본문을 실행하지 않으며, PR이 아닌 이슈 댓글은 돌리지 않는다. 재실행은 열린 PR에서, 댓글 작성자가 저장소 소유자일 때만 한다. 다른 사람의 댓글은 이 승인을 바꾸지 않으므로 다시 돌리지 않는다. 유지관리자 목록은 두지 않는다. 그 댓글을 지우면 페이로드의 작성자는 그대로 소유자이므로 다시 돈다. 같은 PR의 이전 재실행은 취소한다. 끝난 `pull_request_target` 실행을 다시 돌려 현재 head의 `Review status`를 갱신한다. `actions: write`는 그 재실행에만 쓴다. 개인 계정의 공개 저장소에서도 만들 수 있다(2026-11-04 `repo-baseline`에서 생성·삭제로 확인). 비공개 저장소는 대상이 아니다. [변경 공지](https://github.blog/changelog/2026-11-02-pull_request_target-blocked-by-default-december-2/), [안전하게 쓰는 법](https://docs.github.com/en/actions/reference/security/securely-using-pull_request_target) (2026-11-04 확인).
 - GitHub auto-merge 조건은 §10이다. revert 없는 기간 같은 조건은 두지 않는다. 실패가 revert가 아니라 후속 fix로 나타나 구분되지 않기 때문이다.
 - 팀 프로필의 사람 승인:
   - PR 책임자는 PR을 연 사람이다. 에이전트가 연 PR은 그 에이전트를 시킨 사람이 책임자다. 책임자의 승인은 세지 않는다.
@@ -187,10 +188,10 @@
 사람 승인:
 
 - 승인 대상은 최종 head SHA 하나다. 그 뒤 push가 있으면 그 SHA로 다시 승인한다.
-- 1인 프로필: 저장소 소유자가 PR 댓글을 남긴다. 댓글은 `한쪽 문 승인: <head sha>`로 시작한다. `<head sha>`는 승인하는 head의 전체 SHA다. 작성자가 소유자가 아니거나 SHA가 현재 head와 다르면 승인이 아니다. 그 전에는 병합하지 않는다. 병합은 `--match-head-commit`으로 그 SHA를 고정한다. auto-merge는 하지 않는다.
+- 1인 프로필: 사용자 계정이 소유한 저장소에서, 그 소유자가 PR 댓글을 남긴다. 댓글은 `한쪽 문 승인: <head sha>`로 시작한다. `<head sha>`는 승인하는 head의 전체 SHA다. 작성자 login이 저장소 `owner.login`과 다르거나 SHA가 현재 head와 다르면 승인이 아니다. 조직 소유 저장소는 이 댓글의 대상이 아니다(§5). 팀 프로필을 쓴다. 그 전에는 병합하지 않는다. 필수 체크 `Review status`가 이 댓글을 검사하고, 없으면 `review/owner-approval`로 실패한다(§5). commit status로 따로 요구하지 않는다. 새 push는 이전 댓글을 무효로 한다. 병합은 `--match-head-commit`으로 그 SHA를 고정한다. auto-merge는 하지 않는다.
 - 팀 프로필: §9의 사람 승인으로 최종 head를 승인한다. 에이전트와 봇의 승인은 세지 않는다. auto-merge는 하지 않는다.
 - 1인 프로필의 GitHub 필수 승인 0명은 이 승인을 없애지 않는다. 에이전트는 PR을 승인하지 않는다.
 
-auto-merge는 §9 ②를 마친 프로젝트에서, 이 절의 양쪽 문이고 §5의 외부 리뷰 대상이 아닌 PR에만 예약한다. 한쪽 문과 외부 리뷰 대상 PR은 예약하지 않는다. 외부 리뷰 대상은 그 리뷰가 끝난 뒤에 병합한다. CodeRabbit check가 SKIPPED이거나 `Review paused`이면 외부 리뷰는 끝나지 않았고, `@coderabbitai full review`를 요청한다. 예외는, CodeRabbit 리뷰가 끝난 head와 견줘 바뀐 것이 이미 리뷰된 PR들 사이의 충돌을 푼 main 병합뿐인 head다. 소유자는 그 사실을 승인에 적고 외부 리뷰를 다시 받지 않고 승인할 수 있다.
+auto-merge는 §9 ③을 마친 프로젝트에서, 이 절의 양쪽 문이고 §5의 외부 리뷰 대상이 아닌 PR에만 예약한다. 한쪽 문과 외부 리뷰 대상 PR은 예약하지 않는다. 외부 리뷰 대상은 그 리뷰가 끝난 뒤에 병합한다. CodeRabbit check가 SKIPPED이거나 `Review paused`이면 외부 리뷰는 끝나지 않았고, `@coderabbitai full review`를 요청한다. 예외는, CodeRabbit 리뷰가 끝난 head와 견줘 바뀐 것이 이미 리뷰된 PR들 사이의 충돌을 푼 main 병합뿐인 head다. 소유자는 그 사실을 승인에 적고 외부 리뷰를 다시 받지 않고 승인할 수 있다.
 
 병합 전에 달린 CodeRabbit 스레드는 PR 종류와 관계없이 답하고 해결한다. 병합 뒤에 달린 지적은 후속 PR로 처리한다.

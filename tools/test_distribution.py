@@ -98,6 +98,62 @@ class TrustBoundaryPathTests(unittest.TestCase):
         for path in COMMON_PATHS:
             self.assertIn(f"`{path}`", row)
 
+    def test_owner_approval_paths_match_policy_section_10(self):
+        sys.path.insert(0, str(ROOT / "scripts"))
+        from check_review_status import ONE_WAY_PATHS, TEAM_LINE
+        text = (ROOT / "POLICY.md").read_text(encoding="utf-8")
+        section = text.split("## 10. 문 판정", 1)[1]
+        for path in ONE_WAY_PATHS:
+            self.assertIn(f"`{path}`", section)
+        self.assertIn(TEAM_LINE, text.split("## 9. 프로필", 1)[1].split("## 10.", 1)[0])
+
+    def test_review_status_workflow_reruns_a_comment_without_the_pull_request(self):
+        text = (ROOT / "templates/review-status.yml").read_text(encoding="utf-8")
+        policy = (ROOT / "templates/review-status-policy.json").read_text(encoding="utf-8")
+        self.assertIn("issue_comment:", text)
+        self.assertIn("types: [created, edited, deleted]", text)
+        self.assertIn("ref: ${{ github.event.repository.default_branch }}", text)
+        self.assertNotIn("github.event.pull_request.head.ref", text)
+        self.assertNotIn("github.event.comment.body", text)
+        self.assertIn("github.repository_owner", text)
+        self.assertIn("github.event.issue.state == 'open'", text)
+        self.assertIn("cancel-in-progress: true", text)
+        self.assertIn(".pull_requests[]?", text)
+        self.assertNotIn('--commit "$sha"', text)
+        self.assertIn("actions: write", text)
+        self.assertNotIn("contents: write", text)
+        self.assertNotIn("ref: ${{ github.event.pull_request.head.sha }}", text)
+        self.assertIn('"issue_comment"', policy)
+        self.assertIn('"pull_request_target"', policy)
+
+    def test_a_policy_that_excludes_review_status_is_not_a_parent_block(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        marker = "def inc:"
+        start = readme.index(marker)
+        program = readme[start:readme.index("')", start)]
+        excluded = {
+            "enforcement": "active",
+            "source_type": "Organization",
+            "conditions": {"workflow_path": {
+                "include": ["~ALL"],
+                "exclude": [".github/workflows/review-status.yml"],
+            }},
+            "rules": [{"type": "restrict_action_events", "parameters": {"allowed_events": ["pull_request_target"]}}],
+        }
+        self.assertEqual(self.policy_kind(program, excluded), "other")
+        empty = json.loads(json.dumps(excluded))
+        empty["conditions"]["workflow_path"]["include"] = []
+        self.assertEqual(self.policy_kind(program, empty), "other")
+        blocked = json.loads(json.dumps(excluded))
+        blocked["conditions"]["workflow_path"]["exclude"] = []
+        self.assertEqual(self.policy_kind(program, blocked), "parent")
+
+    def policy_kind(self, program, policy):
+        result = subprocess.run(["jq", "-r", program], input=json.dumps(policy),
+                                capture_output=True, text=True, timeout=10)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return result.stdout.strip()
+
 
 if __name__ == "__main__":
     unittest.main()
