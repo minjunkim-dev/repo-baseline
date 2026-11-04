@@ -30,27 +30,30 @@
 
 1. `templates/repo-baseline.json`을 프로젝트의 `.github/repo-baseline.json`으로 복사한다.
 2. `templates/claude-settings.json`을 프로젝트의 `.claude/settings.json`으로 둔다. 이미 있으면 합친다.
-   공개 저장소는 `review-status.yml`을 기본 브랜치에 병합하기 전에 Actions 이벤트 정책을 만든다. 비공개 저장소는 이 단락을 건너뛴다. 이 저장소 루트에서, 대상 프로젝트의 `OWNER/NAME`으로 실행한다. 쓰기는 저장소 관리자 승인을 받는다. 먼저 조회하고, 같은 workflow 경로에 `pull_request_target`과 `issue_comment`만 허용하는 정책이 있으면 다시 만들지 않는다. `pull_request_target`만 허용하는 정책이 있으면 POST하지 말고 `PUT /repos/OWNER/NAME/actions/policies/<id>`로 템플릿 내용으로 고친다.
+   공개 저장소는 `review-status.yml`을 기본 브랜치에 병합하기 전에 Actions 이벤트 정책을 만든다. 비공개 저장소는 이 단락을 건너뛴다. 이 저장소 루트에서, 대상 프로젝트의 `OWNER/NAME`으로 실행한다. 쓰기는 저장소 관리자 승인을 받는다. 먼저 조회하고, 같은 workflow 경로에 `pull_request_target`과 `issue_comment`만 허용하는 정책이 있으면 다시 만들지 않는다. `pull_request_target`만 허용하는 저장소 정책은, 둘 다 허용하는 정책이 이미 있어도 PUT으로 고친다. 상위 조직·기업 정책이 더 좁으면 명령이 실패한다.
 
    ```bash
    set -euo pipefail
    ids=$(gh api --paginate repos/OWNER/NAME/actions/policies --jq '.policies[].id')
    found=0
    narrow=
+   parent_narrow=0
    for id in $ids; do
-     kind=$(gh api "repos/OWNER/NAME/actions/policies/$id" --jq 'if .enforcement=="active" and ((.conditions.workflow_path.include // []) | index(".github/workflows/review-status.yml")) then (if any(.rules[]?; .type=="restrict_action_events" and ((.parameters.allowed_events // []) | sort) == ["issue_comment","pull_request_target"]) then "both" elif any(.rules[]?; .type=="restrict_action_events" and .parameters.allowed_events==["pull_request_target"]) then "narrow" else "other" end) else "other" end')
+     kind=$(gh api "repos/OWNER/NAME/actions/policies/$id" --jq 'if .enforcement=="active" and ((.conditions.workflow_path.include // []) | index(".github/workflows/review-status.yml")) then (if any(.rules[]?; .type=="restrict_action_events" and ((.parameters.allowed_events // []) | sort) == ["issue_comment","pull_request_target"]) then "both" elif any(.rules[]?; .type=="restrict_action_events" and .parameters.allowed_events==["pull_request_target"]) then (if (.source_type // "Repository")=="Repository" then "narrow" else "parent" end) else "other" end) else "other" end')
      if [ "$kind" = "both" ]; then found=1; fi
      if [ "$kind" = "narrow" ]; then narrow="$narrow $id"; fi
+     if [ "$kind" = "parent" ]; then parent_narrow=1; fi
+   done
+   if [ "$parent_narrow" = "1" ]; then
+     echo "a parent policy allows only pull_request_target" >&2
+     exit 1
+   fi
+   for id in $narrow; do
+     gh api "repos/OWNER/NAME/actions/policies/$id" --method PUT --input templates/review-status-policy.json
+     found=1
    done
    if [ "$found" = "0" ]; then
-     updated=0
-     for id in $narrow; do
-       gh api "repos/OWNER/NAME/actions/policies/$id" --method PUT --input templates/review-status-policy.json
-       updated=1
-     done
-     if [ "$updated" = "0" ]; then
-       gh api repos/OWNER/NAME/actions/policies --method POST --input templates/review-status-policy.json
-     fi
+     gh api repos/OWNER/NAME/actions/policies --method POST --input templates/review-status-policy.json
    fi
    gh api --paginate repos/OWNER/NAME/actions/policies
    ```
