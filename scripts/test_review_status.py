@@ -83,6 +83,8 @@ class ReviewStatusTests(unittest.TestCase):
         files = [{"filename": ".github/workflows/ci.yml", "patch": BUMP},
                  {"filename": "package.json", "patch": '@@ -1 +1 @@\n-  "x": "^1.2.3",\n+  "x": "^1.3.0",'}]
         files.append({"filename": "go.sum", "patch": "@@\n-x/net v0.1.0 h1:abc+/=\n+x/net v0.2.0 h1:xyz9=\n"})
+        files.append({"filename": "Cargo.lock", "patch": '@@\n-version = "1.2.3"\n-checksum = "aaaaaaa"\n'
+                                                          '+version = "1.3.0"\n+checksum = "bbbbbbb"'})
         bot = tool.DEPENDABOT
         self.assertEqual(run(api(files, [OK], author=bot, commits=[bot])), [])
 
@@ -108,6 +110,16 @@ class ReviewStatusTests(unittest.TestCase):
             "other host": (api([{"filename": "package-lock.json",
                                  "patch": "@@\n-https://evil1.example/x-1.0.0.tgz\n+https://evil2.example/x-1.0.0.tgz"}],
                                [OK], author=bot, commits=[bot]),),
+            "package name": (api([{"filename": "Cargo.lock", "patch": '@@\n-name = "pkg-2"\n+name = "pkg-3"'}], [OK],
+                                 author=bot, commits=[bot]),),
+            "package name like a hash": (api([{"filename": "Cargo.lock",
+                                               "patch": '@@\n-name = "pkg-1234567"\n+name = "pkg-7654321"'}], [OK],
+                                             author=bot, commits=[bot]),),
+            "package name with underscore": (api([{"filename": "Cargo.lock", "patch": '@@\n-name = "pkg_2"\n+name = "pkg_3"'}],
+                                                 [OK], author=bot, commits=[bot]),),
+            "file name": (api([{"filename": "package-lock.json",
+                                "patch": "@@\n-https://r/x/-/x-1.0.0.tgz\n+https://r/x/-/x-1.1.0.tgz"}], [OK],
+                              author=bot, commits=[bot]),),
             "no patch": (api([{"filename": "package-lock.json"}], [OK], author=bot, commits=[bot]),),
             "other path": (api([{"filename": "Dockerfile", "patch": "@@\n-FROM a:1\n+FROM a:2"}], [OK],
                                author=bot, commits=[bot]),),

@@ -31,9 +31,12 @@ DEPENDENCY_FILES = (
     "Podfile", "Podfile.lock", "build.gradle", "build.gradle.kts", "gradle.lockfile", "libs.versions.toml",
     "pubspec.yaml", "pubspec.lock", "composer.json", "composer.lock",
 )
-# shortcut: any number counts as a version, so a Dependabot line changing only a number passes; upgrade if
+# A number or hash right after a word character, "." or "-" is part of a name (pkg-2), so changing it needs Security. That
+# also catches file names such as x-1.0.0.tgz, so an npm or yarn lockfile bump needs Security too: the safe side.
+# shortcut: any other number counts as a version, so a Dependabot line changing only a number passes; upgrade if
 # Dependabot ever changes more than versions.
-VERSION = re.compile(r"(?:sha\d+[-:]|h1:)[A-Za-z0-9+/=]+|\b[0-9a-f]{7,}\b|(?<![A-Za-z0-9])v?\d+(?:\.\d+)*(?:[-+][0-9A-Za-z.-]+)?")
+VERSION = re.compile(r"(?:sha\d+[-:]|h1:)[A-Za-z0-9+/=]+|(?<![\w.-])[0-9a-f]{7,}\b"
+                     r"|(?<![\w.-])v?\d+(?:\.\d+)*(?:[-+][0-9A-Za-z.-]+)?")
 
 
 def read_api(endpoint):
