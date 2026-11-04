@@ -207,7 +207,8 @@ class ReviewStatusTests(unittest.TestCase):
         def read(endpoint):
             seen.append(endpoint)
             return base(endpoint)
-        self.assertEqual(tool.missing("o/n", "1", "HEAD", "BASE", read, diffs({"OLDER": ADDED, "HEAD": SHIFTED})),
+        self.assertEqual(tool.missing("o/n", "1", "HEAD", "BASE", read,
+                                      diffs({"OLDER": ADDED, "MID": SHIFTED, "HEAD": SHIFTED})),
                          [tool.INDEPENDENT])
         self.assertIn("repos/o/n/commits/MID/status?per_page=100", seen)
 
