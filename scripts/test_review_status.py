@@ -24,8 +24,13 @@ def api(files, statuses=(), author="alice", commits=("alice",), project=None, ch
     if project is not None:
         routes[f"repos/o/n/contents/{tool.PROJECT_PATHS}?ref=BASE"] = {
             "content": base64.b64encode(project.encode()).decode()}
+    if commit_count is not None:
+        pull["commits"] = commit_count
+    elif commit_shas is not None:
+        pull["commits"] = len(commit_shas)
+    else:
+        pull["commits"] = len(list(commits))
     if commit_shas is not None:
-        pull["commits"] = len(commit_shas) if commit_count is None else commit_count
         names = list(commits)
         routes["repos/o/n/pulls/1/commits?per_page=100"] = [[{
             "sha": sha, "author": {"login": names[index] if index < len(names) else author},
@@ -175,6 +180,8 @@ class ReviewStatusTests(unittest.TestCase):
         self.assertEqual(run(api(files, author=bot, commits=[bot])), [])
         self.assertEqual(run(api(files, [(tool.INDEPENDENT, "failure")], author=bot, commits=[bot])), [tool.INDEPENDENT])
         self.assertEqual(run(api(files, [OK, (tool.SECURITY, "failure")], author=bot, commits=[bot])), [tool.SECURITY])
+        short = api(files, author=bot, commits=[bot], commit_count=251)
+        self.assertEqual(run(short), [tool.INDEPENDENT, tool.SECURITY])
 
     def test_an_unchanged_diff_reuses_the_prior_success(self):
         files = [{"filename": "src/app.py"}]
@@ -193,10 +200,17 @@ class ReviewStatusTests(unittest.TestCase):
 
     def test_a_newer_failed_status_blocks_an_older_match(self):
         files = [{"filename": "src/app.py"}]
-        read = api(files, commit_shas=["OLDER", "MID", "HEAD"], extra_status={
-            "OLDER": [OK], "MID": [(tool.INDEPENDENT, "failure")]})
-        self.assertEqual(tool.missing("o/n", "1", "HEAD", "BASE", read, diffs({"OLDER": ADDED, "HEAD": SHIFTED})),
+        base = api(files, commit_shas=["OLDER", "MID", "HEAD"], extra_status={
+            "OLDER": [OK], "MID": [(tool.INDEPENDENT, "failure")]}, force_pushes=[])
+        seen = []
+
+        def read(endpoint):
+            seen.append(endpoint)
+            return base(endpoint)
+        self.assertEqual(tool.missing("o/n", "1", "HEAD", "BASE", read,
+                                      diffs({"OLDER": ADDED, "MID": SHIFTED, "HEAD": SHIFTED})),
                          [tool.INDEPENDENT])
+        self.assertIn("repos/o/n/commits/MID/status?per_page=100", seen)
 
     def test_a_rebase_parent_can_carry_the_status(self):
         files = [{"filename": "src/app.py"}]
@@ -214,9 +228,15 @@ class ReviewStatusTests(unittest.TestCase):
 
     def test_an_unreadable_newer_status_does_not_fall_through(self):
         files = [{"filename": "src/app.py"}]
-        read = api(files, commit_shas=["OLDER", "MID", "HEAD"], extra_status={"OLDER": [OK]})
+        base = api(files, commit_shas=["OLDER", "MID", "HEAD"], extra_status={"OLDER": [OK]}, force_pushes=[])
+        seen = []
+
+        def read(endpoint):
+            seen.append(endpoint)
+            return base(endpoint)
         self.assertEqual(tool.missing("o/n", "1", "HEAD", "BASE", read, diffs({"OLDER": ADDED, "HEAD": SHIFTED})),
                          [tool.INDEPENDENT])
+        self.assertIn("repos/o/n/commits/MID/status?per_page=100", seen)
 
     def test_a_short_commit_list_does_not_carry(self):
         files = [{"filename": "src/app.py"}]
@@ -255,11 +275,18 @@ class ReviewStatusTests(unittest.TestCase):
 
     def test_an_unreadable_diff_does_not_reuse_a_status(self):
         files = [{"filename": "src/app.py"}]
-        read = api(files, commit_shas=["OLD", "HEAD"], extra_status={"OLD": [OK]})
+        base = api(files, commit_shas=["OLD", "HEAD"], extra_status={"OLD": [OK]}, force_pushes=[])
+        seen = []
+
+        def read(endpoint):
+            seen.append(endpoint)
+            return base(endpoint)
 
         def boom(endpoint):
+            seen.append(endpoint)
             raise subprocess.CalledProcessError(1, "gh", stderr="HTTP 406")
         self.assertEqual(tool.missing("o/n", "1", "HEAD", "BASE", read, boom), [tool.INDEPENDENT])
+        self.assertTrue(any(item.startswith("repos/o/n/compare/") for item in seen))
         env = {"REPO": "o/n", "PR_NUMBER": "1", "HEAD_SHA": "HEAD", "BASE_SHA": "BASE"}
         self.assertEqual(tool.main(env, read, boom), 1)
 
