@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """Fail when a pull request head lacks the review statuses its changed paths need (POLICY.md §5).
 Paths only: content signals stay a reviewer judgement. This shows the process ran on this exact
-head; a status from the same account cannot tell a person from an agent, so it is no security boundary."""
+head; a status from the same account cannot tell a person from an agent, so it is no security boundary.
+A base update creates a new head SHA. When the added and removed lines and binary blobs match a prior
+success, that status covers this head. Reuse is still only a process record."""
 
 import base64
 import fnmatch
+import hashlib
 import json
 import os
 import re
@@ -15,6 +18,8 @@ INDEPENDENT = "review/independent"
 SECURITY = "review/security"
 DEPENDABOT = "dependabot[bot]"
 WEB_FLOW = "web-flow"
+FORCE_PUSHES = "graphql://force-push-befores/"
+PRIOR_LIMIT = 40
 PROJECT_PATHS = ".github/trust-boundary-paths"
 # POLICY.md §5 common paths. A pattern without "/" matches the file name at any depth.
 COMMON_PATHS = (
@@ -40,10 +45,131 @@ VERSION = re.compile(r"(?:sha\d+[-:]|h1:)[A-Za-z0-9+/=]+|(?<![\w.-])[0-9a-f]{7,}
 
 
 def read_api(endpoint):
+    if endpoint.startswith(FORCE_PUSHES):
+        repo, number = endpoint[len(FORCE_PUSHES):].rsplit("/", 1)
+        return force_push_befores(repo, number)
     paged = ["--paginate", "--slurp"] if "per_page" in endpoint else []
     result = subprocess.run(["gh", "api", "--method", "GET", endpoint, *paged],
                             capture_output=True, text=True, check=True, timeout=60)
     return json.loads(result.stdout)
+
+
+def read_diff_api(endpoint):
+    result = subprocess.run(
+        ["gh", "api", "--method", "GET", "-H", "Accept: application/vnd.github.diff", endpoint],
+        capture_output=True, text=True, check=True, timeout=60)
+    return result.stdout
+
+
+def force_push_befores(repo, number):
+    """SHAs the pull request head pointed at before a rebase, newest first.
+    None when the timeline cannot be read. An empty list means it was read and has no force pushes."""
+    owner, name = repo.split("/", 1)
+    query = (
+        "query($owner:String!,$name:String!,$number:Int!){"
+        "repository(owner:$owner,name:$name){pullRequest(number:$number){"
+        "timelineItems(last:20,itemTypes:[HEAD_REF_FORCE_PUSHED_EVENT]){"
+        "nodes{... on HeadRefForcePushedEvent{createdAt beforeCommit{oid}}}}}}}"
+    )
+    try:
+        result = subprocess.run(
+            ["gh", "api", "graphql", "-f", f"query={query}", "-f", f"owner={owner}",
+             "-f", f"name={name}", "-F", f"number={int(number)}"],
+            capture_output=True, text=True, check=True, timeout=60)
+        nodes = json.loads(result.stdout)["data"]["repository"]["pullRequest"]["timelineItems"]["nodes"]
+    except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError):
+        return None
+    return force_push_oids(nodes)
+
+
+def force_push_oids(nodes):
+    """Newest-first SHAs. None when an event has no beforeCommit oid, so that head is not skipped."""
+    dated = []
+    for node in nodes or []:
+        oid = ((node or {}).get("beforeCommit") or {}).get("oid")
+        if not oid:
+            return None
+        dated.append((node.get("createdAt") or "", oid))
+    dated.sort(reverse=True)
+    return [oid for _, oid in dated]
+
+
+def diff_identity(diff):
+    """SHA-256 of the exact added and removed lines, file paths, modes, renames, and binary blob ids.
+    Hunk positions and surrounding context do not count: a base update shifts them without changing the
+    pull request. Whitespace does count. None means the diff is not safe to treat as unchanged."""
+    if diff is None:
+        return None
+    # GitHub's diff is LF. splitlines() would also cut Unicode separators inside a line.
+    text = diff.replace("\r\n", "\n").replace("\r", "\n")
+    stripped = text.lstrip()
+    if not stripped:
+        return "empty"
+    if stripped.startswith("{") or stripped.startswith("["):
+        return None
+    chunks = []
+    current = index_line = None
+    header, body = [], []
+    binary = False
+    in_hunk = False
+
+    def flush():
+        nonlocal current, index_line, header, body, binary
+        if current is None:
+            return True
+        if binary and not index_line:
+            return False
+        if binary:
+            header.append(index_line)
+        chunks.append((current, tuple(header), tuple(body)))
+        current = index_line = None
+        header, body, binary = [], [], False
+        return True
+
+    for line in text.split("\n"):
+        if line.startswith("diff --git "):
+            if not flush():
+                return None
+            current = line
+            in_hunk = False
+            continue
+        if current is None:
+            if line.strip() == "":
+                continue
+            return None
+        if line.startswith("index "):
+            index_line = line
+            continue
+        if line.startswith(("new file mode ", "deleted file mode ", "old mode ", "new mode ",
+                            "rename from ", "rename to ", "copy from ", "copy to ")):
+            header.append(line)
+            continue
+        # "--- a/file" is a header. A removed line "-- note" is also "--- note", so only skip headers
+        # before the first hunk.
+        if line.startswith("@@"):
+            in_hunk = True
+            continue
+        if not in_hunk and line.startswith(("--- ", "+++ ", "similarity index ", "dissimilarity index ")):
+            continue
+        if line.startswith("Binary files ") or line.startswith("GIT binary patch"):
+            binary = True
+            body.append(line)
+            continue
+        if line.startswith(("+", "-", "\\")):
+            body.append(line)
+            continue
+        if line.startswith(" ") or line == "":
+            continue
+        return None
+    if not flush() or not chunks:
+        return None
+    chunks.sort(key=lambda item: item[0])
+    lines = []
+    for path, kept_header, kept_body in chunks:
+        lines.append(path)
+        lines.extend(kept_header)
+        lines.extend(kept_body)
+    return hashlib.sha256("\n".join(lines).encode("utf-8")).hexdigest()
 
 
 def matches(path, patterns):
@@ -92,30 +218,123 @@ def dependabot_bump(pull, commits, files):
             and all(only_versions(entry) for entry in files))
 
 
-def missing(repo, number, head, base, read=read_api):
+def latest_state(statuses, context):
+    """The combined status lists the newest state of each context first."""
+    for status in statuses:
+        if status["context"] == context:
+            return status["state"]
+    return None
+
+
+def prior_shas(repo, number, head, read, commit_count):
+    """Earlier heads, newest first. None when history is missing or the commit list is shorter than the PR.
+    GitHub returns at most 250 commits from the pulls commits API, so a short list is not a complete history."""
+    found = []
+    try:
+        commits = [commit for page in read(f"repos/{repo}/pulls/{number}/commits?per_page=100") for commit in page]
+        # A missing count, or fewer commits than the PR reports, can hide a newer failed head.
+        if commit_count is None or len(commits) < commit_count:
+            return None
+        for commit in reversed(commits):
+            sha = commit.get("sha")
+            if sha and sha != head and sha not in found:
+                found.append(sha)
+    except (OSError, subprocess.SubprocessError, KeyError, ValueError, TypeError):
+        return None
+    try:
+        befores = read(FORCE_PUSHES + f"{repo}/{number}")
+    except (OSError, subprocess.SubprocessError, KeyError, ValueError, TypeError):
+        return None
+    if befores is None:
+        return None
+    for sha in befores:
+        if isinstance(sha, str) and sha and sha != head and sha not in found:
+            found.append(sha)
+    return found[:PRIOR_LIMIT]
+
+
+def identity_of(repo, base, sha, read_diff, cache):
+    if sha not in cache:
+        try:
+            cache[sha] = diff_identity(read_diff(f"repos/{repo}/compare/{base}...{sha}"))
+        except (OSError, subprocess.SubprocessError, ValueError, TypeError):
+            cache[sha] = None
+    return cache[sha]
+
+
+def carried_contexts(repo, number, head, base, contexts, read, read_diff, commit_count):
+    """Contexts whose newest prior status is success and whose diff matches this head. Anything unverified stays put."""
+    candidates = prior_shas(repo, number, head, read, commit_count)
+    if not candidates:
+        return set()
+    cache, fetched, carried = {}, {}, set()
+
+    def state_at(sha, context):
+        if sha not in fetched:
+            try:
+                pages = read(f"repos/{repo}/commits/{sha}/status?per_page=100")
+                fetched[sha] = [status for page in pages for status in page["statuses"]]
+            except (OSError, subprocess.SubprocessError, KeyError, ValueError, TypeError):
+                fetched[sha] = None
+        # A failed lookup must not skip this SHA for an older success: its state is unknown.
+        if fetched[sha] is None:
+            return "unreadable"
+        return latest_state(fetched[sha], context)
+
+    for context in contexts:
+        donor = None
+        for sha in candidates:
+            state = state_at(sha, context)
+            if state is None:
+                continue
+            if state != "success":
+                break
+            current = identity_of(repo, base, head, read_diff, cache)
+            prior = identity_of(repo, base, sha, read_diff, cache)
+            if current is not None and current == prior:
+                donor = sha
+            break
+        if donor:
+            carried.add(context)
+            print(f"review status carried {context} from {donor} onto {head}")
+    return carried
+
+
+def missing(repo, number, head, base, read=read_api, read_diff=None):
     pull = read(f"repos/{repo}/pulls/{number}")
     files = [entry for page in read(f"repos/{repo}/pulls/{number}/files?per_page=100") for entry in page]
     patterns = COMMON_PATHS + DEPENDENCY_FILES + project_paths(repo, base, read)
     touched = any(matches(entry.get(key, ""), patterns) for entry in files for key in ("filename", "previous_filename"))
-    needed = [INDEPENDENT]
-    # The files API stops listing at 3000: paths it hides cannot be ruled out.
-    if pull["changed_files"] > len(files):
-        needed.append(SECURITY)
-    elif touched:
+    truncated = pull["changed_files"] > len(files)
+    bump = False
+    if not truncated and touched:
         commits = [commit for page in read(f"repos/{repo}/pulls/{number}/commits?per_page=100") for commit in page]
-        if not dependabot_bump(pull, commits, files):
-            needed.append(SECURITY)
-    statuses = [status for page in read(f"repos/{repo}/commits/{head}/status?per_page=100") for status in page["statuses"]]
-    # A Security review the paths did not require still counts: a posted failure blocks.
-    if SECURITY not in needed and any(status["context"] == SECURITY for status in statuses):
+        bump = dependabot_bump(pull, commits, files)
+    needed = []
+    # The version-only Dependabot exception drops both reviews. A status posted anyway still has to be success.
+    if not bump:
+        needed.append(INDEPENDENT)
+    # The files API stops listing at 3000: paths it hides cannot be ruled out.
+    if truncated or (touched and not bump):
         needed.append(SECURITY)
+    statuses = [status for page in read(f"repos/{repo}/commits/{head}/status?per_page=100") for status in page["statuses"]]
+    present = {status["context"] for status in statuses}
+    for context in (INDEPENDENT, SECURITY):
+        if context not in needed and context in present:
+            needed.append(context)
     passed = {status["context"] for status in statuses if status["state"] == "success"}
-    return [context for context in needed if context not in passed]
+    absent = [context for context in needed if context not in passed]
+    # A failure or pending state on this head stands. Only a missing context can reuse an unchanged diff.
+    reusable = [context for context in absent if context not in present]
+    if not reusable:
+        return absent
+    carried = carried_contexts(repo, number, head, base, reusable, read, read_diff or read_diff_api, pull.get("commits"))
+    return [context for context in absent if context not in carried]
 
 
-def main(env=os.environ, read=read_api):
+def main(env=os.environ, read=read_api, read_diff=None):
     try:
-        absent = missing(env["REPO"], env["PR_NUMBER"], env["HEAD_SHA"], env["BASE_SHA"], read)
+        absent = missing(env["REPO"], env["PR_NUMBER"], env["HEAD_SHA"], env["BASE_SHA"], read, read_diff)
     except (KeyError, OSError, ValueError, subprocess.SubprocessError) as error:
         print(f"review status UNVERIFIED: {error}", file=sys.stderr)
         return 2

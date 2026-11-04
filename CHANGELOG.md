@@ -1,5 +1,12 @@
 # 변경 기록
 
+## 2026-11-04 — 같은 diff의 리뷰 status 이어받기
+
+- `scripts/check_review_status.py`: 새 head에 그 context가 없고 diff identity가 이미 `success`인 status와 같으면 `Review status`가 그 status로 통과한다. 기준 브랜치 갱신만이 아니다. 커밋 목록이나 force-push 이력을 읽지 못하면 이어받지 않는다. 받은 커밋 수가 PR의 `commits`보다 적거나, force-push 이전 SHA가 없으면 이어받지 않는다. identity는 경로, 파일 모드, rename·copy, 추가·삭제한 줄, 바이너리 blob SHA다. 줄 번호와 주변 줄은 보지 않는다. 공백이 다르거나 diff를 읽지 못하면 이어받지 않는다. 이 head에 `failure`가 있으면 이전 성공으로 덮지 않는다. rebase로 커밋 목록에서 빠진 SHA는 pull request의 force-push 이전 head에서 찾는다. `git patch-id`는 공백을 지워서 쓰지 않았다. 이어받기는 절차 기록이고 보안 경계가 아니다. 이 검사기는 주 버전과 문 유형을 판정하지 않는다.
+- Dependabot이 버전·해시·Action SHA만 바꾼 PR은 `review/independent`도 면제한다. 조건은 기존 `review/security` 예외와 같다. 이 면제는 리뷰 status(`review/security`, `review/independent`)와 외부 리뷰를 뺀다. 그 head에 리뷰 status가 있으면 `success`여야 한다. 사람 한쪽 문 승인은 빼지 않는다. 주 버전 변경과 `scripts/check_review_status.py` 변경은 그 승인에서 빼지 않는다.
+- `POLICY.md` §8·`prompts/weekly-check.md`: 공개 저장소에 `review-status.yml`이 있으면 Actions 이벤트 정책이 그 파일의 `pull_request_target`만 허용하는지 본다.
+- 다시 적용할 프로젝트: Smallnext·BGLike·Runstir. `tools/apply_baseline.py`로 `scripts/check_review_status.py`와 `scripts/test_review_status.py`를 다시 복사한다. 각 프로젝트의 ②(필수 체크) 전에는 이 검사기가 기본 브랜치에 있어야 이어받기가 동작한다.
+
 ## 2026-11-04 — 1인·팀 프로필, 리뷰 기록, 도구 층
 
 - `POLICY.md` §9(새 절): 1인(기본)과 팀(2~6명) 프로필. 팀 프로필은 GitHub 필수 승인 1명·코드 소유자 리뷰·마지막 push 승인을 켜고 `templates/CODEOWNERS`로 신뢰 경계 경로의 소유자를 둔다. PR 책임자(에이전트를 시킨 사람 포함)와 에이전트·봇의 승인은 세지 않는다. 에이전트는 PR을 승인하지 않는다. 가벼운 승인 경로는 두지 않는다. 양쪽 문은 승인·CI·리뷰 뒤 에이전트가, 한쪽 문은 승인한 사람이나 PR 책임자가 병합한다. 조직 소유 저장소의 ruleset(조직 ruleset은 Team·Enterprise)·merge queue·우회 목록 지원 범위와 비공개 팀 저장소의 CodeRabbit 비용을 공식 문서로 확인해 적었다. 프로젝트는 `AGENTS.md`에 프로필을 한 줄로 적는다.
