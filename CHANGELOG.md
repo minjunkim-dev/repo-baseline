@@ -1,5 +1,9 @@
 # 변경 기록
 
+## 2026-11-04 — 동결 전 역할과 리뷰 기록
+
+- `docs/development-workflow.md`: Grok Bot은 코드를 쓰지 않고 접수·추적·근거 확인·보고를 맡는다. 코드는 Claude Code(Mac)와 Cursor 클라우드 에이전트가 쓴다. 1인 프로필의 `review/independent`·`review/security`는 소유자가 남긴다. 서버 절차 전에는 Mac의 `gh`이고, 마치면 서버의 앱이다. 구현 에이전트와 `Review status` workflow는 쓰지 않는다. Cursor·Codex의 버그 찾기와 Security는 실제 PR로 확인하기 전까지 미확인이다. 템플릿과 검사기는 안 바뀌어 소비 프로젝트 재적용은 필요 없다.
+
 ## 2026-11-04 — Review status workflow 설치
 
 - `.github/workflows/review-status.yml`: `templates/review-status.yml`을 그대로 복사했다. 다른 workflow와 합치지 않았고 이벤트를 더하지 않았다. 필수 체크 등록은 이 병합 뒤 소유자 승인으로 따로 한다. 템플릿은 안 바뀌어 소비 프로젝트 재적용은 필요 없다.
