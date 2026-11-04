@@ -58,7 +58,7 @@
 | 리뷰 | 도구 | 언제 |
 | --- | --- | --- |
 | Standards·Spec | `/matt-code-review`만(저장소에 커밋한 사본, §7) | 모든 PR |
-| 버그 찾기 | Claude Code가 작성한 PR은 Cursor에서 Claude가 아닌 모델(`docs/development-workflow.md`). 그 외는 Claude Code 내장 `/code-review` | 코드가 바뀐 PR. 깊이는 양쪽 문 `low`, 한쪽 문 `high` |
+| 버그 찾기 | Claude Code가 작성한 PR은 Cursor에서 Claude가 아닌 모델(`docs/development-workflow.md`). 그 외는 Claude Code 내장 `/code-review` | 코드가 바뀐 PR. `/code-review`의 깊이는 양쪽 문 `low`, 한쪽 문 `high`. Cursor 쪽 깊이 설정은 확인하지 않았다 |
 | Security | Claude Code 내장 `/security-review`. Semgrep CLI가 있으면 함께 실행 | 신뢰 경계 변경. 열린 지적은 고치거나 오탐 이유를 남기기 전에는 병합하지 않는다 |
 | 외부 | 공개 저장소는 CodeRabbit, 비공개 저장소는 다른 모델 | 아래 외부 리뷰 대상 |
 | 정기 Security 감사 | Cloudflare `security-audit` | 릴리스 전, 인증·외부 입력·결제 같은 새 공격면이 생길 때, 분기마다 한 번 이상 |
@@ -170,7 +170,7 @@
 | 한쪽 문 | 돈, 계정 접근, 다른 사람 데이터의 노출. 데이터 삭제나 복구가 어려운 migration. Secret·인증·권한을 넓히는 변경. 새 workflow 쓰기 권한. 대량 발송. 복구가 불확실하거나 영향 범위가 넓음. 아래 게이트 경로 |
 | 양쪽 문 | 위 기준에 하나도 해당하지 않음 |
 
-한쪽 문은 위험 변경이다. 사람 승인 전에 §5의 외부 리뷰를 받는다. 버그 찾기 깊이는 §5 표대로 한쪽 문이면 `high`다.
+한쪽 문은 위험 변경이다. 사람 승인 전에 §5의 외부 리뷰를 받는다. Claude Code `/code-review`의 깊이는 한쪽 문이면 `high`다. Cursor에서 하는 버그 찾기는 문 유형을 프롬프트에 적는다. 그 도구의 깊이 설정은 확인하지 않았다.
 
 게이트 경로를 바꾸는 PR은 프로필과 관계없이 한쪽 문이다. Security 리뷰만으로 병합하지 않는다. Dependabot이 연 PR이고 diff가 §5의 버전 전용 예외와 같으면(버전·해시·Action SHA만 바꾸고 다른 줄은 없음) 그 경로여도 사람 한쪽 문 승인에서 뺀다. 아래 둘은 그 승인에서 빼지 않는다.
 
