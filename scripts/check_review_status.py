@@ -309,7 +309,9 @@ def missing(repo, number, head, base, read=read_api, read_diff=None):
     bump = False
     if not truncated and touched:
         commits = [commit for page in read(f"repos/{repo}/pulls/{number}/commits?per_page=100") for commit in page]
-        bump = dependabot_bump(pull, commits, files)
+        # The pulls commits API returns at most 250. A short list can hide a later human commit.
+        if pull.get("commits") == len(commits):
+            bump = dependabot_bump(pull, commits, files)
     needed = []
     # The version-only Dependabot exception drops both reviews. A status posted anyway still has to be success.
     if not bump:
