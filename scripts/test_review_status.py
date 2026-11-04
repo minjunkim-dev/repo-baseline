@@ -68,7 +68,10 @@ class ReviewStatusTests(unittest.TestCase):
         self.assertEqual(run(api(files, [OK], project="# comment\nsrc/auth/**\n")), [tool.SECURITY])
         self.assertEqual(run(api(files, [OK], project="src/billing/**\n")), [])
         literal = [{"filename": "app/[id]/route.ts"}]
-        self.assertEqual(run(api(literal, [OK], project="app/[id]/**\n")), [tool.SECURITY])
+        for spelling in ("app/[id]/**", "app/[id]/route.ts", "/app/[id]/route.ts"):
+            with self.subTest(spelling):
+                self.assertEqual(run(api(literal, [OK], project=spelling + "\n")), [tool.SECURITY])
+        self.assertEqual(run(api([{"filename": "x/[id].ts"}], [OK], project="[id].ts\n")), [tool.SECURITY])
         for spelling in ("/src", "src/auth", "src/auth/", "/src/auth/", "/src/auth/**"):
             with self.subTest(spelling):
                 self.assertEqual(run(api(files, [OK], project=spelling + "\n")), [tool.SECURITY])

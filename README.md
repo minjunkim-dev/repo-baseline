@@ -29,7 +29,7 @@
 ## 새 프로젝트에 적용
 
 1. `templates/repo-baseline.json`을 프로젝트의 `.github/repo-baseline.json`으로 복사한다.
-2. `templates/claude-settings.json`을 프로젝트의 `.claude/settings.json`으로, `templates/review-status.yml`을 `.github/workflows/review-status.yml`로 둔다. 이미 있으면 합친다.
+2. `templates/claude-settings.json`을 프로젝트의 `.claude/settings.json`으로 둔다. 이미 있으면 합친다. `templates/review-status.yml`은 별도 파일 `.github/workflows/review-status.yml`로 둔다. 다른 workflow와 합치거나 이벤트를 더하지 않는다(`POLICY.md` §9).
 3. `.github/dependabot.yml` 항목의 `ecosystems`에 GitHub Actions 외의 실제 생태계를 적는다. 예: `{"package-ecosystem": "cargo", "directory": "/services/api"}`.
 4. 테스트를 다른 폴더에서 실행하면 `files`의 대상 경로를 바꾼다. 예: `"scripts/source-only/test_github_settings.py": {"source": "scripts/test_github_settings.py"}`.
 5. 이 저장소에서 다음을 실행한다.

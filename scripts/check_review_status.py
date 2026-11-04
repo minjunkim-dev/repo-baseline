@@ -45,10 +45,11 @@ def read_api(endpoint):
 
 def matches(path, patterns):
     name = path.rsplit("/", 1)[-1]
-    # With "/" a pattern is a path from the root, also read as a literal directory (app/[id]/** has no glob).
+    # With "/" a pattern is a path from the root, also read literally (in app/[id]/route.ts, [id] is no glob).
     rooted = (pattern.lstrip("/") for pattern in patterns if "/" in pattern)
-    return (any(fnmatch.fnmatchcase(path, pattern) or path.startswith(pattern.removesuffix("/**") + "/") for pattern in rooted)
-            or any(fnmatch.fnmatchcase(name, pattern) for pattern in patterns if "/" not in pattern))
+    return (any(path == pattern or fnmatch.fnmatchcase(path, pattern)
+                or path.startswith(pattern.removesuffix("/**") + "/") for pattern in rooted)
+            or any(name == pattern or fnmatch.fnmatchcase(name, pattern) for pattern in patterns if "/" not in pattern))
 
 
 def project_paths(repo, base, read):
