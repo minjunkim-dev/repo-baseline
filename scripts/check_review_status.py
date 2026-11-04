@@ -14,6 +14,7 @@ import sys
 INDEPENDENT = "review/independent"
 SECURITY = "review/security"
 DEPENDABOT = "dependabot[bot]"
+WEB_FLOW = "web-flow"
 PROJECT_PATHS = ".github/trust-boundary-paths"
 # POLICY.md §5 common paths. A pattern without "/" matches the file name at any depth.
 COMMON_PATHS = (
@@ -45,8 +46,9 @@ def read_api(endpoint):
 def matches(path, patterns):
     name = path.rsplit("/", 1)[-1]
     # With "/" a pattern is a path from the root, also read as a literal directory (app/[id]/** has no glob).
-    return any(fnmatch.fnmatchcase(path, pattern) or path.startswith(pattern.removesuffix("/**") + "/")
-               if "/" in pattern else fnmatch.fnmatchcase(name, pattern) for pattern in patterns)
+    rooted = (pattern.lstrip("/") for pattern in patterns if "/" in pattern)
+    return (any(fnmatch.fnmatchcase(path, pattern) or path.startswith(pattern.removesuffix("/**") + "/") for pattern in rooted)
+            or any(fnmatch.fnmatchcase(name, pattern) for pattern in patterns if "/" not in pattern))
 
 
 def project_paths(repo, base, read):
@@ -57,8 +59,8 @@ def project_paths(repo, base, read):
             return ()
         raise
     lines = base64.b64decode(found["content"]).decode("utf-8").splitlines()
-    # CODEOWNERS spellings work too: /src/auth/ means src/auth/**.
-    return tuple(re.sub(r"/$", "/**", line.strip().lstrip("/")) for line in lines
+    # CODEOWNERS spellings work too: /src/auth/ means src/auth/**, and /auth stays a root path.
+    return tuple(re.sub(r"/$", "/**", line.strip()) for line in lines
                  if line.strip() and not line.startswith("#"))
 
 
@@ -77,9 +79,11 @@ def only_versions(entry):
 
 def dependabot_bump(pull, commits, files):
     """POLICY.md §5 exception: Dependabot's own commits, changing only versions and hashes.
-    An author login follows the commit email, so only GitHub's signature on the commit counts."""
+    An author login follows the commit email and a signature only matches the committer, so both
+    must show GitHub made the commit: web-flow as committer, verified. A person's amend fails this."""
     return (pull["user"]["login"] == DEPENDABOT
             and all((commit.get("author") or {}).get("login") == DEPENDABOT
+                    and (commit.get("committer") or {}).get("login") == WEB_FLOW
                     and commit["commit"]["verification"]["verified"] for commit in commits)
             and all(only_versions(entry) for entry in files))
 

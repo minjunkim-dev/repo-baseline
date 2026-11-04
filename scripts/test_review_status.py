@@ -10,12 +10,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import check_review_status as tool
 
 
-def api(files, statuses=(), author="alice", commits=("alice",), project=None, changed=None, verified=True):
+def api(files, statuses=(), author="alice", commits=("alice",), project=None, changed=None, verified=True, committer=tool.WEB_FLOW):
     pull = {"user": {"login": author}, "changed_files": len(files) if changed is None else changed}
     routes = {
         "repos/o/n/pulls/1": pull,
         "repos/o/n/pulls/1/files?per_page=100": [files],
-        "repos/o/n/pulls/1/commits?per_page=100": [[{"author": {"login": name}, "commit": {"verification": {"verified": verified}}} for name in commits]],
+        "repos/o/n/pulls/1/commits?per_page=100": [[{"author": {"login": name}, "committer": {"login": committer},
+                                                    "commit": {"verification": {"verified": verified}}} for name in commits]],
         "repos/o/n/commits/HEAD/status?per_page=100": [{
             "statuses": [{"context": context, "state": state} for context, state in statuses]}],
     }
@@ -68,7 +69,7 @@ class ReviewStatusTests(unittest.TestCase):
         self.assertEqual(run(api(files, [OK], project="src/billing/**\n")), [])
         literal = [{"filename": "app/[id]/route.ts"}]
         self.assertEqual(run(api(literal, [OK], project="app/[id]/**\n")), [tool.SECURITY])
-        for spelling in ("src/auth", "src/auth/", "/src/auth/", "/src/auth/**"):
+        for spelling in ("/src", "src/auth", "src/auth/", "/src/auth/", "/src/auth/**"):
             with self.subTest(spelling):
                 self.assertEqual(run(api(files, [OK], project=spelling + "\n")), [tool.SECURITY])
 
@@ -94,6 +95,8 @@ class ReviewStatusTests(unittest.TestCase):
                                author=bot, commits=[bot]),),
             "workflow line": (api([{"filename": ".github/workflows/ci.yml", "patch": "@@\n-run: a 1\n+run: a 2"}], [OK],
                                   author=bot, commits=[bot]),),
+            "amended by a person": (api([{"filename": ".github/workflows/ci.yml", "patch": BUMP}], [OK],
+                                        author=bot, commits=[bot], committer="alice"),),
             "forged author": (api([{"filename": ".github/workflows/ci.yml", "patch": BUMP}], [OK],
                                   author=bot, commits=[bot], verified=False),),
             "other action": (api([{"filename": ".github/workflows/ci.yml",
