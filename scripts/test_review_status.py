@@ -353,6 +353,7 @@ class ReviewStatusTests(unittest.TestCase):
             self.assertEqual(tool.missing("o/n", "1", head, "BASE", read), expected)
 
         check([comment(f"한쪽 문 승인: {head} 메모", login="Owner")], [], owner="owner")
+        check([comment(f"한쪽 문 승인: {head}\r\n메모")], [])
         check([comment(f"한쪽 문 승인: {other}")], [tool.OWNER])
         check([comment(f"한쪽 문 승인: {head}", login="alice")], [tool.OWNER])
         check([], [tool.OWNER])

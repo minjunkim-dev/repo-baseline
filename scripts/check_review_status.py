@@ -235,7 +235,8 @@ def approval_sha(body):
     """Full SHA from a comment that starts with the owner approval line. None when it does not."""
     if not isinstance(body, str) or body == "":
         return None
-    found = APPROVAL_LINE.fullmatch(body.split("\n", 1)[0])
+    # GitHub's web UI stores comment bodies with CRLF. A leftover CR is not whitespace in APPROVAL_LINE.
+    found = APPROVAL_LINE.fullmatch(re.split(r"\r\n|\n|\r", body, maxsplit=1)[0])
     if not found:
         return None
     return found.group(1).lower()

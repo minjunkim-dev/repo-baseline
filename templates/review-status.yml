@@ -5,7 +5,9 @@ name: Review status
 # so a PR cannot change the code this job runs. Safe only while no step checks out or runs the PR head.
 # issue_comment runs are not pull request checks (their SHA is the default branch). That job only re-runs the
 # pull_request_target run for the current head, so the owner comment can turn Review status green without a push.
-# It does not read the comment body. review-status-policy.json allows only these two events.
+# It does not read the comment body. Only an open pull request, and only a comment whose author is the
+# repository owner: other people's comments cannot change the approval. Deleting that comment still
+# reruns, because the payload's comment author stays the owner. review-status-policy.json allows only these two events.
 on:
   pull_request_target:
     types: [opened, synchronize, reopened, edited]
@@ -42,7 +44,10 @@ jobs:
 
   # actions: write is only for re-running this workflow's own pull_request_target run. No checkout, no comment body.
   comment:
-    if: github.event_name == 'issue_comment' && github.event.issue.pull_request
+    if: github.event_name == 'issue_comment' && github.event.issue.pull_request && github.event.issue.state == 'open' && github.event.comment.user.login == github.repository_owner
+    concurrency:
+      group: review-status-rerun-${{ github.event.issue.number }}
+      cancel-in-progress: true
     name: Re-run review status
     runs-on: ubuntu-24.04
     timeout-minutes: 5
