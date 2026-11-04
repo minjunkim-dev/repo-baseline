@@ -220,6 +220,46 @@ def only_versions(entry):
             == sorted(text for line, text in zip(lines, normal) if line[0] == "+"))
 
 
+def is_hash(token):
+    return re.fullmatch(r"(?:sha\d+[-:]|h1:)[A-Za-z0-9+/=]+|[0-9a-fA-F]{7,}", token) is not None
+
+
+def line_majors(line, workflow):
+    """Major numbers on one diff line. None means a workflow line has no # vN comment and no @vN tag."""
+    body = line[1:]
+    if workflow:
+        found = [int(number) for number in re.findall(r"(?:#\s*v|@v)(\d+)", body, re.IGNORECASE)]
+        return found or None
+    found = []
+    for match in re.finditer(r"(?<![\w.-])v?(\d+)(?:\.\d+)*(?:[-+][0-9A-Za-z.-]+)?", body, re.IGNORECASE):
+        if is_hash(match.group(0)):
+            continue
+        found.append(int(match.group(1)))
+    return found
+
+
+def major_change(files):
+    """True when a gate-path version move is a new major, or a workflow pin does not say its major.
+    Review-status exemption is unchanged. This only refuses the owner-comment exemption (POLICY.md §10)."""
+    for entry in files:
+        name = entry.get("filename") or ""
+        previous = entry.get("previous_filename") or ""
+        if not matches(name, ONE_WAY_PATHS) and not matches(previous, ONE_WAY_PATHS):
+            continue
+        workflow = name.startswith(".github/workflows/") or previous.startswith(".github/workflows/")
+        removed, added = [], []
+        for line in entry.get("patch", "").splitlines():
+            if line[:1] not in "-+":
+                continue
+            found = line_majors(line, workflow)
+            if found is None:
+                return True
+            (removed if line[0] == "-" else added).extend(found)
+        if sorted(removed) != sorted(added):
+            return True
+    return False
+
+
 def dependabot_bump(pull, commits, files):
     """POLICY.md §5 exception: Dependabot's own commits, changing only versions and hashes.
     An author login follows the commit email and a signature only matches the committer, so both
@@ -463,7 +503,8 @@ def missing(repo, number, head, base, read=read_api, read_diff=None):
     else:
         introduced = touches_agents(pinned) and blob_has_team_line(repo, head, read)
         needs_owner = one_way(pinned, False) or profile_line_changes(pinned) or introduced
-        version_only = pinned_commits is not None and dependabot_bump(pull, pinned_commits, pinned)
+        version_only = (pinned_commits is not None and dependabot_bump(pull, pinned_commits, pinned)
+                        and not major_change(pinned))
     if needs_owner and not version_only and not team_profile(repo, base, read) and not owner_approved(repo, number, head, read):
         result.append(OWNER)
     return result

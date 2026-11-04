@@ -62,20 +62,28 @@ jobs:
           PR_NUMBER: ${{ github.event.issue.number }}
         run: |
           set -euo pipefail
+          case "$PR_NUMBER" in
+            *[!0-9]*|"") echo "bad pull request number" >&2; exit 1 ;;
+          esac
           sha=$(gh api "repos/${REPO}/pulls/${PR_NUMBER}" --jq .head.sha)
+          case "$sha" in
+            *[!0-9a-fA-F]*|"") echo "bad head sha" >&2; exit 1 ;;
+          esac
+          # pull_request_target records the run on the base commit, so --commit of the PR head does not find it.
           for _ in 1 2 3 4 5 6; do
-            row=$(gh run list --repo "$REPO" --workflow review-status.yml --commit "$sha" --event pull_request_target --limit 1 --json databaseId,status --jq '.[0] // empty')
-            if [ -z "$row" ]; then
-              sleep 10
-              continue
-            fi
-            status=$(printf '%s' "$row" | jq -r .status)
-            if [ "$status" != "completed" ]; then
-              sleep 10
-              continue
-            fi
-            gh run rerun "$(printf '%s' "$row" | jq -r .databaseId)" --repo "$REPO"
-            exit 0
+            while read -r id; do
+              [ -n "$id" ] || continue
+              status=$(gh api "repos/${REPO}/actions/runs/${id}" --jq "if any(.pull_requests[]?; .number == ${PR_NUMBER} and .head.sha == \"${sha}\") then .status else empty end")
+              if [ -z "$status" ]; then
+                continue
+              fi
+              if [ "$status" = "completed" ]; then
+                gh run rerun "$id" --repo "$REPO"
+                exit 0
+              fi
+              break
+            done < <(gh run list --repo "$REPO" --workflow review-status.yml --event pull_request_target --limit 50 --json databaseId --jq '.[].databaseId')
+            sleep 10
           done
-          echo "no completed pull_request_target run for ${sha}" >&2
+          echo "no completed pull_request_target run for pull ${PR_NUMBER} at ${sha}" >&2
           exit 1

@@ -118,6 +118,8 @@ class TrustBoundaryPathTests(unittest.TestCase):
         self.assertIn("github.repository_owner", text)
         self.assertIn("github.event.issue.state == 'open'", text)
         self.assertIn("cancel-in-progress: true", text)
+        self.assertIn(".pull_requests[]?", text)
+        self.assertNotIn('--commit "$sha"', text)
         self.assertIn("actions: write", text)
         self.assertNotIn("contents: write", text)
         self.assertNotIn("ref: ${{ github.event.pull_request.head.sha }}", text)

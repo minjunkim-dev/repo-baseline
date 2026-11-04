@@ -210,6 +210,20 @@ class ReviewStatusTests(unittest.TestCase):
         capped = api(files, author=bot, commits=[bot], compare_commits=[row] * 250)
         self.assertEqual(run(capped), [tool.OWNER])
 
+    def test_a_major_action_bump_still_needs_the_owner_comment(self):
+        bot = tool.DEPENDABOT
+        majors = [
+            "@@\n-  uses: actions/checkout@aaaaaaa # v4.2.1\n+  uses: actions/checkout@bbbbbbb # v5.0.0",
+            "@@\n-  uses: actions/checkout@v4\n+  uses: actions/checkout@v5",
+            "@@\n-  uses: actions/checkout@aaaaaaaa\n+  uses: actions/checkout@bbbbbbbb",
+        ]
+        for patch in majors:
+            with self.subTest(patch=patch):
+                files = [{"filename": ".github/workflows/ci.yml", "patch": patch}]
+                self.assertEqual(run(api(files, author=bot, commits=[bot])), [tool.OWNER])
+        minor = [{"filename": "package.json", "patch": '@@\n-  "x": "^1.2.3",\n+  "x": "^2.0.0",'}]
+        self.assertEqual(run(api(minor, author=bot, commits=[bot])), [])
+
     def test_an_unchanged_diff_reuses_the_prior_success(self):
         files = [{"filename": "src/app.py"}]
         read = api(files, commit_shas=["OLD", "HEAD"], extra_status={"OLD": [OK]}, force_pushes=[])
