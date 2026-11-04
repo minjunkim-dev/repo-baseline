@@ -37,7 +37,7 @@ PR이 열린 뒤의 루프는 Grok Bot이 맡는다. 사람이 연 세션이 같
 
 - Dependabot PR을 매주 처리한다(`POLICY.md` §2). 문 유형은 `POLICY.md` §10, 리뷰는 §5를 따른다.
 - 외부 리뷰 대상 PR은 CodeRabbit 리뷰가 끝날 때까지 기다린다. 병합 전에 달린 CodeRabbit 스레드는 PR 종류와 관계없이 답하고 해결한다. 병합 뒤에 달린 지적은 후속 PR로 처리한다. CodeRabbit check가 SKIPPED이거나 `Review paused`이면 외부 리뷰는 끝나지 않았고, `@coderabbitai full review`를 요청한다. 예외는, CodeRabbit 리뷰가 끝난 head와 견줘 바뀐 것이 이미 리뷰된 PR들 사이의 충돌을 푼 main 병합뿐인 head다. 소유자는 그 사실을 승인에 적고 외부 리뷰를 다시 받지 않고 승인할 수 있다.
-- 1인 프로필에서 `review/independent`와 `review/security`는 아래 "리뷰 status를 남기는 사람"대로 소유자가 Mac에서 남긴 뒤에 `Review status`를 다시 돌린다. 에이전트는 자기 PR에 그 status를 찍지 않는다. 1인 한쪽 문은 소유자 댓글 뒤에 그 job이 다시 성공하는지 본다. 기준 브랜치 갱신으로 멈춘 PR과, 병합 뒤의 main CI를 확인한다.
+- 1인 프로필에서 `review/independent`와 `review/security`는 아래 "리뷰 status를 남기는 사람"대로 소유자가 남긴 뒤에 `Review status`를 다시 돌린다. 서버 절차 전에는 Mac의 `gh`이고, 그 다음에는 서버의 앱이다. 에이전트는 자기 PR에 그 status를 찍지 않는다. 1인 한쪽 문은 소유자 댓글 뒤에 그 job이 다시 성공하는지 본다. 기준 브랜치 갱신으로 멈춘 PR과, 병합 뒤의 main CI를 확인한다.
 - 병합 가능이라고 알리기 전에 근거를 본다. 테스트 결과가 요청한 검사와 맞는지, UI를 바꾼 PR이면 전후 스크린샷이 요청한 화면과 맞는지를 본다. 안 맞으면 병합 가능이라고 하지 않고 그 에이전트에게 돌려보낸다.
 
 ## pstack을 함께 쓸 때
