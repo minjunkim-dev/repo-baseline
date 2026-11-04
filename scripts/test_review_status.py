@@ -11,7 +11,7 @@ import check_review_status as tool
 
 
 def api(files, statuses=(), author="alice", commits=("alice",), project=None, changed=None, verified=True,
-        committer=tool.WEB_FLOW, commit_shas=None, extra_status=None, force_pushes=None):
+        committer=tool.WEB_FLOW, commit_shas=None, extra_status=None, force_pushes=None, commit_count=None):
     pull = {"user": {"login": author}, "changed_files": len(files) if changed is None else changed}
     routes = {
         "repos/o/n/pulls/1": pull,
@@ -25,6 +25,7 @@ def api(files, statuses=(), author="alice", commits=("alice",), project=None, ch
         routes[f"repos/o/n/contents/{tool.PROJECT_PATHS}?ref=BASE"] = {
             "content": base64.b64encode(project.encode()).decode()}
     if commit_shas is not None:
+        pull["commits"] = len(commit_shas) if commit_count is None else commit_count
         names = list(commits)
         routes["repos/o/n/pulls/1/commits?per_page=100"] = [[{
             "sha": sha, "author": {"login": names[index] if index < len(names) else author},
@@ -216,6 +217,21 @@ class ReviewStatusTests(unittest.TestCase):
         read = api(files, commit_shas=["OLDER", "MID", "HEAD"], extra_status={"OLDER": [OK]})
         self.assertEqual(tool.missing("o/n", "1", "HEAD", "BASE", read, diffs({"OLDER": ADDED, "HEAD": SHIFTED})),
                          [tool.INDEPENDENT])
+
+    def test_a_short_commit_list_does_not_carry(self):
+        files = [{"filename": "src/app.py"}]
+        read = api(files, commit_shas=["OLD", "HEAD"], extra_status={"OLD": [OK]}, force_pushes=[], commit_count=251)
+        self.assertEqual(tool.missing("o/n", "1", "HEAD", "BASE", read, diffs({"OLD": ADDED, "HEAD": SHIFTED})),
+                         [tool.INDEPENDENT])
+
+    def test_a_force_push_without_a_before_sha_is_incomplete_history(self):
+        self.assertIsNone(tool.force_push_oids([{"beforeCommit": None, "createdAt": "t"}]))
+        self.assertIsNone(tool.force_push_oids([None]))
+        self.assertEqual(tool.force_push_oids([]), [])
+        self.assertEqual(tool.force_push_oids([
+            {"createdAt": "a", "beforeCommit": {"oid": "A"}},
+            {"createdAt": "b", "beforeCommit": {"oid": "B"}},
+        ]), ["B", "A"])
 
     def test_an_unreadable_history_does_not_carry(self):
         files = [{"filename": "src/app.py"}]

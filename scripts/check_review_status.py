@@ -79,11 +79,17 @@ def force_push_befores(repo, number):
         nodes = json.loads(result.stdout)["data"]["repository"]["pullRequest"]["timelineItems"]["nodes"]
     except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError):
         return None
+    return force_push_oids(nodes)
+
+
+def force_push_oids(nodes):
+    """Newest-first SHAs. None when an event has no beforeCommit oid, so that head is not skipped."""
     dated = []
     for node in nodes or []:
         oid = ((node or {}).get("beforeCommit") or {}).get("oid")
-        if oid:
-            dated.append((node.get("createdAt") or "", oid))
+        if not oid:
+            return None
+        dated.append((node.get("createdAt") or "", oid))
     dated.sort(reverse=True)
     return [oid for _, oid in dated]
 
@@ -220,11 +226,15 @@ def latest_state(statuses, context):
     return None
 
 
-def prior_shas(repo, number, head, read):
-    """Earlier heads, newest first. None when either history lookup fails, so carry does not use a partial list."""
+def prior_shas(repo, number, head, read, commit_count):
+    """Earlier heads, newest first. None when history is missing or the commit list is shorter than the PR.
+    GitHub returns at most 250 commits from the pulls commits API, so a short list is not a complete history."""
     found = []
     try:
         commits = [commit for page in read(f"repos/{repo}/pulls/{number}/commits?per_page=100") for commit in page]
+        # A missing count, or fewer commits than the PR reports, can hide a newer failed head.
+        if commit_count is None or len(commits) < commit_count:
+            return None
         for commit in reversed(commits):
             sha = commit.get("sha")
             if sha and sha != head and sha not in found:
@@ -252,9 +262,9 @@ def identity_of(repo, base, sha, read_diff, cache):
     return cache[sha]
 
 
-def carried_contexts(repo, number, head, base, contexts, read, read_diff):
+def carried_contexts(repo, number, head, base, contexts, read, read_diff, commit_count):
     """Contexts whose newest prior status is success and whose diff matches this head. Anything unverified stays put."""
-    candidates = prior_shas(repo, number, head, read)
+    candidates = prior_shas(repo, number, head, read, commit_count)
     if not candidates:
         return set()
     cache, fetched, carried = {}, {}, set()
@@ -318,7 +328,7 @@ def missing(repo, number, head, base, read=read_api, read_diff=None):
     reusable = [context for context in absent if context not in present]
     if not reusable:
         return absent
-    carried = carried_contexts(repo, number, head, base, reusable, read, read_diff or read_diff_api)
+    carried = carried_contexts(repo, number, head, base, reusable, read, read_diff or read_diff_api, pull.get("commits"))
     return [context for context in absent if context not in carried]
 
 
