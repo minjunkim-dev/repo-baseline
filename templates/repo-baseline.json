@@ -12,6 +12,12 @@
     "scripts/test_github_settings.py": {
       "source": "scripts/test_github_settings.py"
     },
+    "scripts/check_review_status.py": {
+      "source": "scripts/check_review_status.py"
+    },
+    "scripts/test_review_status.py": {
+      "source": "scripts/test_review_status.py"
+    },
     ".agents/skills/matt-code-review/SKILL.md": {
       "source": "vendor/mattpocock-skills/matt-code-review/SKILL.md"
     },

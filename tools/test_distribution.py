@@ -87,5 +87,17 @@ class DistributionTests(unittest.TestCase):
                                          "-p", "test_github_settings.py", cwd=project, expected=1)
 
 
+class TrustBoundaryPathTests(unittest.TestCase):
+    def test_policy_codeowners_and_review_check_list_the_same_common_paths(self):
+        sys.path.insert(0, str(ROOT / "scripts"))
+        from check_review_status import COMMON_PATHS
+        owners = [line.split()[0].lstrip("/") for line in (ROOT / "templates/CODEOWNERS").read_text().splitlines()
+                  if line.strip() and not line.startswith("#")]
+        self.assertEqual(sorted(path.removesuffix("**") for path in COMMON_PATHS), sorted(owners))
+        row = next(line for line in (ROOT / "POLICY.md").read_text().splitlines() if line.startswith("| 공통 경로 |"))
+        for path in COMMON_PATHS:
+            self.assertIn(f"`{path}`", row)
+
+
 if __name__ == "__main__":
     unittest.main()

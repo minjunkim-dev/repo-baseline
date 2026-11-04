@@ -28,8 +28,8 @@ def drift(root=ROOT):
     return changed
 
 
-def mcp_secrets(root=ROOT):
-    """Committed .mcp.json env and header values must reference a variable, not hold a value.
+def mcp_literal_fields(root=ROOT):
+    """Paths (server.field.key, never the value) of .mcp.json env and header entries without a ${VAR} reference.
     shortcut: secrets inside `args` or URLs are not detected; review covers those."""
     path = root / ".mcp.json"
     if not path.exists():
@@ -45,23 +45,24 @@ def mcp_secrets(root=ROOT):
             if not isinstance(values, dict):
                 raise ValueError(f".mcp.json {name}.{field} must be an object")
             found += [f"{name}.{field}.{key}" for key, value in values.items()
-                      if not isinstance(value, str) or not re.search(r"\$\{[A-Za-z_]\w*\}", value)]
+                      if not isinstance(value, str) or not re.search(r"\$\{[A-Za-z_]\w*\}", value)
+                      or re.search(r"\$\{[^}]*:-", value)]
     return found
 
 
 def main():
     try:
         changed = drift()
-        secrets = mcp_secrets()
+        literal_fields = mcp_literal_fields()
     except (OSError, ValueError) as error:
         print(f"repo-baseline UNVERIFIED: {error}", file=sys.stderr)
         return 2
-    if secrets:
-        print("repo-baseline SECRET: .mcp.json values without a ${VAR} reference: " + ", ".join(secrets))
+    if literal_fields:
+        print("repo-baseline MCP: .mcp.json values without a ${VAR} reference: " + ", ".join(literal_fields))
     if changed:
         print("repo-baseline DRIFT: " + ", ".join(changed)
               + "; change the file in repo-baseline, then re-run tools/apply_baseline.py")
-    if secrets or changed:
+    if literal_fields or changed:
         return 1
     print("repo-baseline PASS: copied files match the recorded hashes")
     return 0

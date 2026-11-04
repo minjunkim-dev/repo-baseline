@@ -77,13 +77,6 @@ class GitHubSettingsTests(unittest.TestCase):
                                      [{"context": "CI", "app_id": 1}], "checks"), ["checks"])
         self.assertEqual(differences(True, 1, "enabled"), ["enabled"])
 
-    def test_any_source_check_matches_null_app_from_the_api(self):
-        expected = [{"context": "review/independent", "app_id": -1}]
-        self.assertEqual(differences(expected, [{"context": "review/independent", "app_id": None}], "checks"), [])
-        self.assertEqual(differences(expected, [{"context": "review/independent", "app_id": 15368}], "checks"), ["checks"])
-        self.assertEqual(differences([{"context": "CI", "app_id": 15368}],
-                                     [{"context": "CI", "app_id": None}], "checks"), ["checks"])
-
     def test_baseline_pins_checked_out_codeql_workflow(self):
         profile = advanced(BASELINE)
         with tempfile.TemporaryDirectory() as directory:

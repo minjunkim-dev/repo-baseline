@@ -67,13 +67,14 @@
 - 역할마다 결정적 검사와 LLM 리뷰를 각각 하나까지만 둔다. 다른 모델의 두 번째 의견은 외부 리뷰 대상에만 둔다. 순서는 결정적 검사 → LLM 리뷰 → 사람이다. 선택 도구와 설치·확인 방법은 `docs/development-workflow.md`에 둔다.
 - 가벼운 경로: 문서나 신뢰 경계가 아닌 설정만 바꾸는 양쪽 문 PR은 Standards·Spec 리뷰 하나만 받는다.
 - 내장 명령이 없는 런타임은 같은 역할의 리뷰를 쓰고 무엇을 썼는지 리뷰 기록에 남긴다. CodeQL을 쓰더라도 Security 리뷰를 대신하지 않는다.
-- 리뷰 기록: 필수 리뷰를 마친 에이전트는 리뷰한 head SHA에 commit status를 남긴다. context는 `review/independent`(Standards·Spec·버그 찾기)와 `review/security`다. 신뢰 경계 변경이 아니면 `review/security`는 `success`로 두고 비해당이라고 적는다. description에 도구·모델·지적 수를 적는다. PR 댓글은 사람이 읽는 기록으로 함께 남길 수 있다. 새 push의 SHA에는 status가 없으므로, 필수 체크로 등록하면(§9) 리뷰 뒤에 더한 커밋과 기준 브랜치 갱신은 다시 리뷰할 때까지 병합되지 않는다. 같은 GitHub 계정이 남긴 status는 사람과 에이전트를 구분하지 못한다. 절차가 실행됐다는 기록이지 보안 경계가 아니다.
+- 리뷰 기록: 필수 리뷰를 마친 에이전트는 리뷰한 head SHA에 commit status를 남긴다. context는 `review/independent`(Standards·Spec·버그 찾기)와, Security 리뷰를 실행했으면 `review/security`다. description에 도구·모델·지적 수를 적는다. PR 댓글은 사람이 읽는 기록으로 함께 남길 수 있다.
+- `Review status` CI job(`scripts/check_review_status.py`, `templates/review-status.yml`)이 바뀐 파일 경로로 필요한 status를 정하고, 그 head에 없으면 실패한다. 모든 PR에 `review/independent`가 필요하다. 아래 표의 공통 경로나 프로젝트 경로에 걸리면 `review/security`도 필요하다. 아래 Dependabot 예외는 그대로 적용한다. 내용 기준은 오탐이 많아 이 job이 보지 않고 리뷰어가 판단한다. 새 push의 SHA에는 status가 없으므로, 이 job을 필수 체크로 등록하면(§9) 리뷰 뒤에 더한 커밋과 기준 브랜치 갱신은 다시 리뷰할 때까지 병합되지 않는다. 같은 GitHub 계정이 남긴 status는 사람과 에이전트를 구분하지 못한다. 절차가 실행됐다는 기록이지 보안 경계가 아니다.
 - 신뢰 경계 변경은 누가 무엇을 할 수 있는지, 또는 신뢰하지 않는 입력이 더 높은 권한에 닿는지를 바꾸는 변경이다. 작성자의 판단이 아니라 diff로 정한다. 아래 중 하나라도 걸리면 신뢰 경계 변경이다. 애매하면 신뢰 경계 변경으로 본다.
 
 | 종류 | 기준 | 정하는 사람 |
 | --- | --- | --- |
-| 공통 경로 | `.github/workflows/**`, `.github/repository-settings.json`, `.github/dependabot.yml`, `.github/CODEOWNERS`, `.claude/settings.json`, `.agents/skills/**`, `.claude/skills/**`, `.mcp.json`, 의존성 manifest·lockfile, `Dockerfile`, `.env*` | 이 저장소(공통값) |
-| 프로젝트 경로 | 인증·결제·권한 검사·migration 등 프로젝트가 정한 경로 | 프로젝트 소유자(팀 프로필은 CODEOWNERS의 소유자). 프로젝트 리뷰 문서에 적는다 |
+| 공통 경로 | `.github/workflows/**`, `.github/repository-settings.json`, `.github/dependabot.yml`, `.github/CODEOWNERS`, `.github/trust-boundary-paths`, `.claude/settings.json`, `.agents/skills/**`, `.claude/skills/**`, `.mcp.json`, 의존성 manifest·lockfile, `Dockerfile`, `.env*` | 이 저장소(공통값) |
+| 프로젝트 경로 | 인증·결제·권한 검사·migration 등 프로젝트가 정한 경로 | 프로젝트 소유자(팀 프로필은 CODEOWNERS의 소유자). `.github/trust-boundary-paths`에 한 줄에 하나씩 적고 프로젝트 리뷰 문서에서 연결한다. CI는 기준 브랜치의 파일을 읽는다 |
 | 내용 | workflow `permissions`·`pull_request_target`, Secret·token 참조, 셸 실행·`eval`, 데이터·파일·브랜치 삭제, 외부 입력을 처음 받는 코드 | diff를 읽는 에이전트 |
 
 - 사람은 어느 PR에든 Security 리뷰를 더 요청할 수 있다. 경로 기준에 걸린 PR은 에이전트가 Security 리뷰를 빼지 않는다. 예외는 아래 Dependabot 버전 갱신 하나다. PR 본문 Merge Danger에 걸린 기준을 적고, 걸린 것이 없으면 없다고 적는다.
@@ -113,7 +114,8 @@
 | hotfix로 보는 범위 | 14일 안에 병합된 PR을 고친 PR |
 | CI 시간 비교 | 이전 4주 중앙값보다 20% 넘게 늘면 표시 |
 | 멈춘 PR | 7일 넘게 갱신이 없는 열린 PR, 열린 지 7일이 넘은 Dependabot PR |
-| 리뷰 기록 누락 | 병합된 PR의 최종 head에 §5의 리뷰 status가 없거나 `success`가 아님 |
+| 리뷰 기록 누락 | 병합된 PR의 최종 head에서 §5의 `Review status` job이 `success`가 아님 |
+| hotfix 비율 | 병합 PR 중 위 hotfix 범위에 드는 PR의 비율. 참고용이고 병합·auto-merge의 조건이 아니다 |
 | 정기 감사 지연 | 마지막 `security-audit` Issue가 3개월보다 오래됨. 없으면 없다고 표시 |
 
 - 점검은 회고 후보를 모을 뿐이다. 회고는 §6대로 사용자가 지정할 때만 한다.
@@ -135,7 +137,8 @@
 | 한쪽 문 병합 | 소유자가 최종 head를 승인한 뒤 | 승인한 사람이나 PR 책임자 |
 
 - `templates/repository-settings.json`은 1인 프로필 값이다. 팀 프로필은 복사한 뒤 위 표의 값으로 바꾼다.
-- §5의 리뷰 status는 두 프로필 모두 필수 체크로 등록한다. 기존 프로젝트의 PR이 아무도 남기지 않는 status를 기다리지 않게 두 단계로 도입한다. ① 에이전트가 리뷰 status를 남기기 시작한다(필수 아님). ② 그 뒤 프로젝트마다 사람이 승인해 `tools/apply_github_settings.py`로 필수 체크에 등록한다. 등록한 저장소는 양쪽 문에 GitHub auto-merge를 쓸 수 있다. 등록할 때는 `checks`에 `{"context": "review/independent", "app_id": -1}`과 `review/security`를 더한다. `-1`은 모든 출처를 허용한다는 뜻이다(GitHub REST API). 검사기는 API가 `null`로 돌려줘도 같은 값으로 본다.
+- §5의 `Review status` job은 두 프로필 모두 필수 체크로 등록한다. 기존 프로젝트의 PR이 아무도 남기지 않는 status를 기다리지 않게 두 단계로 도입한다. ① `templates/review-status.yml`을 `.github/workflows/review-status.yml`로 두고 에이전트가 리뷰 status를 남기기 시작한다(필수 아님). ② 그 뒤 프로젝트마다 사람이 승인해 `checks`에 `{"context": "Review status", "app_id": 15368}`을 더하고 `tools/apply_github_settings.py`로 등록한다.
+- GitHub auto-merge는 ②를 마친 프로젝트의 양쪽 문에만 쓴다. revert 없는 기간 같은 조건은 두지 않는다. 실패가 revert가 아니라 후속 fix로 나타나 구분되지 않기 때문이다.
 - 팀 프로필의 사람 승인:
   - PR 책임자는 PR을 연 사람이다. 에이전트가 연 PR은 그 에이전트를 시킨 사람이 책임자다. 책임자의 승인은 세지 않는다.
   - 에이전트와 봇의 승인은 사람 승인이 아니다. 에이전트는 PR을 승인하지 않는다. 에이전트가 사람 계정으로 승인하면 GitHub는 그 사람의 승인으로 기록하기 때문이다. Actions의 PR 승인은 §4 기준선에서 꺼져 있다.

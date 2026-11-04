@@ -14,6 +14,7 @@
 | `templates/dependabot.yml`, `templates/dependabot-ecosystem.yml` | Dependabot 설정 원본 | 예. manifest의 `ecosystems` 목록으로 `.github/dependabot.yml`을 생성한다 |
 | `templates/repo-baseline.json` | 복사 목록(manifest) 시작점 | 예. `.github/repo-baseline.json`으로 둔다 |
 | `templates/repository-settings.json` | GitHub 설정 기준선 시작점(1인 프로필 값) | 예. `.github/repository-settings.json`으로 두고 `REPLACE` 값과 저장소 정보를 채운다. 팀 프로필은 `POLICY.md` §9의 값으로 바꾼다 |
+| `templates/review-status.yml` | 리뷰 status를 경로로 검사하는 workflow | 예. `.github/workflows/review-status.yml`로 둔다. 프로젝트 파일이라 해시로 검사하지 않고 Dependabot이 pin을 올린다 |
 | `templates/CODEOWNERS` | 팀 프로필의 신뢰 경계 경로 소유자 | 팀 프로필만. `.github/CODEOWNERS`로 두고 소유자를 채운다 |
 | `templates/claude-settings.json` | Claude Code 프로젝트 설정(Matt Pocock 플러그인, `.env` 읽기 차단) | 예. `.claude/settings.json`으로 둔다 |
 | `scripts/` | 프로젝트에 그대로 복사하는 검사기와 테스트 | 예. 수정하지 않는다 |
@@ -27,7 +28,7 @@
 ## 새 프로젝트에 적용
 
 1. `templates/repo-baseline.json`을 프로젝트의 `.github/repo-baseline.json`으로 복사한다.
-2. `templates/claude-settings.json`을 프로젝트의 `.claude/settings.json`으로 둔다. 이미 있으면 합친다.
+2. `templates/claude-settings.json`을 프로젝트의 `.claude/settings.json`으로, `templates/review-status.yml`을 `.github/workflows/review-status.yml`로 둔다. 이미 있으면 합친다.
 3. `.github/dependabot.yml` 항목의 `ecosystems`에 GitHub Actions 외의 실제 생태계를 적는다. 예: `{"package-ecosystem": "cargo", "directory": "/services/api"}`.
 4. 테스트를 다른 폴더에서 실행하면 `files`의 대상 경로를 바꾼다. 예: `"scripts/source-only/test_github_settings.py": {"source": "scripts/test_github_settings.py"}`.
 5. 이 저장소에서 다음을 실행한다.
@@ -44,7 +45,7 @@
       - `repository`: `owner/name`. `repository_id`: `gh api repos/OWNER/NAME --jq .id`의 값.
       - `default_branch`와 `expected.repository.default_branch`: 실제 기본 브랜치. 둘이 같아야 한다.
       - `visibility`: `public` 또는 `private`.
-      - `checks`: 실제 PR에서 성공한 필수 job 이름. GitHub Actions면 `app_id`는 15368이다. `POLICY.md` §5의 리뷰 status를 등록하면 `app_id`는 -1이다(`POLICY.md` §9).
+      - `checks`: 실제 PR에서 성공한 필수 job 이름. GitHub Actions면 `app_id`는 15368이다. `POLICY.md` §9의 `Review status` job도 같다.
       - 팀 프로필이면 리뷰 설정 네 값을 `POLICY.md` §9의 표대로 바꾸고 `templates/CODEOWNERS`를 `.github/CODEOWNERS`로 둔다.
       - `patterns_allowed`: workflow의 `uses:` 중 GitHub 소유가 아닌 action(`owner/repo@*`). 없으면 빈 목록.
       - CodeQL을 workflow 파일(advanced setup)로 돌리면 `codeql.state`를 `not-configured`로 바꾸고 `codeql_workflow`·`codeql_main_source`를 넣는다(`POLICY.md` §3).

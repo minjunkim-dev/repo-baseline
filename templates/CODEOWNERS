@@ -6,6 +6,7 @@
 /.github/repository-settings.json @REPLACE-OWNERS
 /.github/dependabot.yml @REPLACE-OWNERS
 /.github/CODEOWNERS @REPLACE-OWNERS
+/.github/trust-boundary-paths @REPLACE-OWNERS
 /.claude/settings.json @REPLACE-OWNERS
 /.agents/skills/ @REPLACE-OWNERS
 /.claude/skills/ @REPLACE-OWNERS

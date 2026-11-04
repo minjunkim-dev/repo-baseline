@@ -28,10 +28,6 @@ def differences(expected, actual, path=""):
     if type(expected) is not type(actual):
         return [path]
     if isinstance(expected, list):
-        if path.endswith("checks"):
-            # A check any source may set is written with app_id -1; the API may report it as null.
-            actual = [{**item, "app_id": -1} if isinstance(item, dict) and "app_id" in item
-                      and item["app_id"] is None else item for item in actual]
         # API ordering is irrelevant; duplicates and extra entries still differ.
         expected = sorted(json.dumps(item, sort_keys=True) for item in expected)
         actual = sorted(json.dumps(item, sort_keys=True) for item in actual)
