@@ -62,7 +62,8 @@ def read_diff_api(endpoint):
 
 
 def force_push_befores(repo, number):
-    """SHAs the pull request head pointed at before a rebase, newest first. Empty when the API is unavailable."""
+    """SHAs the pull request head pointed at before a rebase, newest first.
+    None when the timeline cannot be read. An empty list means it was read and has no force pushes."""
     owner, name = repo.split("/", 1)
     query = (
         "query($owner:String!,$name:String!,$number:Int!){"
@@ -77,7 +78,7 @@ def force_push_befores(repo, number):
             capture_output=True, text=True, check=True, timeout=60)
         nodes = json.loads(result.stdout)["data"]["repository"]["pullRequest"]["timelineItems"]["nodes"]
     except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError):
-        return []
+        return None
     dated = []
     for node in nodes or []:
         oid = ((node or {}).get("beforeCommit") or {}).get("oid")
@@ -220,7 +221,7 @@ def latest_state(statuses, context):
 
 
 def prior_shas(repo, number, head, read):
-    """Earlier heads, newest first: current commits, then rebase parents the commit list no longer has."""
+    """Earlier heads, newest first. None when either history lookup fails, so carry does not use a partial list."""
     found = []
     try:
         commits = [commit for page in read(f"repos/{repo}/pulls/{number}/commits?per_page=100") for commit in page]
@@ -229,13 +230,16 @@ def prior_shas(repo, number, head, read):
             if sha and sha != head and sha not in found:
                 found.append(sha)
     except (OSError, subprocess.SubprocessError, KeyError, ValueError, TypeError):
-        pass
+        return None
     try:
-        for sha in read(FORCE_PUSHES + f"{repo}/{number}") or []:
-            if isinstance(sha, str) and sha and sha != head and sha not in found:
-                found.append(sha)
+        befores = read(FORCE_PUSHES + f"{repo}/{number}")
     except (OSError, subprocess.SubprocessError, KeyError, ValueError, TypeError):
-        pass
+        return None
+    if befores is None:
+        return None
+    for sha in befores:
+        if isinstance(sha, str) and sha and sha != head and sha not in found:
+            found.append(sha)
     return found[:PRIOR_LIMIT]
 
 

@@ -177,7 +177,7 @@ class ReviewStatusTests(unittest.TestCase):
 
     def test_an_unchanged_diff_reuses_the_prior_success(self):
         files = [{"filename": "src/app.py"}]
-        read = api(files, commit_shas=["OLD", "HEAD"], extra_status={"OLD": [OK]})
+        read = api(files, commit_shas=["OLD", "HEAD"], extra_status={"OLD": [OK]}, force_pushes=[])
         same = diffs({"OLD": ADDED, "HEAD": SHIFTED})
         self.assertEqual(tool.missing("o/n", "1", "HEAD", "BASE", read, same), [])
         indent = SHIFTED.replace("+    return 2", "+        return 2")
@@ -205,10 +205,10 @@ class ReviewStatusTests(unittest.TestCase):
     def test_security_reuses_the_same_diff_and_does_not_borrow_a_different_context(self):
         files = [{"filename": ".github/workflows/ci.yml", "patch": "@@\n-run: a\n+run: b"}]
         both = {"OLD": [OK, (tool.SECURITY, "success")]}
-        read = api(files, commit_shas=["OLD", "HEAD"], extra_status=both)
+        read = api(files, commit_shas=["OLD", "HEAD"], extra_status=both, force_pushes=[])
         same = diffs({"OLD": ADDED, "HEAD": SHIFTED})
         self.assertEqual(tool.missing("o/n", "1", "HEAD", "BASE", read, same), [])
-        only_independent = api(files, commit_shas=["OLD", "HEAD"], extra_status={"OLD": [OK]})
+        only_independent = api(files, commit_shas=["OLD", "HEAD"], extra_status={"OLD": [OK]}, force_pushes=[])
         self.assertEqual(tool.missing("o/n", "1", "HEAD", "BASE", only_independent, same), [tool.SECURITY])
 
     def test_an_unreadable_newer_status_does_not_fall_through(self):
@@ -216,6 +216,26 @@ class ReviewStatusTests(unittest.TestCase):
         read = api(files, commit_shas=["OLDER", "MID", "HEAD"], extra_status={"OLDER": [OK]})
         self.assertEqual(tool.missing("o/n", "1", "HEAD", "BASE", read, diffs({"OLDER": ADDED, "HEAD": SHIFTED})),
                          [tool.INDEPENDENT])
+
+    def test_an_unreadable_history_does_not_carry(self):
+        files = [{"filename": "src/app.py"}]
+        same = diffs({"OLD": ADDED, "HEAD": SHIFTED})
+        hidden_timeline = api(files, commit_shas=["OLD", "HEAD"], extra_status={"OLD": [OK]})
+        self.assertEqual(tool.missing("o/n", "1", "HEAD", "BASE", hidden_timeline, same), [tool.INDEPENDENT])
+        listed = api(files, commit_shas=["OLD", "HEAD"], extra_status={"OLD": [OK]}, force_pushes=[])
+
+        def unreadable_timeline(endpoint):
+            if endpoint.startswith(tool.FORCE_PUSHES):
+                return None
+            return listed(endpoint)
+        self.assertEqual(tool.missing("o/n", "1", "HEAD", "BASE", unreadable_timeline, same), [tool.INDEPENDENT])
+        only_rebase = api(files, force_pushes=["OLD"], extra_status={"OLD": [OK]})
+
+        def unreadable_commits(endpoint):
+            if endpoint.endswith("/commits?per_page=100"):
+                raise subprocess.CalledProcessError(1, "gh", stderr="HTTP 500")
+            return only_rebase(endpoint)
+        self.assertEqual(tool.missing("o/n", "1", "HEAD", "BASE", unreadable_commits, same), [tool.INDEPENDENT])
 
     def test_an_unreadable_diff_does_not_reuse_a_status(self):
         files = [{"filename": "src/app.py"}]
