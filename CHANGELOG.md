@@ -1,5 +1,9 @@
 # 변경 기록
 
+## 2026-11-04 — Review status workflow 설치
+
+- `.github/workflows/review-status.yml`: `templates/review-status.yml`을 그대로 복사했다. 다른 workflow와 합치지 않았고 이벤트를 더하지 않았다. 필수 체크 등록은 이 병합 뒤 소유자 승인으로 따로 한다. 템플릿은 안 바뀌어 소비 프로젝트 재적용은 필요 없다.
+
 ## 2026-11-04 — 한쪽 문 승인 댓글을 검사기가 요구
 
 - `scripts/check_review_status.py`: 1인 프로필에서 §10 표의 게이트 경로를 바꾼 PR은 저장소 소유자의 이슈 댓글 `한쪽 문 승인: <현재 head의 전체 SHA>`가 있어야 `Review status`가 통과한다. 실패 이름은 `review/owner-approval`이다. commit status로 올리지 않는다. 그 이름의 status가 있어도 댓글을 대신하지 않는다. 다른 SHA, 다른 작성자, 댓글 없음은 실패다. 새 head는 이전 댓글을 잇지 않는다. 양쪽 문과 Dependabot 버전 전용 예외는 통과한다. 파일 목록이 잘리면 댓글을 요구한다. 기준 브랜치 `AGENTS.md`의 한 줄이 `프로필: 팀`이면 팀 프로필이라 이 댓글을 요구하지 않는다. 그 줄을 더하거나 빼는 diff는 기준 브랜치가 아직 1인이면 댓글을 요구한다. 판정은 그 head의 `compare`로 하고, 열린 PR의 최신 파일 목록으로 하지 않는다. 주 버전과 표 밖의 한쪽 문은 판정하지 않는다.
