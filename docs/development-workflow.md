@@ -56,7 +56,7 @@
 
 - Claude Code: `repo-baseline`의 `templates/claude-settings.json`을 프로젝트의 `.claude/settings.json`으로 둔다(두 프로필 공통).
   - 리뷰 관문 스킬 `matt-code-review`는 저장소에 커밋돼 있으므로 플러그인 없이도 `/matt-code-review`로 부른다. 플러그인은 나머지 Matt Pocock 스킬을 쓰기 위한 로컬 편의다.
-  - Matt Pocock 마켓플레이스를 태그(`ref`)로 고정해 등록하고 `mattpocock-skills`를 켠다. 등록은 각자 그 폴더를 신뢰한 뒤에 적용된다. 프로젝트 설정의 마켓플레이스 source는 `sha`를 받지 않으므로 태그로만 고정한다. 태그를 올리는 PR은 신뢰 경계 변경(`POLICY.md` §5)으로 리뷰한다.
+  - Matt Pocock 마켓플레이스를 태그(`ref`)로 고정해 등록하고 `mattpocock-skills`를 켠다. 등록은 각자 그 폴더를 신뢰한 뒤에 적용된다. 프로젝트 설정의 마켓플레이스 source는 `sha`를 받지 않으므로 태그로만 고정한다. 태그는 옮겨질 수 있어 주간 점검이 commit을 대조한다. 태그를 올리는 PR은 신뢰 경계 변경(`POLICY.md` §5)으로 리뷰한다.
   - 같은 스킬을 다른 마켓플레이스에서도 켜지 않는다. 이름이 겹친다.
   - `.env*`(`.env.example` 제외) 읽기를 막는다. Claude의 파일 도구와 `cat` 같은 인식되는 셸 명령에만 적용된다. 파일을 직접 여는 스크립트는 막지 못한다. 모든 프로세스를 막으려면 sandbox를 쓴다.
   - 확인: `claude plugin list`에 `mattpocock-skills@mattpocock`가 켜져 있다. 고정한 태그는 `.claude/settings.json`의 `ref`다.

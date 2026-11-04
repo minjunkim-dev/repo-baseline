@@ -66,10 +66,12 @@ class RepoBaselineTests(unittest.TestCase):
             self.assertEqual(mcp_literal_fields(root), [])
             (root / ".mcp.json").write_text(json.dumps({"mcpServers": {
                 "ok": {"env": {"TOKEN": "${API_TOKEN}"}, "headers": {"Authorization": "Bearer ${API_TOKEN}"}},
-                "bad": {"env": {"TOKEN": "sk-123", "KEY": "${API_KEY:-sk-123}", "MIXED": "${API_KEY:-sk-123}${OTHER}"},
+                "bad": {"env": {"TOKEN": "sk-123", "KEY": "${API_KEY:-sk-123}", "MIXED": "${API_KEY:-sk-123}${OTHER}",
+                                "PART": "sk-123${OTHER}"},
                         "headers": {"Authorization": "Bearer sk-123"}},
             }}))
-            self.assertEqual(mcp_literal_fields(root), ["bad.env.TOKEN", "bad.env.KEY", "bad.env.MIXED", "bad.headers.Authorization"])
+            self.assertEqual(mcp_literal_fields(root), ["bad.env.TOKEN", "bad.env.KEY", "bad.env.MIXED", "bad.env.PART",
+                              "bad.headers.Authorization"])
             (root / ".mcp.json").write_text("[]")
             with self.assertRaises(ValueError):
                 mcp_literal_fields(root)

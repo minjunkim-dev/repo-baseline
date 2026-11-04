@@ -17,9 +17,10 @@ DEPENDABOT = "dependabot[bot]"
 PROJECT_PATHS = ".github/trust-boundary-paths"
 # POLICY.md §5 common paths. A pattern without "/" matches the file name at any depth.
 COMMON_PATHS = (
-    ".github/workflows/**", ".github/repository-settings.json", ".github/dependabot.yml", ".github/CODEOWNERS",
-    PROJECT_PATHS, ".claude/settings.json", ".agents/skills/**", ".claude/skills/**", ".mcp.json",
-    "Dockerfile", ".env*",
+    ".github/workflows/**", ".github/actions/**", ".github/repository-settings.json", ".github/dependabot.yml",
+    ".github/dependabot.yaml", ".github/CODEOWNERS", ".github/repo-baseline.json", PROJECT_PATHS, "scripts/check_*.py",
+    ".claude/settings.json", ".claude/hooks/**", ".claude/agents/**", ".claude/commands/**", ".agents/skills/**",
+    ".claude/skills/**", ".mcp.json", "Dockerfile", ".env*",
 )
 # Dependency manifests and lockfiles; a project adds other ecosystems to PROJECT_PATHS.
 DEPENDENCY_FILES = (
@@ -31,7 +32,7 @@ DEPENDENCY_FILES = (
 )
 # shortcut: any number counts as a version, so a Dependabot line changing only a number passes; upgrade if
 # Dependabot ever changes more than versions.
-VERSION = re.compile(r"sha\d+[-:][A-Za-z0-9+/=]+|\b[0-9a-f]{7,}\b|v?\d+(?:\.\d+)*(?:[-+][0-9A-Za-z.-]+)?")
+VERSION = re.compile(r"(?:sha\d+[-:]|h1:)[A-Za-z0-9+/=]+|\b[0-9a-f]{7,}\b|(?<![A-Za-z0-9])v?\d+(?:\.\d+)*(?:[-+][0-9A-Za-z.-]+)?")
 
 
 def read_api(endpoint):
@@ -43,7 +44,9 @@ def read_api(endpoint):
 
 def matches(path, patterns):
     name = path.rsplit("/", 1)[-1]
-    return any(fnmatch.fnmatchcase(path if "/" in pattern else name, pattern) for pattern in patterns)
+    # With "/" a pattern is a path from the root, also read as a literal directory (app/[id]/** has no glob).
+    return any(fnmatch.fnmatchcase(path, pattern) or path.startswith(pattern.removesuffix("/**") + "/")
+               if "/" in pattern else fnmatch.fnmatchcase(name, pattern) for pattern in patterns)
 
 
 def project_paths(repo, base, read):
@@ -54,7 +57,9 @@ def project_paths(repo, base, read):
             return ()
         raise
     lines = base64.b64decode(found["content"]).decode("utf-8").splitlines()
-    return tuple(line.strip() for line in lines if line.strip() and not line.startswith("#"))
+    # CODEOWNERS spellings work too: /src/auth/ means src/auth/**.
+    return tuple(re.sub(r"/$", "/**", line.strip().lstrip("/")) for line in lines
+                 if line.strip() and not line.startswith("#"))
 
 
 def only_versions(entry):
@@ -71,9 +76,11 @@ def only_versions(entry):
 
 
 def dependabot_bump(pull, commits, files):
-    """POLICY.md §5 exception: Dependabot's own commits, changing only versions and hashes."""
+    """POLICY.md §5 exception: Dependabot's own commits, changing only versions and hashes.
+    An author login follows the commit email, so only GitHub's signature on the commit counts."""
     return (pull["user"]["login"] == DEPENDABOT
-            and all((commit.get("author") or {}).get("login") == DEPENDABOT for commit in commits)
+            and all((commit.get("author") or {}).get("login") == DEPENDABOT
+                    and commit["commit"]["verification"]["verified"] for commit in commits)
             and all(only_versions(entry) for entry in files))
 
 
@@ -90,7 +97,10 @@ def missing(repo, number, head, base, read=read_api):
         commits = [commit for page in read(f"repos/{repo}/pulls/{number}/commits?per_page=100") for commit in page]
         if not dependabot_bump(pull, commits, files):
             needed.append(SECURITY)
-    statuses = read(f"repos/{repo}/commits/{head}/status")["statuses"]
+    statuses = [status for page in read(f"repos/{repo}/commits/{head}/status?per_page=100") for status in page["statuses"]]
+    # A Security review the paths did not require still counts: a posted failure blocks.
+    if SECURITY not in needed and any(status["context"] == SECURITY for status in statuses):
+        needed.append(SECURITY)
     passed = {status["context"] for status in statuses if status["state"] == "success"}
     return [context for context in needed if context not in passed]
 

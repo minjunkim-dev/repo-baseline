@@ -3,11 +3,18 @@
 # people with write access, or a GitHub team (@org/team) in an organization-owned repository.
 # Add the project's dependency manifests, lockfiles and trust-boundary paths below.
 /.github/workflows/ @REPLACE-OWNERS
+/.github/actions/ @REPLACE-OWNERS
 /.github/repository-settings.json @REPLACE-OWNERS
 /.github/dependabot.yml @REPLACE-OWNERS
+/.github/dependabot.yaml @REPLACE-OWNERS
 /.github/CODEOWNERS @REPLACE-OWNERS
+/.github/repo-baseline.json @REPLACE-OWNERS
+/scripts/check_*.py @REPLACE-OWNERS
 /.github/trust-boundary-paths @REPLACE-OWNERS
 /.claude/settings.json @REPLACE-OWNERS
+/.claude/hooks/ @REPLACE-OWNERS
+/.claude/agents/ @REPLACE-OWNERS
+/.claude/commands/ @REPLACE-OWNERS
 /.agents/skills/ @REPLACE-OWNERS
 /.claude/skills/ @REPLACE-OWNERS
 /.mcp.json @REPLACE-OWNERS

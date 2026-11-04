@@ -3,20 +3,20 @@
 ## 2026-11-04 — 1인·팀 프로필, 리뷰 기록, 도구 층
 
 - `POLICY.md` §9(새 절): 1인(기본)과 팀(2~6명) 프로필. 팀 프로필은 GitHub 필수 승인 1명·코드 소유자 리뷰·마지막 push 승인을 켜고 `templates/CODEOWNERS`로 신뢰 경계 경로의 소유자를 둔다. PR 책임자(에이전트를 시킨 사람 포함)와 에이전트·봇의 승인은 세지 않는다. 에이전트는 PR을 승인하지 않는다. 가벼운 승인 경로는 두지 않는다. 양쪽 문은 승인·CI·리뷰 뒤 에이전트가, 한쪽 문은 승인한 사람이나 PR 책임자가 병합한다. 조직 소유 저장소의 ruleset(조직 ruleset은 Team·Enterprise)·merge queue·우회 목록 지원 범위와 비공개 팀 저장소의 CodeRabbit 비용을 공식 문서로 확인해 적었다. 프로젝트는 `AGENTS.md`에 프로필을 한 줄로 적는다.
-- `POLICY.md` §5: 리뷰 표에 "언제"·외부 리뷰·정기 Security 감사(Cloudflare `security-audit`)·회고를 넣었다. 버그 찾기는 코드가 바뀐 PR에만 한다. 문서·신뢰 경계가 아닌 설정만 바꾸는 양쪽 문은 Standards·Spec 하나만 받는다(가벼운 경로). 역할마다 결정적 검사와 LLM 리뷰를 하나씩만 둔다. 공통 신뢰 경계 경로에 `.github/CODEOWNERS`, `.claude/settings.json`, `.agents/skills/**`, `.claude/skills/**`, `.mcp.json`을 더했다.
-- 리뷰 기록(두 프로필): 리뷰를 마치면 리뷰한 head SHA에 commit status(`review/independent`, Security를 실행했으면 `review/security`)를 남긴다. 새 `Review status` CI job(`scripts/check_review_status.py`, `templates/review-status.yml`)이 바뀐 파일 경로로 필요한 status를 정하고 그 head에 없으면 실패한다. 내용 기준은 리뷰어 판단으로 남긴다. Dependabot 예외는 `POLICY.md` §5대로 적용한다. 두 단계로 도입한다. ① job을 두고 에이전트가 status를 남기기 시작하고 ② 프로젝트마다 승인받아 필수 체크로 등록한다. **1인 프로필의 기본값이 바뀐다**: ② 이후 필수 체크가 하나(`Review status`) 더 생긴다. 같은 계정의 status는 사람과 에이전트를 구분하지 못하는 절차 기록이다. CodeRabbit은 외부 리뷰 대상 PR에서만 기다린다.
+- `POLICY.md` §5: 리뷰 표에 "언제"·외부 리뷰·정기 Security 감사(Cloudflare `security-audit`)·회고를 넣었다. 버그 찾기는 코드가 바뀐 PR에만 한다. 문서·신뢰 경계가 아닌 설정만 바꾸는 양쪽 문은 Standards·Spec 하나만 받는다(가벼운 경로). 역할마다 결정적 검사와 LLM 리뷰를 하나씩만 둔다. 공통 신뢰 경계 경로에 `.github/actions/**`, `.github/dependabot.yaml`, `.github/CODEOWNERS`, `.github/repo-baseline.json`, `.github/trust-boundary-paths`, `scripts/check_*.py`, `.claude/settings.json`, `.claude/hooks/**`, `.claude/agents/**`, `.claude/commands/**`, `.agents/skills/**`, `.claude/skills/**`, `.mcp.json`을 더했다. `tools/test_distribution.py`가 POLICY·CODEOWNERS·검사기의 목록이 같은지 본다. 앞으로 baseline을 다시 적용하는 PR은 Security 리뷰 대상이다.
+- 리뷰 기록(두 프로필): 리뷰를 마치면 리뷰한 head SHA에 commit status(`review/independent`, Security를 실행했으면 `review/security`)를 남긴다. 새 `Review status` CI job(`scripts/check_review_status.py`, `templates/review-status.yml`)이 바뀐 파일 경로로 필요한 status를 정하고 그 head에 없으면 실패한다. `pull_request_target`으로 기준 브랜치의 코드만 실행하므로 PR이 자기 검사를 고칠 수 없다. 내용 기준은 리뷰어 판단으로 남긴다. Dependabot 예외는 `POLICY.md` §5대로 적용한다. 두 단계로 도입한다. ① job을 두고 에이전트가 status를 남기기 시작하고 ② 프로젝트마다 승인받아 필수 체크로 등록한다. **1인 프로필의 기본값이 바뀐다**: ② 이후 필수 체크가 하나(`Review status`) 더 생긴다. 같은 계정의 status는 사람과 에이전트를 구분하지 못하는 절차 기록이다. CodeRabbit은 외부 리뷰 대상 PR에서만 기다린다.
 - GitHub auto-merge: ②를 마친 프로젝트의 양쪽 문에만 쓴다. revert 없는 기간은 조건으로 두지 않는다. 주간 점검의 hotfix 비율은 참고용이다.
 - 셋업 프롬프트 §5: 마지막으로 리뷰한 head SHA가 그대로면 최종 전체 diff 리뷰를 다시 하지 않는다. 기준 브랜치 갱신만으로 head가 바뀌면 그 뒤 바뀐 diff만 재리뷰하고 새 SHA에 status를 남긴다.
 - 도구 층(`POLICY.md` §7, `docs/development-workflow.md`): 저장소·계정·로컬 층으로 나눴다. 리뷰 관문 스킬은 저장소에 커밋한다. `vendor/mattpocock-skills/matt-code-review`(Matt Pocock `code-review` v1.3.2, MIT, 이름만 `matt-code-review`로 바꿈. 내장 `/code-review`와 겹치지 않게)를 manifest대로 `.agents/skills/`와 `.claude/skills/`에 복사한다. `@AGENTS.md` 한 줄만 있는 `CLAUDE.md`를 허용한다(내용 복제는 계속 금지).
 - `templates/claude-settings.json`(두 프로필 공통): `.env` 읽기를 막고, 로컬 편의로 Matt Pocock 플러그인을 태그로 고정해 켠다. 설정 파일은 지침 파일이 아니다.
-- `scripts/check_repo_baseline.py`: 커밋한 `.mcp.json`의 `env`·`headers` 값이 `${VAR}`를 참조하지 않으면 실패한다(`${VAR:-기본값}`의 기본값도 막는다. 비밀이 아닌 고정값도 환경 변수로 옮긴다).
-- `POLICY.md` §8·주간 점검: 리뷰 status가 없는 병합 PR과 정기 감사 지연을 표시한다.
+- `scripts/check_repo_baseline.py`: 커밋한 `.mcp.json`의 `env`·`headers` 값은 `${VAR}` 참조만 허용한다(앞의 `Bearer `·`Basic `·`Token `은 허용). `${VAR:-기본값}`과 고정값은 실패한다. 비밀이 아닌 고정값도 환경 변수로 옮긴다.
+- `POLICY.md` §8·주간 점검: `Review status`가 성공하지 않은 병합 PR, 정기 감사 지연, 마켓플레이스 태그가 가리키는 commit의 변경을 표시한다.
 - 다시 적용할 프로젝트: Smallnext·BGLike·Runstir.
   1. `.github/repo-baseline.json`에 `templates/repo-baseline.json`의 `matt-code-review` 여섯 항목과 `scripts/check_review_status.py`·`scripts/test_review_status.py`를 더하고 `tools/apply_baseline.py`로 다시 적용한다.
-  2. `.claude/settings.json`을 `templates/claude-settings.json`으로 둔다. 기존 파일이 있으면 합친다. `.mcp.json`이 있으면 `env`·`headers` 값을 기본값 없는 `${VAR}` 참조로 바꾼다.
+  2. `.claude/settings.json`을 `templates/claude-settings.json`으로 둔다. 기존 파일이 있으면 합친다. `.mcp.json`이 있으면 `env`·`headers` 값을 기본값 없는 `${VAR}` 참조로 바꾼다(앞의 `Bearer ` 등은 허용).
   3. `AGENTS.md`에 프로필 한 줄(1인)을 적는다. `@AGENTS.md` 한 줄만 있는 `CLAUDE.md`(Smallnext·BGLike)는 그대로 둔다. 프로젝트 신뢰 경계 경로를 `.github/trust-boundary-paths`에 적는다. 기존 프로젝트 리뷰 문서의 경로를 옮기고 문서에서 연결한다.
-  4. `templates/review-status.yml`을 `.github/workflows/review-status.yml`로 두고 에이전트가 리뷰 status를 남기기 시작한다.
-  5. 실제 PR에서 job의 성공과 실패를 확인한 뒤 프로젝트마다 승인받아 `.github/repository-settings.json`의 `checks`에 `Review status`(`app_id: 15368`)를 더하고 `tools/apply_github_settings.py`로 등록한다. 그 뒤부터 양쪽 문에 auto-merge를 쓸 수 있다.
+  4. `templates/review-status.yml`을 `.github/workflows/review-status.yml`로 두어 먼저 병합하고(기준 브랜치에 있어야 돈다) 에이전트가 리뷰 status를 남기기 시작한다.
+  5. 실제 PR에서 status 없이 job의 실패를, status를 남기고 다시 돌려 성공을 확인한 뒤 프로젝트마다 승인받아 `.github/repository-settings.json`의 `checks`에 `Review status`(`app_id: 15368`)를 더하고 `tools/apply_github_settings.py`로 등록한다. 그 뒤부터 양쪽 문에 auto-merge를 쓸 수 있다.
 
 ## 2026-11-03 — 리뷰 수렴과 위험 판정
 

@@ -29,7 +29,8 @@ def drift(root=ROOT):
 
 
 def mcp_literal_fields(root=ROOT):
-    """Paths (server.field.key, never the value) of .mcp.json env and header entries without a ${VAR} reference.
+    """Paths (server.field.key, never the value) of .mcp.json env and header entries holding anything
+    but ${VAR} references, optionally after an auth scheme. A :-default could hold a credential.
     shortcut: secrets inside `args` or URLs are not detected; review covers those."""
     path = root / ".mcp.json"
     if not path.exists():
@@ -45,8 +46,8 @@ def mcp_literal_fields(root=ROOT):
             if not isinstance(values, dict):
                 raise ValueError(f".mcp.json {name}.{field} must be an object")
             found += [f"{name}.{field}.{key}" for key, value in values.items()
-                      if not isinstance(value, str) or not re.search(r"\$\{[A-Za-z_]\w*\}", value)
-                      or re.search(r"\$\{[^}]*:-", value)]
+                      if not isinstance(value, str)
+                      or not re.fullmatch(r"(?:(?:Bearer|Basic|Token) )?(?:\$\{[A-Za-z_]\w*\})+", value)]
     return found
 
 
@@ -58,7 +59,7 @@ def main():
         print(f"repo-baseline UNVERIFIED: {error}", file=sys.stderr)
         return 2
     if literal_fields:
-        print("repo-baseline MCP: .mcp.json values without a ${VAR} reference: " + ", ".join(literal_fields))
+        print("repo-baseline MCP: .mcp.json values that are not only ${VAR} references: " + ", ".join(literal_fields))
     if changed:
         print("repo-baseline DRIFT: " + ", ".join(changed)
               + "; change the file in repo-baseline, then re-run tools/apply_baseline.py")

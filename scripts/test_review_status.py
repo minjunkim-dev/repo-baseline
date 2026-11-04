@@ -10,14 +10,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import check_review_status as tool
 
 
-def api(files, statuses=(), author="alice", commits=("alice",), project=None, changed=None):
+def api(files, statuses=(), author="alice", commits=("alice",), project=None, changed=None, verified=True):
     pull = {"user": {"login": author}, "changed_files": len(files) if changed is None else changed}
     routes = {
         "repos/o/n/pulls/1": pull,
         "repos/o/n/pulls/1/files?per_page=100": [files],
-        "repos/o/n/pulls/1/commits?per_page=100": [[{"author": {"login": name}} for name in commits]],
-        "repos/o/n/commits/HEAD/status": {
-            "statuses": [{"context": context, "state": state} for context, state in statuses]},
+        "repos/o/n/pulls/1/commits?per_page=100": [[{"author": {"login": name}, "commit": {"verification": {"verified": verified}}} for name in commits]],
+        "repos/o/n/commits/HEAD/status?per_page=100": [{
+            "statuses": [{"context": context, "state": state} for context, state in statuses]}],
     }
     if project is not None:
         routes[f"repos/o/n/contents/{tool.PROJECT_PATHS}?ref=BASE"] = {
@@ -45,8 +45,14 @@ class ReviewStatusTests(unittest.TestCase):
         self.assertEqual(run(api(files, [OK])), [])
         self.assertEqual(run(api(files, [(tool.INDEPENDENT, "failure")])), [tool.INDEPENDENT])
 
+    def test_a_posted_security_failure_blocks_even_when_paths_do_not_need_it(self):
+        files = [{"filename": "src/app.py"}]
+        self.assertEqual(run(api(files, [OK, (tool.SECURITY, "failure")])), [tool.SECURITY])
+        self.assertEqual(run(api(files, [OK, (tool.SECURITY, "success")])), [])
+
     def test_trust_boundary_paths_also_need_security(self):
-        for path in (".github/workflows/ci.yml", "api/.env.local", "svc/Dockerfile", "web/package-lock.json",
+        for path in (".github/workflows/ci.yml", ".github/actions/x/action.yml", "scripts/check_review_status.py",
+                     ".github/repo-baseline.json", "api/.env.local", "svc/Dockerfile", "web/package-lock.json",
                      ".claude/skills/x/SKILL.md", ".mcp.json", tool.PROJECT_PATHS):
             with self.subTest(path=path):
                 self.assertEqual(run(api([{"filename": path}], [OK])), [tool.SECURITY])
@@ -60,6 +66,11 @@ class ReviewStatusTests(unittest.TestCase):
         files = [{"filename": "src/auth/login.py"}]
         self.assertEqual(run(api(files, [OK], project="# comment\nsrc/auth/**\n")), [tool.SECURITY])
         self.assertEqual(run(api(files, [OK], project="src/billing/**\n")), [])
+        literal = [{"filename": "app/[id]/route.ts"}]
+        self.assertEqual(run(api(literal, [OK], project="app/[id]/**\n")), [tool.SECURITY])
+        for spelling in ("src/auth", "src/auth/", "/src/auth/", "/src/auth/**"):
+            with self.subTest(spelling):
+                self.assertEqual(run(api(files, [OK], project=spelling + "\n")), [tool.SECURITY])
 
     def test_more_files_than_the_api_lists_needs_security(self):
         self.assertEqual(run(api([{"filename": "src/app.py"}], [OK], changed=5000)), [tool.SECURITY])
@@ -67,6 +78,7 @@ class ReviewStatusTests(unittest.TestCase):
     def test_dependabot_version_bump_is_not_a_trust_boundary_change(self):
         files = [{"filename": ".github/workflows/ci.yml", "patch": BUMP},
                  {"filename": "package.json", "patch": '@@ -1 +1 @@\n-  "x": "^1.2.3",\n+  "x": "^1.3.0",'}]
+        files.append({"filename": "go.sum", "patch": "@@\n-x/net v0.1.0 h1:abc+/=\n+x/net v0.2.0 h1:xyz9=\n"})
         bot = tool.DEPENDABOT
         self.assertEqual(run(api(files, [OK], author=bot, commits=[bot])), [])
 
@@ -82,6 +94,14 @@ class ReviewStatusTests(unittest.TestCase):
                                author=bot, commits=[bot]),),
             "workflow line": (api([{"filename": ".github/workflows/ci.yml", "patch": "@@\n-run: a 1\n+run: a 2"}], [OK],
                                   author=bot, commits=[bot]),),
+            "forged author": (api([{"filename": ".github/workflows/ci.yml", "patch": BUMP}], [OK],
+                                  author=bot, commits=[bot], verified=False),),
+            "other action": (api([{"filename": ".github/workflows/ci.yml",
+                                   "patch": "@@\n-  uses: owner1/a@aaaaaaa\n+  uses: owner2/a@bbbbbbb"}], [OK],
+                                 author=bot, commits=[bot]),),
+            "other host": (api([{"filename": "package-lock.json",
+                                 "patch": "@@\n-https://evil1.example/x-1.0.0.tgz\n+https://evil2.example/x-1.0.0.tgz"}],
+                               [OK], author=bot, commits=[bot]),),
             "no patch": (api([{"filename": "package-lock.json"}], [OK], author=bot, commits=[bot]),),
             "other path": (api([{"filename": "Dockerfile", "patch": "@@\n-FROM a:1\n+FROM a:2"}], [OK],
                                author=bot, commits=[bot]),),

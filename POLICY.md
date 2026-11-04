@@ -68,13 +68,13 @@
 - 가벼운 경로: 문서나 신뢰 경계가 아닌 설정만 바꾸는 양쪽 문 PR은 Standards·Spec 리뷰 하나만 받는다.
 - 내장 명령이 없는 런타임은 같은 역할의 리뷰를 쓰고 무엇을 썼는지 리뷰 기록에 남긴다. CodeQL을 쓰더라도 Security 리뷰를 대신하지 않는다.
 - 리뷰 기록: 필수 리뷰를 마친 에이전트는 리뷰한 head SHA에 commit status를 남긴다. context는 `review/independent`(Standards·Spec·버그 찾기)와, Security 리뷰를 실행했으면 `review/security`다. description에 도구·모델·지적 수를 적는다. PR 댓글은 사람이 읽는 기록으로 함께 남길 수 있다.
-- `Review status` CI job(`scripts/check_review_status.py`, `templates/review-status.yml`)이 바뀐 파일 경로로 필요한 status를 정하고, 그 head에 없으면 실패한다. 모든 PR에 `review/independent`가 필요하다. 아래 표의 공통 경로나 프로젝트 경로에 걸리면 `review/security`도 필요하다. 아래 Dependabot 예외는 그대로 적용한다. 내용 기준은 오탐이 많아 이 job이 보지 않고 리뷰어가 판단한다. 새 push의 SHA에는 status가 없으므로, 이 job을 필수 체크로 등록하면(§9) 리뷰 뒤에 더한 커밋과 기준 브랜치 갱신은 다시 리뷰할 때까지 병합되지 않는다. 같은 GitHub 계정이 남긴 status는 사람과 에이전트를 구분하지 못한다. 절차가 실행됐다는 기록이지 보안 경계가 아니다.
+- `Review status` CI job(`scripts/check_review_status.py`, `templates/review-status.yml`)이 바뀐 파일 경로로 필요한 status를 정하고, 그 head에 없으면 실패한다. 모든 PR에 `review/independent`가 필요하다. 아래 표의 공통 경로나 프로젝트 경로에 걸리면 `review/security`도 필요하다. 경로에 걸리지 않아도 `review/security`가 있으면 `success`여야 한다. 아래 Dependabot 예외는 그대로 적용한다. 내용 기준은 오탐이 많아 이 job이 보지 않고 리뷰어가 판단한다. 이 job은 `pull_request_target`으로 기준 브랜치의 workflow와 검사기를 실행하고 PR 코드를 실행하지 않는다. 그래서 PR이 자기 검사를 고칠 수 없고, 검사 변경은 병합 뒤에 적용된다. 새 push의 SHA에는 status가 없으므로, 이 job을 필수 체크로 등록하면(§9) 리뷰 뒤에 더한 커밋과 기준 브랜치 갱신은 다시 리뷰할 때까지 병합되지 않는다. 같은 GitHub 계정이 남긴 status는 사람과 에이전트를 구분하지 못한다. 절차가 실행됐다는 기록이지 보안 경계가 아니다.
 - 신뢰 경계 변경은 누가 무엇을 할 수 있는지, 또는 신뢰하지 않는 입력이 더 높은 권한에 닿는지를 바꾸는 변경이다. 작성자의 판단이 아니라 diff로 정한다. 아래 중 하나라도 걸리면 신뢰 경계 변경이다. 애매하면 신뢰 경계 변경으로 본다.
 
 | 종류 | 기준 | 정하는 사람 |
 | --- | --- | --- |
-| 공통 경로 | `.github/workflows/**`, `.github/repository-settings.json`, `.github/dependabot.yml`, `.github/CODEOWNERS`, `.github/trust-boundary-paths`, `.claude/settings.json`, `.agents/skills/**`, `.claude/skills/**`, `.mcp.json`, 의존성 manifest·lockfile, `Dockerfile`, `.env*` | 이 저장소(공통값) |
-| 프로젝트 경로 | 인증·결제·권한 검사·migration 등 프로젝트가 정한 경로 | 프로젝트 소유자(팀 프로필은 CODEOWNERS의 소유자). `.github/trust-boundary-paths`에 한 줄에 하나씩 적고 프로젝트 리뷰 문서에서 연결한다. CI는 기준 브랜치의 파일을 읽는다 |
+| 공통 경로 | `.github/workflows/**`, `.github/actions/**`, `.github/repository-settings.json`, `.github/dependabot.yml`, `.github/dependabot.yaml`, `.github/CODEOWNERS`, `.github/repo-baseline.json`, `.github/trust-boundary-paths`, `scripts/check_*.py`, `.claude/settings.json`, `.claude/hooks/**`, `.claude/agents/**`, `.claude/commands/**`, `.agents/skills/**`, `.claude/skills/**`, `.mcp.json`, 의존성 manifest·lockfile, `Dockerfile`, `.env*` | 이 저장소(공통값) |
+| 프로젝트 경로 | 인증·결제·권한 검사·migration 등 프로젝트가 정한 경로 | 프로젝트 소유자(팀 프로필은 CODEOWNERS의 소유자). `.github/trust-boundary-paths`에 한 줄에 하나씩 적고 프로젝트 리뷰 문서에서 연결한다. `/`가 있으면 저장소 루트 기준 경로이고(`src/auth`, `/src/auth/`, `src/auth/**`는 같다), `/`가 없으면 어느 깊이든 그 파일 이름이다. `*`는 `/`도 넘는다. CI는 기준 브랜치의 파일을 읽는다 |
 | 내용 | workflow `permissions`·`pull_request_target`, Secret·token 참조, 셸 실행·`eval`, 데이터·파일·브랜치 삭제, 외부 입력을 처음 받는 코드 | diff를 읽는 에이전트 |
 
 - 사람은 어느 PR에든 Security 리뷰를 더 요청할 수 있다. 경로 기준에 걸린 PR은 에이전트가 Security 리뷰를 빼지 않는다. 예외는 아래 Dependabot 버전 갱신 하나다. PR 본문 Merge Danger에 걸린 기준을 적고, 걸린 것이 없으면 없다고 적는다.
@@ -99,7 +99,7 @@
 ## 7. 프로젝트 스킬과 작업 진입
 
 - 도구는 세 층에 둔다. 저장소 층(`AGENTS.md`, `@AGENTS.md` 한 줄만 있는 `CLAUDE.md`, `.agents/skills`, `.claude/skills`, 비밀값 없는 `.mcp.json`)만 팀원과 클라우드 세션에 닿는다. 계정 층(클라우드 환경·Secret·커넥터)은 사람마다 등록하고, 로컬 층(`~/.agents`, `~/.claude`의 스킬·플러그인·MCP)은 그 컴퓨터에만 있다. 층별 목록은 `docs/development-workflow.md`를 따른다.
-- 리뷰 관문 스킬은 저장소 층에 커밋한다. `vendor/mattpocock-skills/matt-code-review`(`mattpocock/skills` v1.3.2, commit `d1478fc`, MIT)를 `tools/apply_baseline.py`가 `.agents/skills/`와 `.claude/skills/`에 복사하고 해시를 기록한다. 내장 `/code-review`와 겹치지 않게 frontmatter `name`만 `matt-code-review`로 바꿨다. 올릴 때는 이 저장소에서 원본을 갱신하고 다시 적용한다.
+- 리뷰 관문 스킬은 저장소 층에 커밋한다. 저장소에 복사한 사본은 해시로 지키지만, 플러그인의 태그는 원본 쪽에서 옮겨질 수 있으므로 주간 점검이 §8대로 commit을 대조한다. `vendor/mattpocock-skills/matt-code-review`(`mattpocock/skills` v1.3.2, commit `d1478fc`, MIT)를 `tools/apply_baseline.py`가 `.agents/skills/`와 `.claude/skills/`에 복사하고 해시를 기록한다. 내장 `/code-review`와 겹치지 않게 frontmatter `name`만 `matt-code-review`로 바꿨다. 올릴 때는 이 저장소에서 원본을 갱신하고 다시 적용한다.
 - Claude Code 프로젝트 설정은 `templates/claude-settings.json`이다(두 프로필 공통). `.env` 파일 읽기를 막고, 로컬 편의로 Matt Pocock 마켓플레이스를 태그로 고정해 플러그인을 켠다. 이 플러그인은 클라우드 세션에서 읽히지 않는다. 이 파일은 지침 파일이 아니라 설정 파일이다.
 - 개발 절차는 Matt Pocock 스킬을 설치된 원문대로 쓴다. 이 저장소는 스킬의 단계를 다시 정하지 않는다. 초기 설정에서 이 기준이 고르는 것(지침은 `AGENTS.md`만 사용, `@AGENTS.md` 한 줄만 있는 `CLAUDE.md`는 허용, 검증 스킬 하나만 예외, 이 저장소가 복사하는 스킬은 대상 아님)과 `main`에 들어가는 경계는 `docs/development-workflow.md`를 따른다.
 - pstack 스킬은 Matt Pocock 스킬이 다루지 않는 단계에만 사람이 불러 쓴다. 단계별 배치는 `docs/development-workflow.md`를 따른다. 설치되지 않았으면 건너뛴다.
@@ -117,6 +117,7 @@
 | 리뷰 기록 누락 | 병합된 PR의 최종 head에서 §5의 `Review status` job이 `success`가 아님 |
 | hotfix 비율 | 병합 PR 중 위 hotfix 범위에 드는 PR의 비율. 참고용이고 병합·auto-merge의 조건이 아니다 |
 | 정기 감사 지연 | 마지막 `security-audit` Issue가 3개월보다 오래됨. 없으면 없다고 표시 |
+| 마켓플레이스 태그 | §7의 태그가 가리키는 commit이 §7의 commit과 다르면 표시 |
 
 - 점검은 회고 후보를 모을 뿐이다. 회고는 §6대로 사용자가 지정할 때만 한다.
 - 점검 결과로 고칠 것이 생기면 PR로만 반영하고 같은 리뷰·필수 CI·위험별 병합을 거친다. 일정 실행 설정은 이 저장소에 두지 않는다.
@@ -137,12 +138,13 @@
 | 한쪽 문 병합 | 소유자가 최종 head를 승인한 뒤 | 승인한 사람이나 PR 책임자 |
 
 - `templates/repository-settings.json`은 1인 프로필 값이다. 팀 프로필은 복사한 뒤 위 표의 값으로 바꾼다.
-- §5의 `Review status` job은 두 프로필 모두 필수 체크로 등록한다. 기존 프로젝트의 PR이 아무도 남기지 않는 status를 기다리지 않게 두 단계로 도입한다. ① `templates/review-status.yml`을 `.github/workflows/review-status.yml`로 두고 에이전트가 리뷰 status를 남기기 시작한다(필수 아님). ② 그 뒤 프로젝트마다 사람이 승인해 `checks`에 `{"context": "Review status", "app_id": 15368}`을 더하고 `tools/apply_github_settings.py`로 등록한다.
+- §5의 `Review status` job은 두 프로필 모두 필수 체크로 등록한다. 기존 프로젝트의 PR이 아무도 남기지 않는 status를 기다리지 않게 두 단계로 도입한다. ① `templates/review-status.yml`을 `.github/workflows/review-status.yml`로 두어 먼저 병합하고(`pull_request_target`은 기준 브랜치에 있어야 돈다), 에이전트가 리뷰 status를 남기기 시작한다(필수 아님). ② 그 뒤 프로젝트마다 사람이 승인해 `checks`에 `{"context": "Review status", "app_id": 15368}`을 더하고 `tools/apply_github_settings.py`로 등록한다.
 - GitHub auto-merge는 ②를 마친 프로젝트의 양쪽 문에만 쓴다. revert 없는 기간 같은 조건은 두지 않는다. 실패가 revert가 아니라 후속 fix로 나타나 구분되지 않기 때문이다.
 - 팀 프로필의 사람 승인:
   - PR 책임자는 PR을 연 사람이다. 에이전트가 연 PR은 그 에이전트를 시킨 사람이 책임자다. 책임자의 승인은 세지 않는다.
   - 에이전트와 봇의 승인은 사람 승인이 아니다. 에이전트는 PR을 승인하지 않는다. 에이전트가 사람 계정으로 승인하면 GitHub는 그 사람의 승인으로 기록하기 때문이다. Actions의 PR 승인은 §4 기준선에서 꺼져 있다.
   - 승인 뒤 새 push가 오면 마지막으로 push한 사람이 아닌 사람이 다시 승인해야 병합된다. 에이전트가 책임자 계정으로 push했으면 책임자는 그 head의 승인자가 될 수 없다.
+  - 두 명 팀에서 승인자가 PR 브랜치에 push하면 승인할 사람이 없어 병합이 막힌다. 책임자가 마지막 push를 하거나, 승인할 다른 팀원을 정한다.
   - 신뢰하는 작성자의 PR을 덜 읽고 승인하는 가벼운 승인 경로는 두지 않는다.
 - CODEOWNERS 소유자는 저장소 쓰기 권한이 있어야 한다. 소유자가 한 명이면 그 사람의 PR을 승인할 소유자가 없으므로 두 명 이상이나 GitHub 팀을 적는다. GitHub 팀을 소유자로 쓰려면 조직 소유 저장소여야 한다.
 - 조직 소유 저장소에서 달라지는 점([rulesets](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets), [protected branches](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches), [merge queue](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/managing-a-merge-queue) 문서, 2026-11-03 확인). 기준선 값에는 아래 기능이 없다. 쓰려면 이 저장소에서 공통값으로 정한다.
