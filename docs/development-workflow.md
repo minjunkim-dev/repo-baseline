@@ -102,7 +102,7 @@ pstack이 Cursor 클라우드 에이전트에서 실행되는지는 확인하지
 
 Cursor 공식 문서(2026-11-04 읽음, 이 저장소 PR에서 실행하지 않음): 채팅의 모델 선택은 입력창 위 모델 목록이거나 Cmd+/이고, 기본 모델은 Cursor Settings > Models다([Prompting agents](https://cursor.com/docs/agent/prompting)). Cloud Agent 모델은 실행할 때 고르거나, 지정하지 않으면 Cloud Agents 설정의 Default model이다([Cloud Agents](https://cursor.com/docs/cloud-agent), [설정](https://cursor.com/docs/cloud-agent/settings)). PR 리뷰 기능으로 Bugbot이 diff에 댓글을 남기고, 수동 실행은 PR 댓글 `cursor review` 또는 `bugbot run`이다. 에이전트 안에서는 `/review` 또는 `/review-bugbot`이다([Bugbot](https://cursor.com/docs/bugbot)). Automations에는 Bugbot과 Security Agents가 있다([Automations](https://cursor.com/docs/cloud-agent/automations)). 이 기능들로 이 저장소 PR의 버그 찾기·Security를 돌려 본 기록은 없으므로 위 칸은 미확인이다.
 
-교차 모델: Claude Code가 작성한 PR의 버그 찾기는 Cursor에서 Claude가 아닌 모델(GPT, Grok 등)로 돌린다. 프롬프트에 문 유형을 적는다. Cursor 도구의 깊이 설정은 확인하지 않았다. Cursor가 작성한 PR은 Claude Code에서 리뷰하고, 그 `/code-review` 깊이는 양쪽 문 `low`, 한쪽 문 `high`다. 어느 쪽이든 리뷰 결과에 그 모델 이름을 남긴다. 위 칸이 미확인이어도 이 절차를 Claude Code 명령으로 되돌리지 않는다. 칸을 확인됨으로 바꿀 때만 날짜와 PR 링크를 이 표 아래에 적는다.
+교차 모델: Claude Code가 작성한 PR의 버그 찾기는 Cursor에서 Claude가 아닌 모델(GPT, Grok 등)로 돌린다. 깊이는 도구와 관계없이 양쪽 문 `low`, 한쪽 문 `high`다. 프롬프트에 문 유형을 적는다. Cursor 도구의 깊이 설정은 확인하지 않았다. Cursor가 작성한 PR은 Claude Code에서 리뷰한다. 어느 쪽이든 리뷰 결과에 그 모델 이름을 남긴다. 위 칸이 미확인이어도 이 절차를 Claude Code 명령으로 되돌리지 않는다. 칸을 확인됨으로 바꿀 때만 날짜와 PR 링크를 이 표 아래에 적는다.
 
 이미 문서로 정한 한계는 다시 구현하지 않는다. 신뢰 경계의 내용 신호는 검사기가 보지 않고 리뷰어가 판단한다(`POLICY.md` §5). 신뢰하는 작성자를 덜 읽고 승인하는 경로는 없다(§9). hotfix 비율은 병합 조건이 아니다(§8). 사람 시간을 재는 항목은 §8에 없다.
 
