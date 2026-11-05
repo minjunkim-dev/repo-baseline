@@ -166,8 +166,27 @@ index aaaaaaa..bbbbbbb 100644
 +++ b/src/app.py
 @@ -20,3 +20,4 @@
  def f():
-     return 0
+     return 1
 +    return 2
+"""
+# Same added line, different function. The context lines are part of the identity.
+MOVED_FROM = """diff --git a/src/app.py b/src/app.py
+index 1111111..2222222 100644
+--- a/src/app.py
++++ b/src/app.py
+@@ -10,3 +10,4 @@
+ def format_name():
+     return name
++    return True
+"""
+MOVED_TO = """diff --git a/src/app.py b/src/app.py
+index aaaaaaa..bbbbbbb 100644
+--- a/src/app.py
++++ b/src/app.py
+@@ -40,3 +40,4 @@
+ def is_admin():
+     return name
++    return True
 """
 
 
@@ -370,6 +389,17 @@ class ReviewStatusTests(unittest.TestCase):
                    extra_status={"OLD": [(tool.INDEPENDENT, "success", "github-actions[bot]")]})
         self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", team, same), [])
 
+    def test_moving_a_line_into_another_function_does_not_carry(self):
+        files = [{"filename": "src/app.py"}]
+        read = api(files, commit_shas=["OLD", HEAD], extra_status={"OLD": [OK]}, force_pushes=[])
+        moved = diffs({"OLD": MOVED_FROM, HEAD: MOVED_TO})
+        self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", read, moved), [tool.INDEPENDENT])
+        shifted = diffs({"OLD": ADDED, HEAD: SHIFTED})
+        self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", read, shifted), [])
+        touched = SHIFTED.replace("    return 1", "    return 0", 1)
+        self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", read, diffs({"OLD": ADDED, HEAD: touched})),
+                         [tool.INDEPENDENT])
+
     def test_an_unchanged_diff_reuses_the_prior_success(self):
         files = [{"filename": "src/app.py"}]
         read = api(files, commit_shas=["OLD", HEAD], extra_status={"OLD": [OK]}, force_pushes=[])
@@ -479,6 +509,9 @@ class ReviewStatusTests(unittest.TestCase):
 
     def test_diff_identity_ignores_position_and_keeps_whitespace_and_binary_blobs(self):
         self.assertEqual(tool.diff_identity(ADDED), tool.diff_identity(SHIFTED))
+        self.assertNotEqual(tool.diff_identity(MOVED_FROM), tool.diff_identity(MOVED_TO))
+        touched = SHIFTED.replace("    return 1", "    return 0", 1)
+        self.assertNotEqual(tool.diff_identity(ADDED), tool.diff_identity(touched))
         self.assertNotEqual(tool.diff_identity(ADDED), tool.diff_identity(SHIFTED.replace("+    return 2", "+        return 2")))
         self.assertEqual(tool.diff_identity(""), "empty")
         self.assertIsNone(tool.diff_identity('{"message":"diff too large"}'))

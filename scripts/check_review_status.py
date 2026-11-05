@@ -5,9 +5,10 @@ and review/security count only when creator.login is the repository owner or a l
 STATUS_ACTORS (empty until the server app exists). Another creator is failure, not a missing
 context, so an older success is not carried over it. The same account still cannot tell a person
 from an agent. A team profile does not look at the creator.
-A base update creates a new head SHA. When the added and removed lines and binary blobs match a prior
-success, that status covers this head. Reuse is still only a process record, and it uses the same
-creator rule.
+A base update creates a new head SHA. When the added and removed lines, the hunk context lines,
+and the binary blobs match a prior success, that status covers this head. Line numbers do not count.
+A base update that changes a context line does not match, so that head is reviewed again. Reuse is
+still only a process record, and it uses the same creator rule.
 A 1-person pull request that changes a POLICY.md §10 gate path also needs the repository owner's
 approval comment on this head. That comment is not reused from an older head. An edited comment
 is not approval: updated_at must equal created_at, and lastEditedAt must be null. A same-second
@@ -150,9 +151,11 @@ def force_push_oids(nodes):
 
 
 def diff_identity(diff):
-    """SHA-256 of the exact added and removed lines, file paths, modes, renames, and binary blob ids.
-    Hunk positions and surrounding context do not count: a base update shifts them without changing the
-    pull request. Whitespace does count. None means the diff is not safe to treat as unchanged."""
+    """SHA-256 of added, removed, and hunk context lines, plus paths, modes, renames, and binary blob ids.
+    The @@ line does not count, so a base update that only shifts line numbers still matches.
+    A context line starts with a space. Moving an added line into another function changes those
+    lines, and so does a base update that rewrites them. Either one is reviewed again.
+    Whitespace does count. None means the diff is not safe to treat as unchanged."""
     if diff is None:
         return None
     # GitHub's diff is LF. splitlines() would also cut Unicode separators inside a line.
@@ -210,10 +213,10 @@ def diff_identity(diff):
             binary = True
             body.append(line)
             continue
-        if line.startswith(("+", "-", "\\")):
+        if line.startswith(("+", "-", "\\")) or (in_hunk and line.startswith(" ")):
             body.append(line)
             continue
-        if line.startswith(" ") or line == "":
+        if line == "" or line.startswith(" "):
             continue
         return None
     if not flush() or not chunks:
