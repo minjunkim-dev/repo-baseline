@@ -78,7 +78,7 @@ effort 허용 값은 `low`, `medium`, `high`, `xhigh`, `max`, `설정 없음`이
 | Cursor | 버그 찾기, Security | Grok → Gemini → GPT → Composer |
 | Cursor | Standards, Spec | Composer → Grok → Gemini → GPT |
 
-이 순서는 2026-11-05에 소유자가 적은 이름이다. 가벼운 모델로 같이 적은 Sonnet과 Composer가 각 쪽 Standards·Spec 순서의 첫 칸이다. 이전 작성 모델과 같으면 그 칸을 건너뛴다. Cursor 버그 찾기·Security는 Grok, Gemini, GPT 순이다. Composer는 그 셋이 이전 작성 모델로 건너뛰었거나 사용 한도로 막혀, 앞에 남은 모델이 없을 때만 쓴다. Claude Code 버그 찾기·Security의 강한 모델은 Opus다.
+이 순서는 2026-11-05에 소유자가 적은 이름이다. 가벼운 모델로 같이 적은 Sonnet과 Composer가 각 쪽 Standards·Spec 순서의 첫 칸이다. 이전 작성 모델과 같으면 그 칸을 건너뛴다. Cursor 버그 찾기·Security는 Grok, Gemini, GPT 순이다. Composer는 이전 작성 모델이 아니고, Grok·Gemini·GPT가 이전 작성 모델로 건너뛰었거나 사용 한도로 막혀 앞에 남은 모델이 없을 때만 쓴다. Composer도 이전 작성 모델이면 건너뛴다. 그때 남은 모델이 없으면 리뷰를 시작하지 않는다. Claude Code 버그 찾기·Security의 강한 모델은 Opus다.
 
 버그 찾기나 Security를 그 축 순서의 첫 모델(이전 작성 모델이라 건너뛴 경우는 그 다음 모델)이 아닌 모델만으로 끝냈으면, 그 축은 병합 가능이 아니다. 막힌 모델의 한도가 풀린 뒤 그 강한 모델과 effort `high`로 같은 head를 다시 돌린다. 그 전에 병합 가능이라고 하지 않는다. 다시 돌린 결과가 그 축의 결과다. 앞의 약한 모델 결과는 근거에 남기되 그 축의 통과로 세지 않는다. 이 다시 돌리기는 `POLICY.md` §5의 두 번째 의견이 아니다. Standards·Spec을 순서의 다음 모델로 대체한 경우는 다시 돌리지 않는다.
 
