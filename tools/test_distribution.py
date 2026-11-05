@@ -135,6 +135,7 @@ class TrustBoundaryPathTests(unittest.TestCase):
         self.assertIn("\n  pull_request:", conventions)
         self.assertIn("types: [opened, edited, synchronize, reopened, ready_for_review]", conventions)
         self.assertIn("ref: ${{ github.event.pull_request.base.sha }}", conventions)
+        self.assertIn("if [ -f policy-base/scripts/workflow_policy.py ]; then", conventions)
         self.assertNotIn("github.event.pull_request.head.sha", conventions)
         protected = json.loads((ROOT / ".github/workflow-policy.json").read_text(encoding="utf-8"))["protected_paths"]
         sys.path.insert(0, str(ROOT / "scripts"))
