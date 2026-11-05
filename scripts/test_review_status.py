@@ -4,6 +4,7 @@ import base64
 from contextlib import redirect_stdout
 import hashlib
 from io import StringIO
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -14,6 +15,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import check_review_status as tool
 
 HEAD = "a" * 40
+
+
+def git(args, **kwargs):
+    """Run git without global or system config.
+
+    commit.gpgsign and diff.noprefix in a developer config would sign the fixture
+    commit or drop the a/ b/ header that diff_paths requires. Local repo config still applies."""
+    env = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1"}
+    return subprocess.run(["git", *args], env=env, check=True, **kwargs)
 
 
 def passing_body(head):
@@ -455,14 +465,14 @@ class ReviewStatusTests(unittest.TestCase):
         def git_diff(before, after):
             with tempfile.TemporaryDirectory() as folder:
                 root = Path(folder)
-                subprocess.run(["git", "init", "-q"], cwd=root, check=True)
-                subprocess.run(["git", "config", "user.email", "t@example.com"], cwd=root, check=True)
-                subprocess.run(["git", "config", "user.name", "t"], cwd=root, check=True)
+                git(["init", "-q"], cwd=root)
+                git(["config", "user.email", "t@example.com"], cwd=root)
+                git(["config", "user.name", "t"], cwd=root)
                 (root / "app.py").write_text(before)
-                subprocess.run(["git", "add", "app.py"], cwd=root, check=True)
-                subprocess.run(["git", "commit", "-q", "-m", "base"], cwd=root, check=True)
+                git(["add", "app.py"], cwd=root)
+                git(["commit", "-q", "-m", "base"], cwd=root)
                 (root / "app.py").write_text(after)
-                result = subprocess.run(["git", "diff"], cwd=root, check=True, capture_output=True, text=True)
+                result = git(["diff"], cwd=root, capture_output=True, text=True)
                 return result.stdout
 
         def added(source, name, needle, replacement):
@@ -501,23 +511,22 @@ class ReviewStatusTests(unittest.TestCase):
 
     def test_nameless_files_and_a_carriage_return_do_not_carry(self):
         def git_blob(text):
-            result = subprocess.run(["git", "hash-object", "--stdin"], input=text,
-                                    check=True, capture_output=True)
+            result = git(["hash-object", "--stdin"], input=text, capture_output=True)
             return result.stdout.decode().strip()
 
         def git_diff(path, before, after):
             with tempfile.TemporaryDirectory() as folder:
                 root = Path(folder)
-                subprocess.run(["git", "init", "-q"], cwd=root, check=True)
-                subprocess.run(["git", "config", "user.email", "t@example.com"], cwd=root, check=True)
-                subprocess.run(["git", "config", "user.name", "t"], cwd=root, check=True)
+                git(["init", "-q"], cwd=root)
+                git(["config", "user.email", "t@example.com"], cwd=root)
+                git(["config", "user.name", "t"], cwd=root)
                 target = root / path
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_bytes(before)
-                subprocess.run(["git", "add", path], cwd=root, check=True)
-                subprocess.run(["git", "commit", "-q", "-m", "base"], cwd=root, check=True)
+                git(["add", path], cwd=root)
+                git(["commit", "-q", "-m", "base"], cwd=root)
                 target.write_bytes(after)
-                result = subprocess.run(["git", "diff"], cwd=root, check=True, capture_output=True)
+                result = git(["diff"], cwd=root, capture_output=True)
                 return result.stdout.decode()
 
         def carry(path, before, left, right):
