@@ -143,6 +143,11 @@ class ConventionsTest(unittest.TestCase):
         self.assertIs(review.parse_author, pr_author.parse_author)
         disagreed = "Author: Claude Code / Opus 5.5\n작성 도구: Cursor\n작성 모델: grok-4.7\n"
         self.assertTrue(any("disagree" in error for error in parse_author(disagreed)[2]))
+        model_only = "Author: Cursor / grok-4.7\n작성 모델: Opus 5.5\n"
+        self.assertTrue(any("disagree" in error for error in parse_author(model_only)[2]))
+        duplicate_model = "Author: Cursor / grok-4.7\n작성 모델: grok-4.7\n작성 모델: Opus 5.5\n"
+        self.assertTrue(any("disagree" in error for error in parse_author(duplicate_model)[2]))
+        self.assertEqual([], parse_author("Author: Cursor / grok-4.7\n작성 도구: Cursor\n")[2])
         conflict = "Author: Cursor / grok-4.7\nAuthor: Claude Code / Opus 5.5\n"
         self.assertIsNone(parse_author(conflict)[0])
         self.assertTrue(any("conflicts" in error for error in parse_author(conflict)[2]))
