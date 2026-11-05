@@ -26,11 +26,26 @@ def passing_body(head):
     return "\n".join(lines) + "\n"
 
 
+def status_rows(pairs, default_creator):
+    rows = []
+    for item in pairs:
+        creator = default_creator
+        if len(item) == 3:
+            context, state, creator = item
+        else:
+            context, state = item
+        row = {"context": context, "state": state}
+        if creator is not None:
+            row["creator"] = {"login": creator}
+        rows.append(row)
+    return rows
+
+
 def api(files, statuses=(), author="alice", commits=("alice",), project=None, changed=None, verified=True,
         committer=tool.WEB_FLOW, commit_shas=None, extra_status=None, force_pushes=None, commit_count=None,
         owner="owner", comments=(), agents=None, head=HEAD, compare_files=None, compare_commits=None,
         head_agents=None, force_push_times=None, body=None, number="1", base_ref="main", base_sha="BASE",
-        default_branch="main", base_status="identical"):
+        default_branch="main", base_status="identical", status_creator=None):
     base = {"sha": base_sha}
     if base_ref is not None:
         base["ref"] = base_ref
@@ -50,7 +65,7 @@ def api(files, statuses=(), author="alice", commits=("alice",), project=None, ch
         f"repos/o/n/pulls/{number}/files?per_page=100": [files],
         f"repos/o/n/pulls/{number}/commits?per_page=100": [commit_rows],
         f"repos/o/n/commits/{head}/status?per_page=100": [{
-            "statuses": [{"context": context, "state": state} for context, state in statuses]}],
+            "statuses": status_rows(statuses, owner if status_creator is None else status_creator)}],
         "repos/o/n": repo,
         f"repos/o/n/issues/{number}/comments?per_page=100": [list(comments)],
     }
@@ -86,7 +101,7 @@ def api(files, statuses=(), author="alice", commits=("alice",), project=None, ch
     if extra_status:
         for sha, pairs in extra_status.items():
             routes[f"repos/o/n/commits/{sha}/status?per_page=100"] = [{
-                "statuses": [{"context": context, "state": state} for context, state in pairs]}]
+                "statuses": status_rows(pairs, owner if status_creator is None else status_creator)}]
     if force_pushes is not None:
         events = []
         for index, sha in enumerate(force_pushes):
@@ -106,8 +121,12 @@ def run(read):
     return tool.missing("o/n", "1", HEAD, "BASE", read)
 
 
-def comment(body, login="owner"):
-    return {"user": {"login": login}, "body": body}
+def comment(body, login="owner", created_at="2020-01-01T00:00:00Z", updated_at=None, omit_times=False):
+    row = {"user": {"login": login}, "body": body}
+    if not omit_times:
+        row["created_at"] = created_at
+        row["updated_at"] = created_at if updated_at is None else updated_at
+    return row
 
 
 OK = (tool.INDEPENDENT, "success")
@@ -266,6 +285,62 @@ class ReviewStatusTests(unittest.TestCase):
         minor = [{"filename": "package.json", "patch": '@@\n-  "x": "^1.2.3",\n+  "x": "^2.0.0",'}]
         self.assertEqual(run(api(minor, author=bot, commits=[bot])), [])
 
+    def test_a_solo_profile_counts_an_owner_status_and_not_another_creator(self):
+        files = [{"filename": "src/app.py"}]
+        self.assertEqual(tool.STATUS_ACTORS, ())
+        self.assertEqual(tool.status_actors("o/n", api(files)), ("owner",))
+        self.assertEqual(run(api(files, [OK])), [])
+        self.assertEqual(run(api(files, [(tool.INDEPENDENT, "success", "Owner")], owner="owner")), [])
+        for creator in ("github-actions[bot]", "alice", None):
+            with self.subTest(creator=creator):
+                posted = [(tool.INDEPENDENT, "success", creator)]
+                self.assertEqual(run(api(files, posted)), [tool.INDEPENDENT])
+        # Newest untrusted success hides an older owner success. Combined status is newest first.
+        hidden = [
+            (tool.INDEPENDENT, "success", "github-actions[bot]"),
+            (tool.INDEPENDENT, "success", "owner"),
+        ]
+        self.assertEqual(run(api(files, hidden)), [tool.INDEPENDENT])
+        newer_owner = [
+            (tool.INDEPENDENT, "success", "owner"),
+            (tool.INDEPENDENT, "success", "github-actions[bot]"),
+        ]
+        self.assertEqual(run(api(files, newer_owner)), [])
+        # The server-app setting is empty. A login in that tuple counts; a blank entry does not.
+        original = tool.STATUS_ACTORS
+        try:
+            tool.STATUS_ACTORS = ("server-app[bot]", "")
+            self.assertEqual(tool.status_actors("o/n", api(files)), ("owner", "server-app[bot]"))
+            app = [(tool.INDEPENDENT, "success", "server-app[bot]")]
+            self.assertEqual(run(api(files, app)), [])
+            self.assertEqual(run(api(files, [(tool.INDEPENDENT, "success", "other-app[bot]")])), [tool.INDEPENDENT])
+        finally:
+            tool.STATUS_ACTORS = original
+        team = api(files, [(tool.INDEPENDENT, "success", "github-actions[bot]")], agents="프로필: 팀\n")
+        self.assertEqual(run(team), [])
+        gate = [{"filename": "scripts/check_review_status.py"}]
+        bot_security = [OK, (tool.SECURITY, "success", "github-actions[bot]")]
+        self.assertEqual(run(api(gate, bot_security)), [tool.SECURITY, tool.OWNER])
+        both = [OK, (tool.SECURITY, "success", "owner")]
+        self.assertEqual(run(api(gate, both)), [tool.OWNER])
+
+    def test_carry_does_not_reuse_another_creators_success(self):
+        files = [{"filename": "src/app.py"}]
+        same = diffs({"OLD": ADDED, "MID": SHIFTED, HEAD: SHIFTED})
+        for creator in ("github-actions[bot]", "alice", None):
+            with self.subTest(creator=creator):
+                read = api(files, commit_shas=["OLD", HEAD], force_pushes=[],
+                           extra_status={"OLD": [(tool.INDEPENDENT, "success", creator)]})
+                self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", read, same), [tool.INDEPENDENT])
+        owner = api(files, commit_shas=["OLD", HEAD], force_pushes=[], extra_status={"OLD": [OK]})
+        self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", owner, same), [])
+        blocked = api(files, commit_shas=["OLDER", "MID", HEAD], force_pushes=[], extra_status={
+            "OLDER": [OK], "MID": [(tool.INDEPENDENT, "success", "github-actions[bot]")]})
+        self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", blocked, same), [tool.INDEPENDENT])
+        team = api(files, commit_shas=["OLD", HEAD], force_pushes=[], agents="프로필: 팀\n",
+                   extra_status={"OLD": [(tool.INDEPENDENT, "success", "github-actions[bot]")]})
+        self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", team, same), [])
+
     def test_an_unchanged_diff_reuses_the_prior_success(self):
         files = [{"filename": "src/app.py"}]
         read = api(files, commit_shas=["OLD", HEAD], extra_status={"OLD": [OK]}, force_pushes=[])
@@ -408,7 +483,17 @@ class ReviewStatusTests(unittest.TestCase):
             read = api(files, reviews, comments=comments, head=head, **kwargs)
             self.assertEqual(tool.missing("o/n", "1", head, "BASE", read), expected)
 
+        fresh = "2020-01-01T00:00:00Z"
         check([comment(f"한쪽 문 승인: {head} 메모", login="Owner")], [], owner="owner")
+        check([comment(f"되돌리기 어려움 승인: {head}", created_at=fresh, updated_at=fresh)], [])
+        check([comment(f"한쪽 문 승인: {head}", created_at=fresh, updated_at=fresh)], [])
+        check([comment(f"되돌리기 어려움 승인: {head}", updated_at="2020-01-02T00:00:00Z")], [tool.OWNER])
+        check([comment(f"한쪽 문 승인: {head}", updated_at="2020-01-01T00:00:00+00:00")], [tool.OWNER])
+        check([comment(f"되돌리기 어려움 승인: {head}", omit_times=True)], [tool.OWNER])
+        check([
+            comment(f"되돌리기 어려움 승인: {head}", updated_at="2020-01-02T00:00:00Z"),
+            comment(f"한쪽 문 승인: {head}"),
+        ], [])
         check([comment(f"한쪽 문 승인: {head}\r\n메모")], [])
         check([comment(f"한쪽 문 승인: {other}")], [tool.OWNER])
         check([comment(f"되돌리기 어려움 승인: {head}")], [])

@@ -1,13 +1,19 @@
 #!/usr/bin/env python3
 """Fail when a pull request head lacks the review statuses its changed paths need (POLICY.md §5).
-Paths only: content signals stay a reviewer judgement. This shows the process ran on this exact
-head; a status from the same account cannot tell a person from an agent, so it is no security boundary.
+Paths only: content signals stay a reviewer judgement. On a 1-person profile, review/independent
+and review/security count only when creator.login is the repository owner or a login in
+STATUS_ACTORS (empty until the server app exists). Another creator is failure, not a missing
+context, so an older success is not carried over it. The same account still cannot tell a person
+from an agent. A team profile does not look at the creator.
 A base update creates a new head SHA. When the added and removed lines and binary blobs match a prior
-success, that status covers this head. Reuse is still only a process record.
+success, that status covers this head. Reuse is still only a process record, and it uses the same
+creator rule.
 A 1-person pull request that changes a POLICY.md §10 gate path also needs the repository owner's
-approval comment on this head. That comment is not reused from an older head.
+approval comment on this head. That comment is not reused from an older head. An edited comment
+is not approval: updated_at must equal created_at. Post a new comment.
 The first line must be the current prefix or the deprecated prefix, then the full head SHA.
-A comment rerun does not parse the body. It runs this checker, so both prefixes share this match.
+A comment rerun does not parse the body. It runs this checker, so both prefixes share this match,
+and an edit re-run drops the edited comment.
 The pull request body is parsed for the review evidence table. It is never executed.
 The pull request base ref must be the repository default branch, and the event base SHA must be
 that branch or an ancestor of it. A pull request with a different base is not evidence."""
@@ -36,6 +42,10 @@ BASE_REF = "review/base-branch"
 DEPENDABOT = "dependabot[bot]"
 WEB_FLOW = "web-flow"
 TEAM_LINE = "프로필: 팀"
+# Solo-profile logins that may post review/independent and review/security, besides the
+# repository owner. Empty until the server app exists. This file runs from the default
+# branch, so a pull request cannot add a login. A team profile does not read this tuple.
+STATUS_ACTORS = ()
 # Exact first-line prefixes. The second is deprecated and means the same approval.
 APPROVAL_LINE = re.compile(
     r"(?:되돌리기 어려움 승인:|한쪽 문 승인:)"
@@ -424,12 +434,57 @@ def event_base_on_default(repo, base, default, read):
     raise ValueError("base branch")
 
 
-def owner_approved(repo, number, head, read):
-    """True when the repository owner has an issue comment for this exact head. Edits are the current body."""
+def repository_owner(repo, read):
     info = read(f"repos/{repo}")
     owner = (info.get("owner") or {}).get("login") if isinstance(info, dict) else None
     if not isinstance(owner, str) or owner == "":
         raise ValueError("repository owner")
+    return owner
+
+
+def status_actors(repo, read):
+    """Owner plus STATUS_ACTORS. Blank entries are not logins. Solo profile only."""
+    extra = tuple(login for login in STATUS_ACTORS if isinstance(login, str) and login != "")
+    return (repository_owner(repo, read), *extra)
+
+
+def status_actor(status):
+    creator = status.get("creator") if isinstance(status, dict) else None
+    login = creator.get("login") if isinstance(creator, dict) else None
+    if not isinstance(login, str) or login == "":
+        return None
+    return login
+
+
+def reviewed_state(status, allowed):
+    """State that counts for one review context.
+
+    allowed is None on a team profile: the creator is not checked.
+    On a 1-person profile, a creator outside allowed is failure. Combined status keeps
+    the newest state per context, so dropping that status would look like a missing
+    context and carry could reuse an older success over a newer rejection."""
+    if allowed is None:
+        return status["state"]
+    actor = status_actor(status)
+    if any(same_login(actor, login) for login in allowed):
+        return status["state"]
+    print(f"review status untrusted {status.get('context')} from {actor or 'unknown'} is not success")
+    return "failure"
+
+
+def comment_unedited(comment):
+    """True when updated_at is the same string as created_at. An edit is not approval."""
+    if not isinstance(comment, dict):
+        return False
+    created = comment.get("created_at")
+    updated = comment.get("updated_at")
+    return isinstance(created, str) and created != "" and created == updated
+
+
+def owner_approved(repo, number, head, read):
+    """True when the owner has an unedited issue comment for this exact head.
+    updated_at must equal created_at. An edited comment is not approval; post a new comment."""
+    owner = repository_owner(repo, read)
     pages = read(f"repos/{repo}/issues/{number}/comments?per_page=100")
     if not isinstance(pages, list):
         raise ValueError("approval comments")
@@ -442,16 +497,17 @@ def owner_approved(repo, number, head, read):
                 continue
             user = comment.get("user")
             login = user.get("login") if isinstance(user, dict) else None
-            if same_login(login, owner) and approval_sha(comment.get("body")) == wanted:
+            if (same_login(login, owner) and comment_unedited(comment)
+                    and approval_sha(comment.get("body")) == wanted):
                 return True
     return False
 
 
-def latest_state(statuses, context):
+def latest_status(statuses, context):
     """The combined status lists the newest state of each context first."""
     for status in statuses:
         if status["context"] == context:
-            return status["state"]
+            return status
     return None
 
 
@@ -506,8 +562,10 @@ def identity_of(repo, base, sha, read_diff, cache):
     return cache[sha]
 
 
-def carried_contexts(repo, number, head, base, contexts, read, read_diff, commit_count):
-    """Contexts whose newest prior status is success and whose diff matches this head. Anything unverified stays put."""
+def carried_contexts(repo, number, head, base, contexts, read, read_diff, commit_count, allowed=None):
+    """Contexts whose newest prior status is success and whose diff matches this head. Anything unverified stays put.
+    allowed is the solo-profile creator list. None keeps the team profile and does not read the creator.
+    An untrusted creator is failure, same as on the current head, so the walk does not skip it."""
     candidates = prior_shas(repo, number, head, read, commit_count)
     if not candidates:
         return set()
@@ -523,7 +581,10 @@ def carried_contexts(repo, number, head, base, contexts, read, read_diff, commit
         # A failed lookup must not skip this SHA for an older success: its state is unknown.
         if fetched[sha] is None:
             return "unreadable"
-        return latest_state(fetched[sha], context)
+        found = latest_status(fetched[sha], context)
+        if found is None:
+            return None
+        return reviewed_state(found, allowed)
 
     for context in contexts:
         donor = None
@@ -724,6 +785,10 @@ def missing(repo, number, head, base, read=read_api, read_diff=None):
     default = default_base(repo, pull, read)
     if default is None or not event_base_on_default(repo, base, default, read):
         return [BASE_REF]
+    # None means a team profile: any creator still counts. A 1-person profile counts the owner
+    # and STATUS_ACTORS only, and treats every other creator as failure.
+    solo = not team_profile(repo, base, read)
+    allowed = status_actors(repo, read) if solo else None
     # The open pull request's file and commit lists follow its current head, which can move
     # after this event. review/independent and review/security follow compare(base, head).
     patterns = COMMON_PATHS + DEPENDENCY_FILES + project_paths(repo, base, read)
@@ -744,9 +809,16 @@ def missing(repo, number, head, base, read=read_api, read_diff=None):
         needed.append(SECURITY)
     statuses = [status for page in read(f"repos/{repo}/commits/{head}/status?per_page=100") for status in page["statuses"]]
     # The combined list is newest first. An older success in that list does not erase a newer failure.
+    # An untrusted creator is failure, so it also does not reveal an older trusted success.
     newest = {}
     for status in statuses:
-        newest.setdefault(status["context"], status["state"])
+        context = status["context"]
+        if context in newest:
+            continue
+        if allowed is not None and context in (INDEPENDENT, SECURITY):
+            newest[context] = reviewed_state(status, allowed)
+        else:
+            newest[context] = status["state"]
     present = set(newest)
     for context in (INDEPENDENT, SECURITY):
         if context not in needed and context in present:
@@ -759,7 +831,7 @@ def missing(repo, number, head, base, read=read_api, read_diff=None):
         result = list(absent)
     else:
         carried = carried_contexts(
-            repo, number, head, base, reusable, read, read_diff or read_diff_api, pull.get("commits"))
+            repo, number, head, base, reusable, read, read_diff or read_diff_api, pull.get("commits"), allowed)
         result = [context for context in absent if context not in carried]
     # The owner comment is tied to this SHA, so an unchanged diff does not carry it. A posted status does not either.
     if pinned is None:
@@ -770,7 +842,7 @@ def missing(repo, number, head, base, read=read_api, read_diff=None):
         needs_owner = one_way(pinned, False) or profile_line_changes(pinned) or introduced
         version_only = (pinned_commits is not None and dependabot_bump(pull, pinned_commits, pinned)
                         and not major_change(pinned))
-    if needs_owner and not version_only and not team_profile(repo, base, read) and not owner_approved(repo, number, head, read):
+    if needs_owner and not version_only and solo and not owner_approved(repo, number, head, read):
         result.append(OWNER)
     # The body is the current pull request text. This run's head is the event SHA, not a later push.
     if isinstance(pull, dict) and not _dependabot_author(pull):
