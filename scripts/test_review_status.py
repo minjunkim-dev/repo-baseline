@@ -532,15 +532,26 @@ class ReviewStatusTests(unittest.TestCase):
         self.assertEqual(tool.evidence_problems(table("Sonnet 5.5", head), head), [])
         self.assertIn("sha", tool.evidence_problems(table("Sonnet 5.5", other), head))
         self.assertIn("sha", tool.evidence_problems(table("Sonnet 5.5", "HEAD"), head))
-        self.assertIn("same-model", tool.evidence_problems(table("Opus 5.5", head).replace(
+        self.assertIn("same-family", tool.evidence_problems(table("Opus 5.5", head).replace(
             "Author: Cursor / grok-4.7", "Author: Claude Code / claude-opus-5.5"), head))
-        self.assertIn("same-model", tool.evidence_problems(table("cursor-grok-4.6", head), head))
+        self.assertIn("same-family", tool.evidence_problems(table("Sonnet 5.5", head).replace(
+            "Author: Cursor / grok-4.7", "Author: Claude Code / Opus 5.5"), head))
+        self.assertIn("same-family", tool.evidence_problems(table("cursor-grok-4.6", head), head))
+        self.assertEqual([], tool.evidence_problems(table("Composer 2.5", head), head))
+        self.assertIn("unknown-family", tool.evidence_problems(table("mystery-model", head), head))
         self.assertIn("author-model", tool.evidence_problems(table("Sonnet 5.5", head).replace(
             "Author: Cursor / grok-4.7", "Author: 사람 / grok-4.7"), head))
-        self.assertEqual(tool.model_token("Opus 5.5"), tool.model_token("claude-opus-5.5"))
-        self.assertEqual(tool.model_token("Grok 4.7"), tool.model_token("grok-4.7-high-fast"))
-        self.assertIsNone(tool.model_token("chatgpt"))
-        self.assertIsNone(tool.model_token("opus-sonnet"))
+        self.assertEqual("claude", tool.model_family("Opus 5.5"))
+        self.assertEqual("claude", tool.model_family("claude-opus-5-5-high"))
+        self.assertEqual("claude", tool.model_family("Sonnet 5.5"))
+        self.assertEqual("grok", tool.model_family("grok-4.7-high-fast"))
+        self.assertEqual("composer", tool.model_family("Composer 2.5"))
+        self.assertEqual("gemini", tool.model_family("Gemini 4"))
+        self.assertEqual("gpt", tool.model_family("GPT-5.6"))
+        self.assertIsNone(tool.model_family("grok-composer"))
+        self.assertIsNone(tool.model_family("chatgpt"))
+        self.assertIsNone(tool.model_family("codex"))
+        self.assertIsNone(tool.model_family("not-a-model"))
         self.assertIn("p0", tool.evidence_problems(table("Sonnet 5.5", head, p0="no"), head))
         self.assertIn("p1", tool.evidence_problems(table("Sonnet 5.5", head, p1=""), head))
         self.assertIn("model", tool.evidence_problems(table("미실행", head), head))
@@ -564,9 +575,9 @@ class ReviewStatusTests(unittest.TestCase):
             "",
         ])
         self.assertEqual(tool.evidence_problems(korean, head), [])
-        self.assertIn("previous-model", tool.evidence_problems(
+        self.assertIn("unknown-family", tool.evidence_problems(
             table("Sonnet 5.5", head) + "이전 작성 모델: not-a-model\n", head))
-        self.assertIn("same-model", tool.evidence_problems(
+        self.assertIn("same-family", tool.evidence_problems(
             table("Sonnet 5.5", head).replace("Author: Cursor / grok-4.7",
                                               "작성 도구: Cursor\n작성 모델: grok-4.7\n이전 작성 모델: Sonnet 5.5"), head))
 

@@ -498,9 +498,19 @@ def carried_contexts(repo, number, head, base, contexts, read, read_diff, commit
     return carried
 
 
-# Longer tool names first. Tokens are the role-assignment names: one token per model.
+# Longer tool names first. A review model must be a different family from the author.
 AUTHOR_TOOLS = ("Claude Code", "Cursor 클라우드 에이전트", "Cursor", "사람")
-MODEL_TOKENS = ("composer", "gemini", "sonnet", "opus", "grok", "gpt")
+# Alias, then family. Opus and Sonnet are both Claude. Two families in one name is unknown.
+FAMILY_ALIASES = (
+    ("composer", "composer"),
+    ("gemini", "gemini"),
+    ("sonnet", "claude"),
+    ("opus", "claude"),
+    ("claude", "claude"),
+    ("grok", "grok"),
+    ("gpt", "gpt"),
+)
+FAMILY_NAMES = "Claude, Grok, Composer, Gemini, or GPT"
 COLUMN_NAMES = {
     "axis": "axis", "축": "axis", "model": "model", "모델": "model", "effort": "effort",
     "head sha": "sha", "p0": "p0", "p1": "p1", "p2": "p2", "result": "result", "결과": "result",
@@ -520,17 +530,20 @@ def _tool_name(value):
     return None
 
 
-def model_token(name):
-    """One family token, or None when the name is empty, mixed, or not a review model."""
+def model_family(name):
+    """Family of a model name, or None when it is empty, mixed, or not in the alias table."""
     if not isinstance(name, str):
         return None
     text = name.strip().lower()
     if not text or "chatgpt" in text or re.search(r"(?<![a-z0-9])codex(?![a-z0-9])", text):
         return None
-    found = [token for token in MODEL_TOKENS if re.search(rf"(?<![a-z0-9]){token}(?![a-z0-9])", text)]
+    found = set()
+    for alias, family in FAMILY_ALIASES:
+        if re.search(rf"(?<![a-z0-9]){alias}(?![a-z0-9])", text):
+            found.add(family)
     if len(found) != 1:
         return None
-    return found[0]
+    return found.pop()
 
 
 def _author_fields(body):
@@ -611,25 +624,25 @@ def evidence_problems(body, head):
     tool, model, previous = _author_fields(text)
     if not tool or not model:
         problems.append("author")
-        tokens = set()
+        families = set()
     elif tool == "사람" and model != "없음":
         problems.append("author-model")
-        tokens = set()
+        families = set()
     elif tool == "사람":
-        tokens = set()
+        families = set()
     else:
-        tokens = set()
-        author = model_token(model)
+        families = set()
+        author = model_family(model)
         if author is None:
-            problems.append("author-model")
+            problems.append("unknown-family")
         else:
-            tokens.add(author)
+            families.add(author)
     for name in previous:
-        token = model_token(name)
-        if token is None:
-            problems.append("previous-model")
+        family = model_family(name)
+        if family is None:
+            problems.append("unknown-family")
         else:
-            tokens.add(token)
+            families.add(family)
     rows = evidence_table(text)
     if rows is None:
         problems.append("table")
@@ -658,11 +671,11 @@ def evidence_problems(body, head):
         elif reviewer.strip() == "" or reviewer.strip() == "미실행":
             problems.append("model")
         else:
-            token = model_token(reviewer)
-            if token is None:
-                problems.append("model-token")
-            elif token in tokens:
-                problems.append("same-model")
+            family = model_family(reviewer)
+            if family is None:
+                problems.append("unknown-family")
+            elif family in families:
+                problems.append("same-family")
             if not _integer(row.get("p0", "")):
                 problems.append("p0")
             if not _integer(row.get("p1", "")):
@@ -732,7 +745,10 @@ def missing(repo, number, head, base, read=read_api, read_diff=None):
     if isinstance(pull, dict) and not _dependabot_author(pull):
         found = evidence_problems(pull.get("body"), head)
         if found:
-            print("review evidence: " + ", ".join(found))
+            detail = ", ".join(found)
+            if "unknown-family" in found:
+                detail += "; expected family " + FAMILY_NAMES
+            print("review evidence: " + detail)
             result.append(EVIDENCE)
     return result
 
