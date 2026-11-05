@@ -34,8 +34,8 @@ def matches(pattern, path):
     atoms = []
     index = 0
     while index < len(pattern):
-        if pattern.startswith("**/", index):
-            # `docs/**/*.md` matches `docs/README.md`: the slash may match zero directories.
+        if pattern.startswith("**/", index) and (index == 0 or pattern[index - 1] == "/"):
+            # `docs/**/*.md` matches `docs/README.md`. `review-**/status.yml` keeps the slash.
             atoms.append("(?:.*/)?")
             index += 3
         elif pattern.startswith("**", index):

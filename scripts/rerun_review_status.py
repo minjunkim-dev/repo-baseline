@@ -22,9 +22,15 @@ def comment_triggers(is_pull_request, state, author, owner):
     return bool(is_pull_request) and state == "open" and bool(owner) and author == owner
 
 
-def matches(run, _number, sha):
-    """Match the run's own head_sha. pull_requests[].head.sha can move to the current head and select an older run."""
-    return (run or {}).get("head_sha") == sha
+def matches(run, number, sha):
+    """Match the run's own head_sha. A populated pull_requests list must name this pull request.
+    pull_requests[].head.sha is not used: it can move to the current head and select an older run."""
+    if (run or {}).get("head_sha") != sha:
+        return False
+    pulls = (run or {}).get("pull_requests") or []
+    if not pulls:
+        return True
+    return any(pull.get("number") == number for pull in pulls)
 
 
 def plan(runs, number, sha):
@@ -113,13 +119,20 @@ def main(env=None, execute=None, pages=None):
     if action == "wait":
         print("matching run still in progress", file=sys.stderr)
         return 2
+    reason = None
     if action == "rerun":
         # Pages are newest first, so this is the latest run for the head even when later pages remain.
-        execute(["gh", "run", "rerun", str(run_id), "--repo", repo])
-        return 0
+        try:
+            execute(["gh", "run", "rerun", str(run_id), "--repo", repo])
+        except subprocess.CalledProcessError as error:
+            print(f"gh run rerun failed: {error}", file=sys.stderr)
+            reason = "gh run rerun failed"
+        else:
+            return 0
     body = json.dumps(fail_closed_body(sha))
     execute(["gh", "api", "--method", "POST", f"repos/{repo}/check-runs", "--input", "-"], input=body)
-    reason = "the run list was cut off" if not complete else "no matching run"
+    if reason is None:
+        reason = "the run list was cut off" if not complete else "no matching run"
     print(f"{reason} for {number} at {sha}; posted a failing check", file=sys.stderr)
     return 1
 

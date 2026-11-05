@@ -39,6 +39,7 @@ class PolicyTests(unittest.TestCase):
         self.assertFalse(policy.matches(".github/workflows/review-status.ym?", TARGET))
         self.assertTrue(policy.matches(".github/workflows/**/*.yml", TARGET))
         self.assertTrue(policy.matches(".github/workflows/**/review-status.yml", TARGET))
+        self.assertFalse(policy.matches(".github/workflows/review-**/status.yml", TARGET))
         self.assertTrue(policy.matches("**/review-status.yml", TARGET))
 
     def test_a_later_unevaluable_pattern_still_stops(self):
@@ -118,6 +119,25 @@ class RerunCommandTests(unittest.TestCase):
             self.assertEqual(calls[1][0][3], "5")
         self.assertTrue(rerun.comment_triggers(True, "open", "owner", "owner"))
 
+    def test_a_failed_rerun_posts_a_failing_check(self):
+        sha = "a" * 40
+        pages = [[{"id": 5, "status": "completed", "head_sha": sha, "pull_requests": []}]]
+        calls = []
+
+        def execute(command, input=None):
+            calls.append(list(command))
+            if command[:3] == ["gh", "run", "rerun"]:
+                raise subprocess.CalledProcessError(1, command)
+
+            class Result:
+                stdout = sha + "\n"
+
+            return Result()
+
+        code = rerun.main({"PR_NUMBER": "1", "REPO": "owner/repo"}, execute, pages=pages)
+        self.assertEqual(code, 1)
+        self.assertTrue(any("check-runs" in " ".join(command) for command in calls))
+
     def test_a_run_past_the_page_cap_posts_a_failing_review_status_check(self):
         filler = {"id": 1, "status": "completed", "head_sha": "f" * 40, "pull_requests": []}
         code, calls = self.run_main(1, "d" * 40, [[filler] * 100])
@@ -143,6 +163,9 @@ class RerunTests(unittest.TestCase):
         stale = [{"id": 1, "status": "completed", "head_sha": "b" * 40,
                   "pull_requests": [{"number": 4, "head": {"sha": fork}}]}]
         self.assertEqual(rerun.plan(stale, 4, fork), ("missing", None))
+        other_pr = [{"id": 3, "status": "completed", "head_sha": fork,
+                     "pull_requests": [{"number": 9, "head": {"sha": fork}}]}]
+        self.assertEqual(rerun.plan(other_pr, 4, fork), ("missing", None))
         self.assertFalse(rerun.comment_triggers(True, "open", "fork-user", "owner"))
         self.assertTrue(rerun.comment_triggers(True, "open", "owner", "owner"))
 
