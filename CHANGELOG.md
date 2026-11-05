@@ -1,10 +1,28 @@
 # 변경 기록
 
+리뷰 모델의 현행은 맨 위 「리뷰는 패밀리가 다르면 된다」만이다. 그보다 아래 절은 그 커밋 당시의 기록이다.
+
+## 2026-11-05 — 리뷰는 패밀리가 다르면 된다
+
+- `docs/development-workflow.md` 역할 분담: 필수 조건은 리뷰 패밀리가 작성 패밀리와 다른 것이다. 플랫폼은 보지 않는다. Claude는 Opus와 Sonnet을 한 패밀리로 두고, Cursor 안의 Claude도 Claude다. Grok이 쓴 PR은 Composer, Gemini, Claude, GPT가 볼 수 있다. Claude가 쓴 PR은 Grok, Composer, Gemini, GPT가 볼 수 있다.
+- 양쪽 문은 Standards·Spec·버그 찾기를 다른 패밀리 모델 하나로 한다. Security는 신뢰 경계만. 한쪽 문(CI, 게이트, 보안 경계)의 버그 찾기·Security는 지금 쓸 수 있는 가장 강한 다른 패밀리다. 가능하면 패밀리 둘이다. 작성 패밀리가 Grok일 때의 예는 Opus와 Gemini다.
+- 가장 강한 모델이 한도면 다음 다른 패밀리를 쓰고 근거에 적는다. 병합을 그 한도로 멈추지 않는다. 한쪽 문의 더 강한 모델 재리뷰는 후속 Issue이고, 할지는 소유자가 정한다.
+- 작성 기본은 Grok(Cursor 클라우드 에이전트)이고 리뷰 기본은 Claude다. Claude Code로 직접 만든 PR의 기본 리뷰는 Cursor 모델이다.
+- CI는 패밀리가 같으면 실패한다. 그 검사는 #25가 넣는다. 관리자(Grok Bot)는 모델 이름, 지적 수, P1 기각 이유가 사실인지를 본다.
+- `POLICY.md` §5·§10과 셋업 프롬프트 §5의 모델 문장은 이 규칙을 가리킨다. Claude 리뷰를 필수로 두던 문장은 뺐다. 게이트 파일과 CI workflow는 안 바꿨다.
+
 ## 2026-11-05 — PR 본문 양식
 
 - `.github/pull_request_template.md`: Summary, Evidence, Merge Danger, `Author: <tool> / <model>`, 리뷰 근거 표를 둔다. 축은 Standards, Spec, 버그 찾기, Security다. tool은 Claude Code, Cursor, Cursor 클라우드 에이전트, 사람이다. `작성 도구`와 `작성 모델` 두 줄도 같은 기록이다. 검사기는 아직 이 양식을 강제하지 않는다.
 - `templates/repo-baseline.json`이 그 파일을 `.github/pull_request_template.md`로 복사한다.
 - 다시 적용할 프로젝트: Smallnext·BGLike·Runstir. `tools/apply_baseline.py`로 양식을 복사한다.
+
+## 2026-11-05 — 작성 도구와 리뷰 모델
+
+- `docs/development-workflow.md` 역할 분담: 구독은 Claude Code와 X 구독(Cursor, Grok Bot)뿐이다. 별도의 GPT·Codex 구독은 없다. Cursor 안의 GPT는 쓸 수 있다. PR을 쓰는 도구는 로컬·비밀·대화로 따라가는 작업이면 Claude Code(Mac)이고, 이슈 하나로 클라우드에서 끝까지 검사되면 Cursor 클라우드 에이전트다. 애매하면 Cursor 클라우드 에이전트이고, 로컬·비밀에서 막히면 Claude Code로 넘긴다. PR 본문에 작성 도구와 작성 모델을 적는다.
+- 당시 규칙(현행 아님. 현행은 위 「리뷰는 패밀리가 다르면 된다」): 리뷰 모델을 작성 도구의 반대쪽으로 두었고, 약한 모델만으로 끝나면 병합 가능이 아니라고 적었다. 그 두 문장은 위 절이 바꾼다.
+- 근거 표의 열은 축, 모델, effort, head SHA, P0, P1, P2다. P0·P1은 수정, 기각, 또는 소유자가 한계로 수용한다.
+- `POLICY.md` §5·§10과 셋업 프롬프트 §5: 모델·effort·근거 표·P0·P1 처리는 위 절을 따른다. 예전의 양쪽 문 `low`·한쪽 문 `high` 깊이 문장은 뺐다. 게이트 파일과 CI workflow는 안 바꿨다. 소비 프로젝트 재적용은 필요 없다.
 
 ## 2026-11-05 — 이벤트 정책 glob과 승인 댓글 재실행
 

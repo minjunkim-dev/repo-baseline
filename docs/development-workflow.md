@@ -17,7 +17,7 @@
 
 어떤 스킬로 시작할지는 사용자가 `/ask-matt`를 실행해 정한다. `disable-model-invocation: true`인 Matt 스킬은 사용자가 실행한다. 에이전트는 실행을 요청만 하고, 스킬의 질문에는 사용자가 답한다. v1.3.2에서 이 플래그가 있는 스킬은 `/ask-matt`, `/setup-matt-pocock-skills`, `/grill-with-docs`, `/to-spec`, `/to-tickets`, `/triage`, `/implement`, `/retro`, `/wayfinder`다. 태그를 올리면 플래그를 다시 보고 이 목록을 고친다. 각 스킬의 단계는 설치된 원문대로 따른다.
 
-이 기준이 스킬에 더하는 것은 `main`에 들어가는 경계, `POLICY.md` §5의 리뷰 도구, 아래 절의 pstack 배치다.
+이 기준이 스킬에 더하는 것은 `main`에 들어가는 경계, `POLICY.md` §5의 리뷰 도구, 아래 "역할 분담"의 작성 도구·리뷰 모델, 그 아래 절의 pstack 배치다.
 
 - 모든 변경은 PR로 `main`에 들어가고 필수 CI가 통과해야 한다. 문 유형은 `POLICY.md` §10만 따른다. 양쪽 문은 맡은 에이전트가 병합할 수 있고, 한쪽 문은 사람이 최종 head를 승인한다(셋업 프롬프트 §10은 그 판정의 병합 절차다). 1인 프로필의 게이트 경로 PR은 소유자 댓글 `한쪽 문 승인: <head sha>`가 현재 head와 같고, 필수 체크 `Review status`가 그 댓글을 통과해야 병합된다(`POLICY.md` §5·§10). 팀 프로필은 모든 PR에 다른 팀원의 GitHub 승인이 필요하다(`POLICY.md` §9).
 - 리뷰·수정은 셋업 프롬프트 §5와 `POLICY.md` §5를 따른다. Security 리뷰와 외부 리뷰(공개 저장소는 CodeRabbit)를 더할 변경도 거기서 정한다. Standards·Spec의 독립 리뷰 이름은 `/matt-code-review` 하나다. `/implement` 안의 리뷰는 `review/independent`로 세지 않는다.
@@ -31,10 +31,71 @@
 - 코드는 Claude Code(Mac)와 Cursor 클라우드 에이전트가 쓴다.
 - 비밀 정보는 Mac에만 둔다. Claude Code와 `gh` 토큰이 그렇다. Grok Bot이 쓰는 공유 컴퓨터에는 두지 않는다.
 
+구독은 2026-11-05에 소유자가 정한 둘이다. Claude Code. X 구독으로 쓰는 Cursor와 Grok Bot. 별도의 GPT 구독과 Codex 구독은 없다. Codex 클라우드, ChatGPT, `codex` CLI로는 PR을 쓰거나 리뷰하지 않는다. 아래 런타임 표의 Codex 행은 그 런타임을 썼을 때의 기록이다. 배정과 리뷰의 대상이 아니다. Cursor 안에서 고른 GPT의 패밀리는 GPT다. Cursor 안에서 고른 Claude의 패밀리는 Claude다. 플랫폼은 패밀리를 바꾸지 않는다.
+
+PR을 쓰는 도구는 아래 순서로 정한다.
+
+1. 다음에 하나라도 해당하면 Claude Code(소유자의 Mac)다. `gh` 인증이 필요한 조작. 시뮬레이터 또는 실기기 테스트. 로컬 서버 실행. 그 밖에 소유자의 Mac에만 있는 비밀이 필요한 조작. 소유자가 그 작업을 대화로 따라가겠다고 한 경우.
+2. 1에 해당하지 않으면 Cursor 클라우드 에이전트다. 1인지 판단할 정보가 부족할 때도 2다. 이 기본 작성 패밀리는 Grok이다. 구독 둘을 맞추는 기본은, 작성은 Grok이고 리뷰는 Claude다. Grok Bot이 작업을 이슈 하나로 나눈 뒤에 보낸다. 에이전트 하나는 이슈 하나만 맡는다. 이슈가 여럿이면 병렬로 보낸다. 클라우드에서 끝까지 검사할 수 있다는 뜻은, 그 이슈의 검사가 이 저장소의 CI나 클라우드 에이전트의 명령으로 끝나고 1의 조건이 없는 것이다. 1의 조건이 보이면 그 이슈는 1이다. 끝까지 검사할 수 있는지 모르면 2로 보낸다.
+3. 2로 보낸 작업이 1의 조건에서 막히면 그 에이전트는 더 커밋하지 않고 남은 작업을 Claude Code로 넘긴다. 클라우드에 비밀을 두거나 막힌 단계를 빼지 않는다. 1의 조건이 아닌 이유로 막히면 더 커밋하지 않고 그 이유를 소유자에게 알린다.
+
+PR 본문에 작성 도구와 작성 모델을 적는다. 둘 중 하나가 없으면 리뷰를 시작하지 않는다.
+
+- `작성 도구:` `Claude Code`, `Cursor`, `Cursor 클라우드 에이전트`, `사람` 중 하나. `Cursor`와 `Cursor 클라우드 에이전트`는 같은 작성 경로다.
+- `작성 모델:` 도구가 보여주는 모델 이름. `사람`이면 `없음`.
+
+마지막으로 커밋한 도구가 최종 작성 도구다. 넘기기 전에 Cursor 클라우드 에이전트가 커밋했으면 `이전 작성 도구`와 `이전 작성 모델`을 본문에 더 적는다. 이전 모델이 여러 개면 이름을 모두 적는다. Grok Bot은 작성 도구가 아니다. Grok Bot이 PR을 열어도 위 두 줄은 코드를 쓴 도구와 그 모델이다.
+
+리뷰 모델의 패밀리는 작성 모델의 패밀리와 달라야 한다. 플랫폼은 보지 않는다. Cursor 안의 Claude도 Claude다. 최종 작성 모델 또는 이전 작성 모델과 패밀리가 같으면 그 리뷰는 무효다.
+
+패밀리는 대소문자를 무시하고 이름에서 고른다. `chatgpt` 또는 `codex`가 있으면 리뷰 모델이 아니다. 그 다음 아래 단어가 가리키는 패밀리를 모은다. 패밀리가 하나면 그 패밀리다. 없거나 둘 이상이면 무효다.
+
+| 이름에 있는 단어 | 패밀리 |
+| --- | --- |
+| `opus`, `sonnet`, `claude` | Claude |
+| `grok` | Grok |
+| `composer` | Composer |
+| `gemini` | Gemini |
+| `gpt` | GPT |
+
+`opus`와 `sonnet`은 한 패밀리다. `grok-4.7`과 `cursor-grok-4.6`은 Grok이다. `claude-opus`는 Claude다. 작성 패밀리가 Grok이면 리뷰는 Composer, Gemini, Claude, GPT 중 하나면 된다. 작성 패밀리가 Claude이면 리뷰는 Grok, Composer, Gemini, GPT 중 하나면 된다. 표에 없는 패밀리를 쓰려면 이 표를 먼저 고친다.
+
+기본 리뷰 패밀리는 Claude다. Claude Code로 직접 만든 PR, 즉 작성 패밀리가 Claude인 PR의 기본 리뷰는 Cursor에서 고르는 Grok, Composer, Gemini, GPT다. 기본은 구독 둘을 맞추기 위한 것이고, 필수 조건은 패밀리가 다른 것이다.
+
+문 유형은 `POLICY.md` §10이다. 리뷰 프롬프트에 그 문 유형을 적는다.
+
+- 양쪽 문: Standards, Spec, 버그 찾기를 작성 패밀리와 다른 모델 하나로 하면 된다. 세 축의 모델이 같아도 된다. Security는 신뢰 경계를 건드릴 때만 한다.
+- 한쪽 문은 `POLICY.md` §10이 정한다. 그 문에는 CI, 게이트, 보안 경계가 들어 있다. 돈·migration·권한처럼 §10이 한쪽 문이라고 한 다른 변경도 한쪽 문이다. 한쪽 문의 버그 찾기와 Security는 작성 패밀리가 아닌 모델 가운데 지금 쓸 수 있는 가장 강한 모델로 한다. 가능하면 패밀리가 서로 다른 모델 둘이다. 작성 패밀리가 Grok일 때의 그 둘은 Opus와 Gemini다.
+
+가장 강한 모델부터의 순서는 Opus, Gemini, GPT, Sonnet, Composer, Grok이다. 작성 패밀리의 모델은 이 순서에서 뺀다. 지금 쓸 수 있는 첫 모델이 그 실행의 가장 강한 모델이다. Opus를 쓸 수 있으면 Sonnet은 그 첫 모델이 아니다. 한쪽 문은 그 첫 모델로 버그 찾기와 Security를 한다. 그 다음 칸 가운데 패밀리가 다른 모델을 쓸 수 있으면, 그 두 축을 그 모델로도 한다. 그 모델이 한쪽 문의 두 번째 모델이다.
+
+effort 허용 값은 `low`, `medium`, `high`, `xhigh`, `max`, `설정 없음`이다. 이 값은 리뷰 모델의 effort다. Bugbot 설정의 Low·Default·High·Smart와 같지 않고, 그 대응은 이 문서에 없다. Bugbot을 버그 찾기 도구로 쓰는지는 아래 런타임 표가 미확인인 동안 정하지 않는다. 한쪽 문의 버그 찾기·Security는 그 모델에서 고를 수 있는 가장 높은 effort다. `high`를 고를 수 있으면 `high`다. effort 설정 자체가 없을 때만 `설정 없음`이다. Cursor에 모델 effort 설정이 있는지는 확인하지 않았다(2026-11-04 문서). 양쪽 문은 실제로 쓴 effort를 적으면 된다.
+
+가장 강한 모델이 사용 한도면 순서의 다음 모델 가운데 작성 패밀리와 다른 것을 쓴다. 근거에 `대체: <막힌 모델> → <쓴 모델>, 이유: 사용 한도`를 적는다. 한도 때문에 병합을 멈추지 않는다. 한쪽 문에서 더 강한 모델로 다시 보는 일은 후속 Issue에 적는다. 그 재리뷰를 할지는 소유자가 정한다. 그 Issue가 없어도 병합을 막지 않는다.
+
+돌리지 않는 축은 근거 표에 둔다. 모델 칸은 `해당 없음: <이유>`다. effort 칸은 `해당 없음`이다. P0·P1·P2는 0이다. 빈 칸으로 두지 않는다. 신뢰 경계를 건드리지 않으면 Security의 이유는 `신뢰 경계 변경 아님`이다. 리뷰가 시작하지 못한 축은 모델·effort·P0·P1·P2가 `미실행`이다. `미실행`은 0이 아니다. 한도로 다른 패밀리를 쓴 축은 `미실행`이 아니다.
+
+리뷰 근거는 PR 본문의 표다. 열은 축, 모델, effort, head SHA, P0, P1, P2다. head SHA는 그 표를 쓸 때의 PR head 전체 SHA다. 모델은 그 축에 실제로 쓴 모델 이름이다. P0·P1·P2는 그 축의 지적 수다. 지적이 없으면 0이다. 한도 대체는 표 아래에 적는다.
+
+검사의 나눔은 이렇다. CI는 리뷰 패밀리와 작성 패밀리가 같으면 실패한다. 그 검사는 #25가 넣는다. 이 변경은 그 검사 코드를 바꾸지 않는다. 관리자(Grok Bot)는 모델 이름이 실제로 돌린 모델과 같은지, P0·P1·P2 수가 지적 목록과 같은지, P1 기각 이유가 그 지적과 맞는지를 본다. CI는 그 사실 여부를 보지 않는다.
+
+P0와 P1은 지적마다 아래 셋 중 하나로 끝낸다. 어느 것도 아닌 P0·P1이 있으면 병합 가능이 아니다. 셋업 프롬프트의 "P0/P1은 해결"은 이 셋을 말한다.
+
+- 수정. 그 지적을 고친 커밋의 전체 SHA를 적는다.
+- 기각. 오탐인 이유를 적는다. 파일과 줄, 또는 지적이 인용한 문장을 포함한다.
+- 한계로 수용. 수용하는 범위와 근거를 적는다. 저장소 소유자 댓글이 `한계 수용: <현재 head의 전체 SHA>`로 시작하고, 같은 댓글에 축과 그 지적 한 줄이 있어야 한다. 그 댓글이 없으면 수용이 아니다. 에이전트는 이 댓글을 쓰지 않는다.
+
+이 PR 범위 밖의 Pre-existing P0·P1은 셋업 프롬프트 §5대로 후속 Issue로 넘긴다. 그 지적은 위 셋이 없어도 된다. 넘긴 뒤 본문에 Issue 번호를 적는다. Security 지적의 Pre-existing은 그렇게 넘기지 않는다. 수정 또는 기각이 있거나, 소유자가 한계로 수용해야 병합한다.
+
+P2는 이 절에서 병합을 막지 않는다. P2의 처리 방식은 셋업 프롬프트 §5를 따른다.
+
+`review/independent`와 `review/security`를 누가 남기는지는 아래 "리뷰 status를 남기는 사람"을 따른다. 근거 표를 쓴 에이전트는 그 status를 찍지 않는다. status description의 도구·모델·지적 수는 `POLICY.md` §5를 따른다.
+
 PR이 열린 뒤의 루프는 Grok Bot이 맡는다. 사람이 연 세션이 같은 일을 해도 된다. 일정을 이 저장소에 두지 않는다(`POLICY.md` §8). 별도 상시 감시 서비스를 이 저장소에 만들었다고 보고하지 않는다. 주간 점검(`prompts/weekly-check.md`)은 읽기 전용이다. 점검으로 고칠 것이 생기면 코드를 쓰는 쪽이 PR로 반영한다.
 
 맡는 일:
 
+- 관리자(Grok Bot)는 근거 표의 모델 이름, P0·P1·P2 수, P1 기각 이유가 사실인지를 본다. CI는 패밀리가 같은지만 실패시킨다(#25).
 - Dependabot PR을 매주 처리한다(`POLICY.md` §2). 문 유형은 `POLICY.md` §10, 리뷰는 §5를 따른다.
 - 외부 리뷰 대상 PR은 CodeRabbit 리뷰가 끝날 때까지 기다린다. 병합 전에 달린 CodeRabbit 스레드는 PR 종류와 관계없이 답하고 해결한다. 병합 뒤에 달린 지적은 후속 PR로 처리한다. CodeRabbit check가 SKIPPED이거나 `Review paused`이면 외부 리뷰는 끝나지 않았고, `@coderabbitai full review`를 요청한다. 예외는, CodeRabbit 리뷰가 끝난 head와 견줘 바뀐 것이 이미 리뷰된 PR들 사이의 충돌을 푼 main 병합뿐인 head다. 소유자는 그 사실을 승인에 적고 외부 리뷰를 다시 받지 않고 승인할 수 있다.
 - 1인 프로필에서 `review/independent`와 `review/security`는 아래 "리뷰 status를 남기는 사람"대로 소유자가 남긴 뒤에 `Review status`를 다시 돌린다. 서버 절차 전에는 Mac의 `gh`이고, 그 다음에는 서버의 앱이다. 에이전트는 자기 PR에 그 status를 찍지 않는다. 1인 한쪽 문은 소유자 댓글 뒤에 그 job이 다시 성공하는지 본다. 기준 브랜치 갱신으로 멈춘 PR과, 병합 뒤의 main CI를 확인한다.
@@ -90,7 +151,7 @@ pstack이 Cursor 클라우드 에이전트에서 실행되는지는 확인하지
 리뷰가 보는 것과 남기는 것은 런타임과 상관없이 같다.
 
 - 본다: 그 PR의 diff, 기준 커밋(PR base SHA), `POLICY.md` §5의 언제와 신뢰 경계. 문 유형은 §10만 정한다.
-- 남긴다: 지적 목록과 결과(통과 또는 열린 지적). 결과에는 리뷰한 모델 이름을 적는다. 그 기록의 status 이름은 `review/independent`이고, Security를 실행했으면 `review/security`다. 누가 그 status를 쓰는지는 아래 "리뷰 status를 남기는 사람"이 정한다. 리뷰를 돌린 에이전트가 통과를 찍는 것이 아니다.
+- 남긴다: 지적 목록과 결과(통과 또는 열린 지적). PR 본문의 근거 표 열은 "역할 분담"을 따른다. 그 기록의 status 이름은 `review/independent`이고, Security를 실행했으면 `review/security`다. 누가 그 status를 쓰는지는 아래 "리뷰 status를 남기는 사람"이 정한다. 리뷰를 돌린 에이전트가 통과를 찍는 것이 아니다. status description의 도구·모델·지적 수는 `POLICY.md` §5를 따른다.
 
 런타임 표는 그 기준을 각 런타임에서 어떻게 돌리는지만 적는다. 칸을 확인됨으로 바꾸려면 그 런타임으로 실제 PR을 한 번 돌린 뒤, 확인한 날짜와 그 PR 링크를 이 표 아래에 적는다. 문서로만 읽은 기능은 확인됨이 아니다.
 
@@ -102,7 +163,7 @@ pstack이 Cursor 클라우드 에이전트에서 실행되는지는 확인하지
 
 Cursor 공식 문서(2026-11-04 읽음, 이 저장소 PR에서 실행하지 않음): 채팅의 모델 선택은 입력창 위 모델 목록이거나 Cmd+/이고, 기본 모델은 Cursor Settings > Models다([Prompting agents](https://cursor.com/docs/agent/prompting)). Cloud Agent 모델은 실행할 때 고르거나, 지정하지 않으면 Cloud Agents 설정의 Default model이다([Cloud Agents](https://cursor.com/docs/cloud-agent), [설정](https://cursor.com/docs/cloud-agent/settings)). PR 리뷰 기능으로 Bugbot이 diff에 댓글을 남기고, 수동 실행은 PR 댓글 `cursor review` 또는 `bugbot run`이다. 에이전트 안에서는 `/review` 또는 `/review-bugbot`이다([Bugbot](https://cursor.com/docs/bugbot)). Automations에는 Bugbot과 Security Agents가 있다([Automations](https://cursor.com/docs/cloud-agent/automations)). 이 기능들로 이 저장소 PR의 버그 찾기·Security를 돌려 본 기록은 없으므로 위 칸은 미확인이다.
 
-교차 모델: Claude Code가 작성한 PR의 버그 찾기는 Cursor에서 Claude가 아닌 모델(GPT, Grok 등)로 돌린다. 깊이는 도구와 관계없이 양쪽 문 `low`, 한쪽 문 `high`다. 프롬프트에 문 유형을 적는다. Cursor 도구의 깊이 설정은 확인하지 않았다. Cursor가 작성한 PR은 Claude Code에서 리뷰한다. 어느 쪽이든 리뷰 결과에 그 모델 이름을 남긴다. 위 칸이 미확인이어도 이 절차를 Claude Code 명령으로 되돌리지 않는다. 칸을 확인됨으로 바꿀 때만 날짜와 PR 링크를 이 표 아래에 적는다.
+모델을 고르는 규칙은 "역할 분담"이다. 위 칸이 미확인이어도 그 규칙을 Claude Code 명령으로 되돌리지 않는다. 칸을 확인됨으로 바꿀 때만 날짜와 PR 링크를 이 표 아래에 적는다.
 
 이미 문서로 정한 한계는 다시 구현하지 않는다. 신뢰 경계의 내용 신호는 검사기가 보지 않고 리뷰어가 판단한다(`POLICY.md` §5). 신뢰하는 작성자를 덜 읽고 승인하는 경로는 없다(§9). hotfix 비율은 병합 조건이 아니다(§8). 사람 시간을 재는 항목은 §8에 없다.
 

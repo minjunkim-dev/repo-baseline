@@ -53,22 +53,22 @@
 
 ## 5. 리뷰와 병합
 
-- 독립 리뷰는 작성자와 분리한 컨텍스트에서 Standards·Spec과, 아래 표의 "언제"에 해당하면 버그 찾기를 각각 실행한다. 버그 찾기 깊이는 도구와 관계없이 양쪽 문 `low`, 한쪽 문 `high`다. 신뢰 경계 변경(아래)에는 Security를 추가한다. 도구는 다음과 같다(공통값).
+- 독립 리뷰는 작성자와 분리한 컨텍스트에서 Standards·Spec과 버그 찾기를 실행한다. 각각은 축이고, 모델을 축마다 다른 패밀리로 나누라는 뜻이 아니다. 양쪽 문은 그 셋을 작성 패밀리와 다른 모델 하나로 해도 된다. 리뷰 모델, effort, 근거 표, P0·P1의 수정·기각·한계 수용은 `docs/development-workflow.md`의 "역할 분담"을 따른다. 신뢰 경계 변경(아래)에는 Security를 추가한다. 도구는 다음과 같다(공통값).
 
 | 리뷰 | 도구 | 언제 |
 | --- | --- | --- |
-| Standards·Spec | `/matt-code-review`만(저장소에 커밋한 사본, §7) | 모든 PR |
-| 버그 찾기 | Claude Code가 작성한 PR은 Cursor에서 Claude가 아닌 모델(`docs/development-workflow.md`). 그 외는 Claude Code 내장 `/code-review` | 코드가 바뀐 PR. 깊이는 도구와 관계없이 양쪽 문 `low`, 한쪽 문 `high`. Cursor 쪽 깊이 설정은 확인하지 않았다 |
-| Security | Claude Code 내장 `/security-review`. Semgrep CLI가 있으면 함께 실행 | 신뢰 경계 변경. 열린 지적은 고치거나 오탐 이유를 남기기 전에는 병합하지 않는다 |
+| Standards·Spec | `/matt-code-review`만(저장소에 커밋한 사본, §7). 모델 패밀리는 `docs/development-workflow.md` 역할 분담 | 모든 PR |
+| 버그 찾기 | 작성 패밀리와 다른 모델(`docs/development-workflow.md` 역할 분담). 양쪽 문은 Standards·Spec과 같은 모델 하나로 된다. 한쪽 문은 그 절의 강한 모델 순서에서 작성 패밀리를 뺀 뒤 지금 쓸 수 있는 첫 모델. Opus를 쓸 수 있으면 Sonnet은 그 첫 모델이 아니다 | 모든 PR. 한쪽 문의 강도와 한도 대체는 역할 분담 |
+| Security | 작성 패밀리와 다른 모델. 한쪽 문은 버그 찾기와 같은 강도. Semgrep CLI가 있으면 함께 실행 | 신뢰 경계 변경. 열린 지적은 고치거나, 오탐으로 기각하거나, 소유자가 한계로 수용하기 전에는 병합하지 않는다 |
 | 외부 | 공개 저장소는 CodeRabbit, 비공개 저장소는 다른 모델 | 아래 외부 리뷰 대상 |
 | 정기 Security 감사 | Cloudflare `security-audit` | 릴리스 전, 인증·외부 입력·결제 같은 새 공격면이 생길 때, 분기마다 한 번 이상 |
 | 회고 | Matt Pocock `retro` | 사용자가 요청할 때(§6) |
 
 - Standards·Spec의 독립 리뷰는 `/matt-code-review`로만 부른다. 플러그인의 `code-review`와 내장 `/code-review`는 이 역할이 아니다. 내장 `/code-review`는 버그 찾기다. `/implement`가 끝에서 돌리는 `code-review`는 구현 중의 자체 점검이며 `review/independent`로 세지 않는다.
-- 역할마다 결정적 검사와 LLM 리뷰를 각각 하나까지만 둔다. 다른 모델의 두 번째 의견은 외부 리뷰 대상에만 둔다. 순서는 결정적 검사 → LLM 리뷰 → 사람이다. 선택 도구와 설치·확인 방법은 `docs/development-workflow.md`에 둔다.
-- 가벼운 경로: 문서나 신뢰 경계가 아닌 설정만 바꾸는 양쪽 문 PR은 Standards·Spec 리뷰 하나만 받는다.
-- 내장 명령이 없는 런타임은 같은 역할의 리뷰를 쓰고 무엇을 썼는지 리뷰 기록에 남긴다. CodeQL을 쓰더라도 Security 리뷰를 대신하지 않는다. 위 표의 버그 찾기가 이미 그 예외를 적는다. 작업 문서의 Cursor·Codex 칸이 미확인이어도 그 예외를 Claude Code 명령으로 되돌리지 않는다.
-- 리뷰 기록: context는 `review/independent`(Standards·Spec·버그 찾기)와, Security 리뷰를 실행했으면 `review/security`다. description에 도구·모델·지적 수를 적는다. PR 댓글은 사람이 읽는 기록으로 함께 남길 수 있다. 1인 프로필에서는 코드를 쓴 에이전트가 이 status를 남기지 않는다. Grok Bot이 리뷰 결과·리뷰한 모델·head SHA를 확인한 뒤, 소유자가 남긴다. 기록 수단은 Mac Studio 절차를 마치기 전에는 Mac의 `gh`이고, 그 절차를 마치면 그 서버의 앱이다(`docs/development-workflow.md`). 팀 프로필에서는 그 PR을 구현하지 않은 사람이 남긴다. 구현한 에이전트는 어느 프로필에서든 자기 PR에 통과를 찍지 않는다. `Review status` workflow는 이 status를 쓰지 않고 읽기만 한다.
+- 역할마다 결정적 검사와 LLM 리뷰를 각각 하나까지만 둔다. 다른 모델의 두 번째 의견은 외부 리뷰 대상에만 둔다. 한쪽 문에서 한도로 다음 모델을 쓴 뒤 더 강한 모델로 다시 보는 일은 후속 Issue다. 병합을 막지 않고, 할지는 소유자가 정한다(`docs/development-workflow.md` 역할 분담). 순서는 결정적 검사 → LLM 리뷰 → 사람이다. 선택 도구와 설치·확인 방법은 `docs/development-workflow.md`에 둔다.
+- 가벼운 경로: 문서나 신뢰 경계가 아닌 설정만 바꾸는 양쪽 문 PR은 Standards·Spec·버그 찾기를 작성 패밀리와 다른 모델 하나로 받는다. Security는 받지 않는다.
+- 내장 명령이 없는 런타임은 같은 역할의 리뷰를 쓰고 무엇을 썼는지 리뷰 기록에 남긴다. CodeQL을 쓰더라도 Security 리뷰를 대신하지 않는다. 위 표의 버그 찾기가 이미 그 예외를 적는다. 작업 문서의 Cursor·Codex 칸이 미확인이어도 그 예외를 Claude Code 명령으로 되돌리지 않는다. 역할 분담의 패밀리 규칙도 이 문장으로 특정 패밀리 전용으로 되돌리지 않는다.
+- 리뷰 기록: context는 `review/independent`(Standards·Spec·버그 찾기)와, Security 리뷰를 실행했으면 `review/security`다. description에 도구·모델·지적 수를 적는다. 사람이 읽는 근거 표(축, 모델, effort, head SHA, P0, P1, P2)는 PR 본문에 두고 `docs/development-workflow.md` 역할 분담을 따른다. PR 댓글은 사람이 읽는 기록으로 함께 남길 수 있다. 1인 프로필에서는 코드를 쓴 에이전트가 이 status를 남기지 않는다. Grok Bot이 리뷰 결과·리뷰한 모델·head SHA를 확인한 뒤, 소유자가 남긴다. 기록 수단은 Mac Studio 절차를 마치기 전에는 Mac의 `gh`이고, 그 절차를 마치면 그 서버의 앱이다(`docs/development-workflow.md`). 팀 프로필에서는 그 PR을 구현하지 않은 사람이 남긴다. 구현한 에이전트는 어느 프로필에서든 자기 PR에 통과를 찍지 않는다. `Review status` workflow는 이 status를 쓰지 않고 읽기만 한다.
 - `Review status` CI job(`scripts/check_review_status.py`, `templates/review-status.yml`)이 바뀐 파일 경로로 필요한 status를 정하고, 그 head에 없으면 실패한다. `review/independent`와 `review/security`가 필요한지는 그 head의 `compare(base, head)`로 정한다. 열린 PR의 현재 파일·커밋 목록으로 정하지 않는다. `review/independent`는 아래 Dependabot 예외가 아닌 모든 PR에 필요하다. 아래 표의 공통 경로나 프로젝트 경로에 걸리면 `review/security`도 필요하다. 예외는 둘 다 면제한다. 경로에 걸리지 않아도 그 head에 `review/security`나 `review/independent`가 있으면 `success`여야 한다. 내용 기준은 오탐이 많아 이 job이 보지 않고 리뷰어가 판단한다. 이 job은 `pull_request_target`으로 기본 브랜치의 workflow와 검사기를 실행하고(PR 대상이 다른 브랜치여도 같다) PR 코드를 실행하지 않는다. 그래서 PR은 이 검사 코드를 고칠 수 없고, 검사 변경은 기본 브랜치에 병합된 뒤에 적용된다. 다만 PR이 `pull_request` workflow로 같은 이름의 job을 더할 수는 있다. GitHub가 같은 이름의 체크를 어떻게 판정하는지는 확인하지 못했으므로, `.github/workflows/**`를 바꾸는 PR의 Security 리뷰에서 이를 본다. 새 push의 SHA에는 status가 없으므로, 이 job을 필수 체크로 등록하면(§9) 리뷰 뒤에 더한 커밋은 다시 리뷰할 때까지 병합되지 않는다. 새 head에 그 context가 없고 diff identity가 이미 `success`인 status의 것과 같으면 이 job이 그 status를 이어받아 통과한다. 기준 브랜치 갱신만이 아니다. 같은 diff의 push나 force-push도 이어받는다. 현재 head의 `failure`·`pending`은 유지한다. 가장 최근 이전 status가 `success`가 아니거나 조회되지 않으면 이어받지 않는다. identity는 경로, 파일 모드, rename·copy, 추가·삭제한 줄, 바이너리 blob SHA를 모두 포함한다. 줄 번호와 주변 줄은 같지 않아도 된다. 공백이 다르거나 diff를 확인하지 못하면 이어받지 않는다. 같은 GitHub 계정이 남긴 status는 사람과 에이전트를 구분하지 못한다. 절차가 실행됐다는 기록이지 보안 경계가 아니다. 이어받기도 같다.
 - 신뢰 경계 변경은 누가 무엇을 할 수 있는지, 또는 신뢰하지 않는 입력이 더 높은 권한에 닿는지를 바꾸는 변경이다. 작성자의 판단이 아니라 diff로 정한다. 아래 중 하나라도 걸리면 신뢰 경계 변경이다. 애매하면 신뢰 경계 변경으로 본다.
 
@@ -170,7 +170,7 @@
 | 한쪽 문 | 돈, 계정 접근, 다른 사람 데이터의 노출. 데이터 삭제나 복구가 어려운 migration. Secret·인증·권한을 넓히는 변경. 새 workflow 쓰기 권한. 대량 발송. 복구가 불확실하거나 영향 범위가 넓음. 아래 게이트 경로 |
 | 양쪽 문 | 위 기준에 하나도 해당하지 않음 |
 
-한쪽 문은 위험 변경이다. 사람 승인 전에 §5의 외부 리뷰를 받는다. 버그 찾기 깊이는 도구와 관계없이 양쪽 문이면 `low`, 한쪽 문이면 `high`다. Cursor에서 하는 버그 찾기는 문 유형을 프롬프트에 적는다. Cursor의 깊이 설정은 확인하지 않았다.
+한쪽 문은 위험 변경이다. 사람 승인 전에 §5의 외부 리뷰를 받는다. 버그 찾기·Security의 모델과 effort는 `docs/development-workflow.md` 역할 분담을 따른다. 리뷰 프롬프트에 이 절의 문 유형을 적는다. Cursor의 effort 설정이 제품에 있는지는 확인하지 않았다.
 
 게이트 경로를 바꾸는 PR은 프로필과 관계없이 한쪽 문이다. Security 리뷰만으로 병합하지 않는다. Dependabot이 연 PR이고 diff가 §5의 버전 전용 예외와 같으면(버전·해시·Action SHA만 바꾸고 다른 줄은 없음) 그 경로여도 사람 한쪽 문 승인에서 뺀다. 아래 둘은 그 승인에서 빼지 않는다.
 
