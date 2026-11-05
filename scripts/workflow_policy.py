@@ -161,6 +161,31 @@ def checked_tree(value):
     return path
 
 
+def readable_file(tree, relative):
+    """A regular file under tree. Symlinks are not followed."""
+    current = tree
+    if current.is_symlink():
+        return None
+    for part in Path(relative).parts:
+        current = current / part
+        if current.is_symlink():
+            return None
+    return current if current.is_file() else None
+
+
+def _symlink_inside(tree, relative):
+    current = tree
+    if current.is_symlink():
+        return True
+    for part in Path(relative).parts:
+        current = current / part
+        if current.is_symlink():
+            return True
+        if not current.exists():
+            return False
+    return False
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("--pr", action="store_true", help="Read PR metadata from GITHUB_EVENT_PATH")
@@ -177,14 +202,20 @@ def main(argv=None):
         claude = tree / "CLAUDE.md"
         if claude.exists() or claude.is_symlink():
             errors.append("Use AGENTS.md only; remove CLAUDE.md")
-    if config["require_agents_md"] and not (tree / "AGENTS.md").is_file():
+    if config["require_agents_md"] and readable_file(tree, "AGENTS.md") is None:
         errors.append("AGENTS.md is required")
     flags = config["feature_flags"]
     if flags:
-        try:
-            errors.extend(validate_flags(json.loads((tree / flags).read_text(encoding="utf-8"))))
-        except (OSError, json.JSONDecodeError) as error:
-            errors.append(f"Feature flags: {error}")
+        flag_file = readable_file(tree, flags)
+        if flag_file is None and _symlink_inside(tree, flags):
+            errors.append("Feature flags: refusing to follow a symlink")
+        else:
+            try:
+                if flag_file is None:
+                    raise OSError("missing")
+                errors.extend(validate_flags(json.loads(flag_file.read_text(encoding="utf-8"))))
+            except (OSError, json.JSONDecodeError) as error:
+                errors.append(f"Feature flags: {error}")
     if args.pr:
         # The event file is JSON. The body is untrusted text and is only parsed.
         event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text(encoding="utf-8"))

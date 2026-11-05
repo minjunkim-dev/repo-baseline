@@ -286,6 +286,10 @@ class ConventionsTest(unittest.TestCase):
         ignored = subprocess.run(command, cwd=work, env=env, capture_output=True, text=True, timeout=30)
         self.assertEqual(1, ignored.returncode, ignored.stdout + ignored.stderr)
         self.assertIn("AGENTS.md is required", ignored.stdout)
+        (pull / "AGENTS.md").symlink_to("../policy-base/AGENTS.md")
+        linked = subprocess.run(command, cwd=work, env=env, capture_output=True, text=True, timeout=30)
+        self.assertEqual(1, linked.returncode, linked.stdout + linked.stderr)
+        self.assertIn("AGENTS.md is required", linked.stdout)
 
 
 class FlagsTest(unittest.TestCase):
