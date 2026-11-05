@@ -48,6 +48,12 @@ class PolicyTests(unittest.TestCase):
         with self.assertRaises(policy.UnrecognizedPattern):
             policy.classify(sample(["[9-0]"]))
 
+    def test_a_stricter_rule_is_not_hidden_by_a_broader_one(self):
+        item = sample([TARGET], source="Repository")
+        item["rules"].append({"type": "restrict_action_events",
+                              "parameters": {"allowed_events": ["issue_comment", "pull_request_target"]}})
+        self.assertEqual(policy.classify(item), "parent")
+
     def test_a_glob_that_allows_both_events_is_already_enough(self):
         both = ["issue_comment", "pull_request_target"]
         self.assertEqual(policy.classify(sample([".github/workflows/**"], events=both)), "both")

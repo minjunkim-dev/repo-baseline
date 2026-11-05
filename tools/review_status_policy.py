@@ -100,12 +100,13 @@ def classify(policy):
     include, _exclude = _lists(policy)
     exact = include == [TARGET]
     repository = (policy.get("source_type") or "Repository") == "Repository"
-    if BOTH in events:
-        return "both"
-    if ONLY in events and exact and repository:
-        return "narrow"
-    if ONLY in events:
+    # One stricter rule is enough. A both-events rule does not hide pull_request_target-only.
+    if any(item == ONLY for item in events):
+        if all(item == ONLY for item in events) and exact and repository:
+            return "narrow"
         return "parent"
+    if events and all(item == BOTH for item in events):
+        return "both"
     return "other"
 
 
