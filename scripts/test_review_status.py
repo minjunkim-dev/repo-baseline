@@ -27,16 +27,28 @@ def passing_body(head):
 
 
 def status_rows(pairs, default_creator):
+    """One page of GET /commits/{sha}/statuses. The list endpoint includes creator."""
     rows = []
-    for item in pairs:
+    for index, item in enumerate(pairs):
         creator = default_creator
         if len(item) == 3:
             context, state, creator = item
         else:
             context, state = item
-        row = {"context": context, "state": state}
+        row = {
+            "avatar_url": "https://avatars.githubusercontent.com/u/1",
+            "context": context,
+            "created_at": f"2020-01-01T00:00:{index:02d}Z",
+            "description": "",
+            "id": index + 1,
+            "node_id": "S",
+            "state": state,
+            "target_url": None,
+            "updated_at": f"2020-01-01T00:00:{index:02d}Z",
+            "url": "https://api.github.com/repos/o/n/statuses/1",
+        }
         if creator is not None:
-            row["creator"] = {"login": creator}
+            row["creator"] = {"login": creator, "id": 1, "type": "User"}
         rows.append(row)
     return rows
 
@@ -45,7 +57,7 @@ def api(files, statuses=(), author="alice", commits=("alice",), project=None, ch
         committer=tool.WEB_FLOW, commit_shas=None, extra_status=None, force_pushes=None, commit_count=None,
         owner="owner", comments=(), agents=None, head=HEAD, compare_files=None, compare_commits=None,
         head_agents=None, force_push_times=None, body=None, number="1", base_ref="main", base_sha="BASE",
-        default_branch="main", base_status="identical", status_creator=None):
+        default_branch="main", base_status="identical", status_creator=None, combined=False):
     base = {"sha": base_sha}
     if base_ref is not None:
         base["ref"] = base_ref
@@ -64,8 +76,11 @@ def api(files, statuses=(), author="alice", commits=("alice",), project=None, ch
         f"repos/o/n/pulls/{number}": pull,
         f"repos/o/n/pulls/{number}/files?per_page=100": [files],
         f"repos/o/n/pulls/{number}/commits?per_page=100": [commit_rows],
-        f"repos/o/n/commits/{head}/status?per_page=100": [{
-            "statuses": status_rows(statuses, owner if status_creator is None else status_creator)}],
+        f"repos/o/n/commits/{head}/statuses?per_page=100": (
+            [{"state": "success", "statuses": status_rows(statuses, owner if status_creator is None else status_creator),
+              "sha": head, "total_count": len(tuple(statuses))}]
+            if combined else
+            [status_rows(statuses, owner if status_creator is None else status_creator)]),
         "repos/o/n": repo,
         f"repos/o/n/issues/{number}/comments?per_page=100": [list(comments)],
     }
@@ -100,8 +115,8 @@ def api(files, statuses=(), author="alice", commits=("alice",), project=None, ch
             "content": base64.b64encode(head_agents.encode()).decode()}
     if extra_status:
         for sha, pairs in extra_status.items():
-            routes[f"repos/o/n/commits/{sha}/status?per_page=100"] = [{
-                "statuses": status_rows(pairs, owner if status_creator is None else status_creator)}]
+            routes[f"repos/o/n/commits/{sha}/statuses?per_page=100"] = [
+                status_rows(pairs, owner if status_creator is None else status_creator)]
     if force_pushes is not None:
         events = []
         for index, sha in enumerate(force_pushes):
@@ -290,6 +305,15 @@ class ReviewStatusTests(unittest.TestCase):
         minor = [{"filename": "package.json", "patch": '@@\n-  "x": "^1.2.3",\n+  "x": "^2.0.0",'}]
         self.assertEqual(run(api(minor, author=bot, commits=[bot])), [])
 
+    def test_a_combined_status_payload_does_not_pass(self):
+        combined = [{"state": "success", "statuses": [
+            {"context": tool.INDEPENDENT, "state": "success", "description": "", "id": 1}]}]
+        self.assertRaises(ValueError, tool.status_list, combined)
+        files = [{"filename": "src/app.py"}]
+        env = {"REPO": "o/n", "PR_NUMBER": "1", "HEAD_SHA": HEAD, "BASE_SHA": "BASE"}
+        self.assertEqual(tool.main(env, api(files, [OK], combined=True)), 2)
+        self.assertEqual(run(api(files, [OK])), [])
+
     def test_a_solo_profile_counts_an_owner_status_and_not_another_creator(self):
         files = [{"filename": "src/app.py"}]
         self.assertEqual(tool.STATUS_ACTORS, ())
@@ -373,7 +397,7 @@ class ReviewStatusTests(unittest.TestCase):
         self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", read,
                                       diffs({"OLDER": ADDED, "MID": SHIFTED, HEAD: SHIFTED})),
                          [tool.INDEPENDENT])
-        self.assertIn("repos/o/n/commits/MID/status?per_page=100", seen)
+        self.assertIn("repos/o/n/commits/MID/statuses?per_page=100", seen)
 
     def test_a_rebase_parent_can_carry_the_status(self):
         files = [{"filename": "src/app.py"}]
@@ -399,7 +423,7 @@ class ReviewStatusTests(unittest.TestCase):
             return base(endpoint)
         self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", read, diffs({"OLDER": ADDED, HEAD: SHIFTED})),
                          [tool.INDEPENDENT])
-        self.assertIn("repos/o/n/commits/MID/status?per_page=100", seen)
+        self.assertIn("repos/o/n/commits/MID/statuses?per_page=100", seen)
 
     def test_a_short_commit_list_does_not_carry(self):
         files = [{"filename": "src/app.py"}]

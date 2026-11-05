@@ -579,8 +579,26 @@ def owner_approved(repo, number, head, read):
     return False
 
 
+def status_list(pages):
+    """Newest-first status objects from GET /commits/{sha}/statuses.
+
+    Each page is a list. The combined status object is a dict and has no creator,
+    so it is not this list and must not count as success."""
+    if not isinstance(pages, list):
+        raise ValueError("commit statuses")
+    flat = []
+    for page in pages:
+        if not isinstance(page, list):
+            raise ValueError("commit statuses")
+        for status in page:
+            if not isinstance(status, dict) or "context" not in status:
+                raise ValueError("commit statuses")
+            flat.append(status)
+    return flat
+
+
 def latest_status(statuses, context):
-    """The combined status lists the newest state of each context first."""
+    """The status list is newest first. The first item of a context is the one that counts."""
     for status in statuses:
         if status["context"] == context:
             return status
@@ -650,8 +668,8 @@ def carried_contexts(repo, number, head, base, contexts, read, read_diff, commit
     def state_at(sha, context):
         if sha not in fetched:
             try:
-                pages = read(f"repos/{repo}/commits/{sha}/status?per_page=100")
-                fetched[sha] = [status for page in pages for status in page["statuses"]]
+                pages = read(f"repos/{repo}/commits/{sha}/statuses?per_page=100")
+                fetched[sha] = status_list(pages)
             except (OSError, subprocess.SubprocessError, KeyError, ValueError, TypeError):
                 fetched[sha] = None
         # A failed lookup must not skip this SHA for an older success: its state is unknown.
@@ -883,8 +901,8 @@ def missing(repo, number, head, base, read=read_api, read_diff=None):
     # Compare stops at 300 files. A hidden path cannot be ruled out.
     if pinned is None or (touched and not bump):
         needed.append(SECURITY)
-    statuses = [status for page in read(f"repos/{repo}/commits/{head}/status?per_page=100") for status in page["statuses"]]
-    # The combined list is newest first. An older success in that list does not erase a newer failure.
+    statuses = status_list(read(f"repos/{repo}/commits/{head}/statuses?per_page=100"))
+    # The list is newest first. An older success does not erase a newer failure.
     # An untrusted creator is failure, so it also does not reveal an older trusted success.
     newest = {}
     for status in statuses:
