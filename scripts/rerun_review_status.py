@@ -22,14 +22,9 @@ def comment_triggers(is_pull_request, state, author, owner):
     return bool(is_pull_request) and state == "open" and bool(owner) and author == owner
 
 
-def matches(run, number, sha):
-    """The list endpoint's pull_requests array is empty for this event. head_sha is the PR head."""
-    if (run or {}).get("head_sha") == sha:
-        return True
-    for pull in (run or {}).get("pull_requests") or []:
-        if pull.get("number") == number and ((pull.get("head") or {}).get("sha") == sha):
-            return True
-    return False
+def matches(run, _number, sha):
+    """Match the run's own head_sha. pull_requests[].head.sha can move to the current head and select an older run."""
+    return (run or {}).get("head_sha") == sha
 
 
 def plan(runs, number, sha):

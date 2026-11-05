@@ -13,11 +13,14 @@ import check_review_status as tool
 def api(files, statuses=(), author="alice", commits=("alice",), project=None, changed=None, verified=True,
         committer=tool.WEB_FLOW, commit_shas=None, extra_status=None, force_pushes=None, commit_count=None,
         owner="owner", comments=(), agents=None, head="HEAD", compare_files=None, compare_commits=None,
-        head_agents=None):
+        head_agents=None, force_push_times=None):
     pull = {"user": {"login": author}, "changed_files": len(files) if changed is None else changed,
             "head": {"sha": head}, "base": {"sha": "BASE"}}
-    commit_rows = [{"author": {"login": name}, "committer": {"login": committer},
-                    "commit": {"verification": {"verified": verified}}} for name in commits]
+    commit_rows = [{
+        "author": {"login": name}, "committer": {"login": committer},
+        "commit": {"verification": {"verified": verified},
+                   "committer": {"date": f"2020-01-{(index + 1):02d}T00:00:00Z"}},
+    } for index, name in enumerate(commits)]
     routes = {
         "repos/o/n/pulls/1": pull,
         "repos/o/n/pulls/1/files?per_page=100": [files],
@@ -43,7 +46,9 @@ def api(files, statuses=(), author="alice", commits=("alice",), project=None, ch
         names = list(commits)
         commit_rows = [{
             "sha": sha, "author": {"login": names[index] if index < len(names) else author},
-            "committer": {"login": committer}, "commit": {"verification": {"verified": verified}},
+            "committer": {"login": committer},
+            "commit": {"verification": {"verified": verified},
+                       "committer": {"date": f"2020-01-{(index + 1):02d}T00:00:00Z"}},
         } for index, sha in enumerate(commit_shas)]
         routes["repos/o/n/pulls/1/commits?per_page=100"] = [commit_rows]
     pinned = list(files if compare_files is None else compare_files)
@@ -57,7 +62,12 @@ def api(files, statuses=(), author="alice", commits=("alice",), project=None, ch
             routes[f"repos/o/n/commits/{sha}/status?per_page=100"] = [{
                 "statuses": [{"context": context, "state": state} for context, state in pairs]}]
     if force_pushes is not None:
-        routes[tool.FORCE_PUSHES + "o/n/1"] = list(force_pushes)
+        events = []
+        for index, sha in enumerate(force_pushes):
+            when = (force_push_times[index] if force_push_times is not None
+                    else f"2030-01-{(28 - index):02d}T00:00:00Z")
+            events.append({"oid": sha, "createdAt": when})
+        routes[tool.FORCE_PUSHES + "o/n/1"] = events
 
     def read(endpoint):
         if endpoint not in routes:
@@ -143,8 +153,9 @@ class ReviewStatusTests(unittest.TestCase):
             with self.subTest(spelling):
                 self.assertEqual(run(api(files, [OK], project=spelling + "\n")), [tool.SECURITY])
 
-    def test_more_files_than_the_api_lists_needs_security(self):
-        self.assertEqual(run(api([{"filename": "src/app.py"}], [OK], changed=5000)), [tool.SECURITY])
+    def test_a_capped_compare_needs_security(self):
+        read = api([{"filename": "src/app.py"}], [OK], compare_files=[{"filename": "src/app.py"}] * 300)
+        self.assertEqual(run(read), [tool.SECURITY, tool.OWNER])
 
     def test_dependabot_version_bump_is_not_a_trust_boundary_change(self):
         files = [{"filename": ".github/workflows/ci.yml", "patch": BUMP},
@@ -203,12 +214,17 @@ class ReviewStatusTests(unittest.TestCase):
         self.assertEqual(run(api(files, author=bot, commits=[bot])), [])
         self.assertEqual(run(api(files, [(tool.INDEPENDENT, "failure")], author=bot, commits=[bot])), [tool.INDEPENDENT])
         self.assertEqual(run(api(files, [OK, (tool.SECURITY, "failure")], author=bot, commits=[bot])), [tool.SECURITY])
+        # The live pull request's commit count is not this head. Compare commits are.
         short = api(files, author=bot, commits=[bot], commit_count=251)
-        self.assertEqual(run(short), [tool.INDEPENDENT, tool.SECURITY])
+        self.assertEqual(run(short), [])
+        human = {"author": {"login": "alice"}, "committer": {"login": "alice"},
+                 "commit": {"verification": {"verified": True}}}
+        self.assertEqual(run(api(files, author=bot, commits=[bot], compare_commits=[human])),
+                         [tool.INDEPENDENT, tool.SECURITY, tool.OWNER])
         row = {"author": {"login": bot}, "committer": {"login": tool.WEB_FLOW},
                "commit": {"verification": {"verified": True}}}
         capped = api(files, author=bot, commits=[bot], compare_commits=[row] * 250)
-        self.assertEqual(run(capped), [tool.OWNER])
+        self.assertEqual(run(capped), [tool.INDEPENDENT, tool.SECURITY, tool.OWNER])
 
     def test_a_major_action_bump_still_needs_the_owner_comment(self):
         bot = tool.DEPENDABOT
@@ -400,14 +416,14 @@ class ReviewStatusTests(unittest.TestCase):
                       compare_files=[{"filename": "src/app.py"}])
         self.assertEqual(tool.missing("o/n", "1", head, "BASE", current), [])
         huge = api([{"filename": "src/app.py"}], [OK], compare_files=[{"filename": "src/app.py"}] * 300)
-        self.assertEqual(run(huge), [tool.OWNER])
+        self.assertEqual(run(huge), [tool.SECURITY, tool.OWNER])
         base = api([{"filename": "src/app.py"}], [OK])
 
         def too_big(endpoint):
             if "/compare/" in endpoint:
                 raise subprocess.CalledProcessError(1, "gh", stderr="HTTP 406")
             return base(endpoint)
-        self.assertEqual(run(too_big), [tool.OWNER])
+        self.assertEqual(run(too_big), [tool.SECURITY, tool.OWNER])
 
     def test_a_new_head_invalidates_the_owner_comment(self):
         files = [{"filename": "scripts/check_review_status.py"}]
@@ -440,6 +456,40 @@ class ReviewStatusTests(unittest.TestCase):
     def test_a_comment_event_without_shas_reads_the_pull_request(self):
         env = {"REPO": "o/n", "PR_NUMBER": "1"}
         self.assertEqual(tool.main(env, api([{"filename": "src/app.py"}], [OK])), 0)
+
+    def test_review_requirements_follow_this_head_not_the_live_pull_request(self):
+        head = "e" * 40
+        live_docs = api([{"filename": "src/app.py"}], [OK], head=head,
+                        compare_files=[{"filename": ".github/workflows/ci.yml"}])
+        self.assertEqual(tool.missing("o/n", "1", head, "BASE", live_docs), [tool.SECURITY, tool.OWNER])
+        live_workflow = api([{"filename": ".github/workflows/ci.yml"}], [OK], head=head,
+                            compare_files=[{"filename": "src/app.py"}])
+        self.assertEqual(tool.missing("o/n", "1", head, "BASE", live_workflow), [])
+
+    def test_a_newer_force_push_failure_blocks_an_older_success(self):
+        files = [{"filename": "src/app.py"}]
+        read = api(files, commit_shas=["OLDER", "HEAD"], extra_status={
+            "OLDER": [OK], "FAILED": [(tool.INDEPENDENT, "failure")]}, force_pushes=["FAILED"])
+        self.assertEqual(tool.missing("o/n", "1", "HEAD", "BASE", read, diffs({"OLDER": ADDED, "HEAD": SHIFTED})),
+                         [tool.INDEPENDENT])
+        older_failure = api(files, commit_shas=["MID", "HEAD"], extra_status={
+            "MID": [OK], "ANCIENT": [(tool.INDEPENDENT, "failure")]}, force_pushes=["ANCIENT"],
+            force_push_times=["2019-01-01T00:00:00Z"])
+        self.assertEqual(tool.missing("o/n", "1", "HEAD", "BASE", older_failure,
+                                      diffs({"MID": ADDED, "HEAD": SHIFTED})), [])
+
+    def test_a_newer_failure_on_this_head_hides_an_older_success(self):
+        files = [{"filename": "src/app.py"}]
+        self.assertEqual(run(api(files, [(tool.INDEPENDENT, "failure"), OK])), [tool.INDEPENDENT])
+
+    def test_a_template_pin_without_a_version_marker_is_an_unknown_major(self):
+        same_digit = ("@@\n-  uses: actions/checkout@3" + "a" * 39
+                      + "\n+  uses: actions/checkout@3" + "b" * 39)
+        self.assertTrue(tool.major_change([{"filename": "templates/review-status.yml", "patch": same_digit}]))
+        self.assertEqual(tool.line_majors("-checksum \"7aaaaaa\"", False), [])
+        commented = ("@@\n-  uses: actions/checkout@3" + "a" * 39 + " # v7.0.1"
+                     + "\n+  uses: actions/checkout@4" + "b" * 39 + " # v7.0.1")
+        self.assertFalse(tool.major_change([{"filename": "templates/review-status.yml", "patch": commented}]))
 
     def test_cli_exit_codes(self):
         env = {"REPO": "o/n", "PR_NUMBER": "1", "HEAD_SHA": "HEAD", "BASE_SHA": "BASE"}

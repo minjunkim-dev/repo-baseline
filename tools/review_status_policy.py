@@ -34,7 +34,11 @@ def matches(pattern, path):
     atoms = []
     index = 0
     while index < len(pattern):
-        if pattern.startswith("**", index):
+        if pattern.startswith("**/", index):
+            # `docs/**/*.md` matches `docs/README.md`: the slash may match zero directories.
+            atoms.append("(?:.*/)?")
+            index += 3
+        elif pattern.startswith("**", index):
             atoms.append(".*")
             index += 2
         elif pattern[index] == "*":
@@ -54,7 +58,10 @@ def matches(pattern, path):
         else:
             atoms.append(re.escape(pattern[index]))
             index += 1
-    return re.fullmatch("".join(atoms), path) is not None
+    try:
+        return re.fullmatch("".join(atoms), path) is not None
+    except re.error as error:
+        raise UnrecognizedPattern(pattern) from error
 
 
 def _lists(policy):
@@ -62,10 +69,18 @@ def _lists(policy):
     return path.get("include") or [], path.get("exclude") or []
 
 
+def _any(patterns):
+    """Every pattern is evaluated. A later unevaluable pattern still stops the install."""
+    found = False
+    for pattern in patterns:
+        found = matches(pattern, TARGET) or found
+    return found
+
+
 def applies(policy):
     include, exclude = _lists(policy)
-    included = True if not include else any(matches(item, TARGET) for item in include)
-    excluded = any(matches(item, TARGET) for item in exclude)
+    included = True if not include else _any(include)
+    excluded = _any(exclude)
     return included and not excluded
 
 

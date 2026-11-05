@@ -74,7 +74,7 @@
 
 | 종류 | 기준 | 정하는 사람 |
 | --- | --- | --- |
-| 공통 경로 | `.github/workflows/**`, `.github/actions/**`, `.github/repository-settings.json`, `.github/dependabot.yml`, `.github/dependabot.yaml`, `.github/CODEOWNERS`, `.github/repo-baseline.json`, `.github/trust-boundary-paths`, `scripts/check_*.py`, `.claude/settings.json`, `.claude/hooks/**`, `.claude/agents/**`, `.claude/commands/**`, `.agents/skills/**`, `.claude/skills/**`, `.mcp.json`, 의존성 manifest·lockfile, `Dockerfile`, `.env*` | 이 저장소(공통값) |
+| 공통 경로 | `.github/workflows/**`, `.github/actions/**`, `.github/repository-settings.json`, `.github/dependabot.yml`, `.github/dependabot.yaml`, `.github/CODEOWNERS`, `.github/repo-baseline.json`, `.github/trust-boundary-paths`, `scripts/check_*.py`, `scripts/rerun_review_status.py`, `.claude/settings.json`, `.claude/hooks/**`, `.claude/agents/**`, `.claude/commands/**`, `.agents/skills/**`, `.claude/skills/**`, `.mcp.json`, 의존성 manifest·lockfile, `Dockerfile`, `.env*` | 이 저장소(공통값) |
 | 프로젝트 경로 | 인증·결제·권한 검사·migration 등 프로젝트가 정한 경로 | 프로젝트 소유자(팀 프로필은 CODEOWNERS의 소유자). `.github/trust-boundary-paths`에 한 줄에 하나씩 적고 프로젝트 리뷰 문서에서 연결한다. `/`가 있으면 저장소 루트 기준 경로이고(`src/auth`, `/src/auth/`, `src/auth/**`는 같다), `/`가 없으면 어느 깊이든 그 파일 이름이다. `*`는 `/`도 넘는다. CI는 기준 브랜치의 파일을 읽는다 |
 | 내용 | workflow `permissions`·`pull_request_target`, Secret·token 참조, 셸 실행·`eval`, 데이터·파일·브랜치 삭제, 외부 입력을 처음 받는 코드 | diff를 읽는 에이전트 |
 
@@ -182,6 +182,7 @@
 | `.github/workflows/**` | 소비 프로젝트와 이 저장소. `review-status.yml`을 포함한다 |
 | `templates/review-status.yml` | 이 저장소의 workflow 템플릿 |
 | `scripts/check_review_status.py` | 리뷰 게이트 검사기. 버전 전용 예외 없이 항상 한쪽 문 |
+| `scripts/rerun_review_status.py` | 승인 댓글 뒤 Review status를 다시 돌리는 스크립트. `checks: write`를 쓴다 |
 | `templates/review-status-policy.json` | 이벤트 정책 템플릿. 이 정책의 서버 값을 바꾸는 작업도 같다 |
 | `.github/repository-settings.json`, `templates/repository-settings.json` | 저장소 설정 기준선 |
 

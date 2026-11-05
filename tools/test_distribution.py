@@ -118,7 +118,7 @@ class TrustBoundaryPathTests(unittest.TestCase):
         self.assertIn("github.repository_owner", text)
         self.assertIn("github.event.issue.state == 'open'", text)
         self.assertIn("cancel-in-progress: true", text)
-        self.assertIn("tools/rerun_review_status.py", text)
+        self.assertIn("scripts/rerun_review_status.py", text)
         self.assertNotIn("--limit 50", text)
         self.assertNotIn('--commit "$sha"', text)
         self.assertIn("actions: write", text)

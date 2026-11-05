@@ -7,8 +7,9 @@ import sys
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from tools import review_status_policy as policy
-from tools import rerun_review_status as rerun
+import rerun_review_status as rerun
 
 TARGET = policy.TARGET
 
@@ -36,6 +37,15 @@ class PolicyTests(unittest.TestCase):
         self.assertEqual(policy.classify(sample([".github/*"])), "other")
         self.assertTrue(policy.matches(".github/workflows/review-status.yml?", TARGET))
         self.assertFalse(policy.matches(".github/workflows/review-status.ym?", TARGET))
+        self.assertTrue(policy.matches(".github/workflows/**/*.yml", TARGET))
+        self.assertTrue(policy.matches(".github/workflows/**/review-status.yml", TARGET))
+        self.assertTrue(policy.matches("**/review-status.yml", TARGET))
+
+    def test_a_later_unevaluable_pattern_still_stops(self):
+        with self.assertRaises(policy.UnrecognizedPattern):
+            policy.classify(sample(["~ALL", "{unknown}"]))
+        with self.assertRaises(policy.UnrecognizedPattern):
+            policy.classify(sample(["[9-0]"]))
 
     def test_a_glob_that_allows_both_events_is_already_enough(self):
         both = ["issue_comment", "pull_request_target"]
@@ -127,9 +137,12 @@ class RerunTests(unittest.TestCase):
         fork = "a" * 40
         runs = [
             {"id": 8, "status": "completed", "head_sha": "b" * 40, "pull_requests": []},
-            {"id": 9, "status": "completed", "pull_requests": [{"number": 4, "head": {"sha": fork}}]},
+            {"id": 9, "status": "completed", "head_sha": fork, "pull_requests": []},
         ]
         self.assertEqual(rerun.plan(runs, 4, fork), ("rerun", 9))
+        stale = [{"id": 1, "status": "completed", "head_sha": "b" * 40,
+                  "pull_requests": [{"number": 4, "head": {"sha": fork}}]}]
+        self.assertEqual(rerun.plan(stale, 4, fork), ("missing", None))
         self.assertFalse(rerun.comment_triggers(True, "open", "fork-user", "owner"))
         self.assertTrue(rerun.comment_triggers(True, "open", "owner", "owner"))
 

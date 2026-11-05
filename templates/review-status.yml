@@ -9,7 +9,7 @@ name: Review status
 # request, and only a comment whose author is the repository owner (github.repository_owner, the same login
 # the checker compares). An organization name is not a user, so a member comment does not rerun and is not an
 # approval. Deleting that comment still reruns, because the payload's comment author stays the owner.
-# The run is chosen by its head_sha. The list endpoint leaves pull_requests empty for this event.
+# The run is chosen by its own head_sha. pull_requests[].head.sha can change to the current head and point at an older run.
 # If that run cannot be listed, the job posts a failing check named Review status on the current head.
 # It does not write review/independent or review/security. review-status-policy.json allows only these two events.
 on:
@@ -76,7 +76,7 @@ jobs:
           set -euo pipefail
           for _ in 1 2 3 4 5 6; do
             set +e
-            python3 tools/rerun_review_status.py
+            python3 scripts/rerun_review_status.py
             code=$?
             set -e
             if [ "$code" -ne 2 ]; then
