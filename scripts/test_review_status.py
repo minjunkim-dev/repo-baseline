@@ -21,7 +21,7 @@ def git(args, **kwargs):
     """Run git without global or system config.
 
     commit.gpgsign and diff.noprefix in a developer config would sign the fixture
-    commit or drop the a/ b/ header that diff_paths requires. Local repo config still applies."""
+    commit or drop the a/ b/ header that git_header_path requires. Local repo config still applies."""
     env = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1"}
     return subprocess.run(["git", *args], env=env, check=True, **kwargs)
 
@@ -711,6 +711,8 @@ jobs:
         renamed = ("diff --git a/svc b/old.json b/svc b/new.json\nsimilarity index 100%\n"
                    "rename from svc b/old.json\nrename to svc b/new.json\n")
         self.assertIsNotNone(tool.diff_identity(renamed, {"svc b/new.json": BLOB}))
+        copied = renamed.replace("rename from", "copy from").replace("rename to", "copy to")
+        self.assertIsNotNone(tool.diff_identity(copied, {"svc b/new.json": BLOB}))
         self.assertIsNone(tool.diff_identity('diff --git "a/svc b/x" "b/svc b/x"\n'))
 
         def git_blob(text):
