@@ -138,7 +138,7 @@
 | `require_last_push_approval` | `false` | `true` |
 | CODEOWNERS | 두지 않는다 | `templates/CODEOWNERS`로 §5 공통 경로와 프로젝트 경로의 소유자를 정한다 |
 | 사람 승인 | 저장소 소유자 | 쓰기 권한이 있고 PR 책임자가 아닌 팀원 |
-| 되돌리기 쉬움 병합 | `Review status`가 필수로 적용된 뒤에는 소유자의 `review/independent`가 있어야 병합된다. Dependabot 버전 전용 PR은 그 status가 없다. status는 소유자만 올린다는 규칙이다. 에이전트가 status를 올리는 것은 금지지만 GitHub가 기술적으로 막지는 않는다(검사기는 status 작성자를 아직 확인하지 않음, 후속 검사기 PR에서 수정). 적용 전인 프로젝트는 필수 CI·리뷰 뒤 맡은 에이전트 | 필수 승인·CI·리뷰 뒤. status는 그 PR을 구현하지 않은 사람이 남긴다 |
+| 되돌리기 쉬움 병합 | `Review status`가 필수로 적용된 뒤에는 소유자의 `review/independent`가 있어야 병합된다. Dependabot 버전 전용 PR은 그 status가 없다. status는 소유자만 올린다는 규칙이다. 에이전트가 status를 올리는 것은 금지지만 GitHub가 기술적으로 막지는 않는다. 검사기는 status 작성자를 아직 확인하지 않고, 그 확인은 후속 검사기 PR에서 고친다. 적용 전인 프로젝트는 필수 CI·리뷰 뒤 맡은 에이전트 | 필수 승인·CI·리뷰 뒤. status는 그 PR을 구현하지 않은 사람이 남긴다 |
 | 되돌리기 어려움 병합 | 소유자가 §10의 승인 댓글을 남긴 뒤 | 승인한 사람이나 PR 책임자 |
 
 - `templates/repository-settings.json`은 1인 프로필 값이다. 팀 프로필은 복사한 뒤 위 표의 값으로 바꾼다.
@@ -197,6 +197,6 @@
 - 팀 프로필: §9의 사람 승인으로 최종 head를 승인한다. 에이전트와 봇의 승인은 세지 않는다. auto-merge는 하지 않는다.
 - 1인 프로필의 GitHub 필수 승인 0명은 이 승인을 없애지 않는다. 에이전트는 PR을 승인하지 않는다.
 
-auto-merge는 §9 ③의 branch protection까지 적용한 프로젝트에서, 이 절의 되돌리기 쉬움이고 §5의 외부 리뷰 대상이 아닌 PR에만 예약한다. `Review status`가 필수인 저장소에서는 Dependabot 버전 전용 PR을 뺀 되돌리기 쉬움도 `review/independent`가 success이기 전에는 병합되지 않는다. 1인 프로필에서 status는 소유자만 올린다는 규칙이다. 에이전트가 status를 올리는 것은 금지지만 GitHub가 기술적으로 막지는 않는다(검사기는 status 작성자를 아직 확인하지 않음, 후속 검사기 PR에서 수정). auto-merge 예약은 그 status가 success인 뒤에만 한다. 되돌리기 어려움과 외부 리뷰 대상 PR은 예약하지 않는다. 외부 리뷰 대상은 그 리뷰가 끝난 뒤에 병합한다. CodeRabbit check가 SKIPPED이거나 `Review paused`이면 외부 리뷰는 끝나지 않았고, `@coderabbitai full review`를 요청한다. 예외는, CodeRabbit 리뷰가 끝난 head와 견줘 바뀐 것이 이미 리뷰된 PR들 사이의 충돌을 푼 main 병합뿐인 head다. 소유자는 그 사실을 승인에 적고 외부 리뷰를 다시 받지 않고 승인할 수 있다.
+auto-merge는 §9 ③의 branch protection까지 적용한 프로젝트에서, 이 절의 되돌리기 쉬움이고 §5의 외부 리뷰 대상이 아닌 PR에만 예약한다. `Review status`가 필수인 저장소에서는 Dependabot 버전 전용 PR을 뺀 되돌리기 쉬움도 `review/independent`가 success이기 전에는 병합되지 않는다. 1인 프로필에서 status는 소유자만 올린다는 규칙이다. 에이전트가 status를 올리는 것은 금지지만 GitHub가 기술적으로 막지는 않는다. 검사기는 status 작성자를 아직 확인하지 않고, 그 확인은 후속 검사기 PR에서 고친다. auto-merge 예약은 그 status가 success인 뒤에만 한다. 되돌리기 어려움과 외부 리뷰 대상 PR은 예약하지 않는다. 외부 리뷰 대상은 그 리뷰가 끝난 뒤에 병합한다. CodeRabbit check가 SKIPPED이거나 `Review paused`이면 외부 리뷰는 끝나지 않았고, `@coderabbitai full review`를 요청한다. 예외는, CodeRabbit 리뷰가 끝난 head와 견줘 바뀐 것이 이미 리뷰된 PR들 사이의 충돌을 푼 main 병합뿐인 head다. 소유자는 그 사실을 승인에 적고 외부 리뷰를 다시 받지 않고 승인할 수 있다.
 
 병합 전에 달린 CodeRabbit 스레드는 PR 종류와 관계없이 답하고 해결한다. 병합 뒤에 달린 지적은 후속 PR로 처리한다.
