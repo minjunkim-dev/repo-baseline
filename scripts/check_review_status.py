@@ -32,6 +32,7 @@ PROJECT_PATHS = ".github/trust-boundary-paths"
 COMMON_PATHS = (
     ".github/workflows/**", ".github/actions/**", ".github/repository-settings.json", ".github/dependabot.yml",
     ".github/dependabot.yaml", ".github/CODEOWNERS", ".github/repo-baseline.json", PROJECT_PATHS, "scripts/check_*.py",
+    "scripts/rerun_review_status.py",
     ".claude/settings.json", ".claude/hooks/**", ".claude/agents/**", ".claude/commands/**", ".agents/skills/**",
     ".claude/skills/**", ".mcp.json", "Dockerfile", ".env*",
 )
@@ -39,6 +40,7 @@ COMMON_PATHS = (
 # version-only exception applies. Other one-way doors (money, account, migration) are not in this list.
 ONE_WAY_PATHS = (
     ".github/workflows/**", "templates/review-status.yml", "scripts/check_review_status.py",
+    "scripts/rerun_review_status.py",
     "templates/review-status-policy.json", ".github/repository-settings.json", "templates/repository-settings.json",
 )
 # Dependency manifests and lockfiles; a project adds other ecosystems to PROJECT_PATHS.
@@ -92,19 +94,28 @@ def force_push_befores(repo, number):
         nodes = json.loads(result.stdout)["data"]["repository"]["pullRequest"]["timelineItems"]["nodes"]
     except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError):
         return None
-    return force_push_oids(nodes)
+    return force_push_events(nodes)
+
+
+def force_push_events(nodes):
+    """Newest-first {createdAt, oid}. None when an event has no before SHA or no time."""
+    dated = []
+    for node in nodes or []:
+        oid = ((node or {}).get("beforeCommit") or {}).get("oid")
+        created = (node or {}).get("createdAt")
+        if not oid or not created:
+            return None
+        dated.append((created, oid))
+    dated.sort(reverse=True)
+    return [{"createdAt": created, "oid": oid} for created, oid in dated]
 
 
 def force_push_oids(nodes):
     """Newest-first SHAs. None when an event has no beforeCommit oid, so that head is not skipped."""
-    dated = []
-    for node in nodes or []:
-        oid = ((node or {}).get("beforeCommit") or {}).get("oid")
-        if not oid:
-            return None
-        dated.append((node.get("createdAt") or "", oid))
-    dated.sort(reverse=True)
-    return [oid for _, oid in dated]
+    events = force_push_events(nodes)
+    if events is None:
+        return None
+    return [event["oid"] for event in events]
 
 
 def diff_identity(diff):
@@ -224,15 +235,24 @@ def is_hash(token):
     return re.fullmatch(r"(?:sha\d+[-:]|h1:)[A-Za-z0-9+/=]+|[0-9a-fA-F]{7,}", token) is not None
 
 
+def _token_at(body, start, end):
+    while start > 0 and (body[start - 1].isalnum() or body[start - 1] in "+/=_-"):
+        start -= 1
+    while end < len(body) and (body[end].isalnum() or body[end] in "+/=_-"):
+        end += 1
+    return body[start:end]
+
+
 def line_majors(line, workflow):
-    """Major numbers on one diff line. None means a workflow line has no # vN comment and no @vN tag."""
+    """Major numbers on one diff line. None means a uses: line has no # vN comment and no @vN tag.
+    A digit inside a commit hash is not a major. Gate-path templates use the same rule as workflows."""
     body = line[1:]
-    if workflow:
+    if workflow or "uses:" in body:
         found = [int(number) for number in re.findall(r"(?:#\s*v|@v)(\d+)", body, re.IGNORECASE)]
         return found or None
     found = []
     for match in re.finditer(r"(?<![\w.-])v?(\d+)(?:\.\d+)*(?:[-+][0-9A-Za-z.-]+)?", body, re.IGNORECASE):
-        if is_hash(match.group(0)):
+        if is_hash(match.group(0)) or is_hash(_token_at(body, match.start(), match.end())):
             continue
         found.append(int(match.group(1)))
     return found
@@ -395,22 +415,37 @@ def prior_shas(repo, number, head, read, commit_count):
         # A missing count, or fewer commits than the PR reports, can hide a newer failed head.
         if commit_count is None or len(commits) < commit_count:
             return None
-        for commit in reversed(commits):
+        for commit in commits:
             sha = commit.get("sha")
-            if sha and sha != head and sha not in found:
-                found.append(sha)
+            when = ((commit.get("commit") or {}).get("committer") or {}).get("date")
+            if not sha or sha == head:
+                continue
+            if not isinstance(when, str) or when == "":
+                return None
+            found.append((when, sha))
     except (OSError, subprocess.SubprocessError, KeyError, ValueError, TypeError):
         return None
     try:
         befores = read(FORCE_PUSHES + f"{repo}/{number}")
     except (OSError, subprocess.SubprocessError, KeyError, ValueError, TypeError):
         return None
-    if befores is None:
+    if not isinstance(befores, list):
         return None
-    for sha in befores:
-        if isinstance(sha, str) and sha and sha != head and sha not in found:
-            found.append(sha)
-    return found[:PRIOR_LIMIT]
+    for item in befores:
+        if not isinstance(item, dict):
+            return None
+        sha = item.get("oid") or ""
+        when = item.get("createdAt") or ""
+        if not sha or not when:
+            return None
+        if sha != head:
+            found.append((when, sha))
+    found.sort(key=lambda pair: pair[0], reverse=True)
+    ordered = []
+    for _, sha in found:
+        if sha not in ordered:
+            ordered.append(sha)
+    return ordered[:PRIOR_LIMIT]
 
 
 def identity_of(repo, base, sha, read_diff, cache):
@@ -462,29 +497,34 @@ def carried_contexts(repo, number, head, base, contexts, read, read_diff, commit
 
 def missing(repo, number, head, base, read=read_api, read_diff=None):
     pull = read(f"repos/{repo}/pulls/{number}")
-    files = [entry for page in read(f"repos/{repo}/pulls/{number}/files?per_page=100") for entry in page]
+    # The open pull request's file and commit lists follow its current head, which can move
+    # after this event. review/independent and review/security follow compare(base, head).
     patterns = COMMON_PATHS + DEPENDENCY_FILES + project_paths(repo, base, read)
-    touched = any(matches(entry.get(key, ""), patterns) for entry in files for key in ("filename", "previous_filename"))
-    truncated = pull["changed_files"] > len(files)
-    bump = False
-    if not truncated and touched:
-        commits = [commit for page in read(f"repos/{repo}/pulls/{number}/commits?per_page=100") for commit in page]
-        # The pulls commits API returns at most 250. A short list can hide a later human commit.
-        if pull.get("commits") == len(commits):
-            bump = dependabot_bump(pull, commits, files)
+    pinned, pinned_commits = pinned_change(repo, base, head, read)
+    if pinned is None:
+        touched = True
+        bump = False
+    else:
+        touched = any(matches(entry.get(key, ""), patterns) for entry in pinned
+                      for key in ("filename", "previous_filename"))
+        bump = bool(touched and pinned_commits is not None and dependabot_bump(pull, pinned_commits, pinned))
     needed = []
     # The version-only Dependabot exception drops both reviews. A status posted anyway still has to be success.
     if not bump:
         needed.append(INDEPENDENT)
-    # The files API stops listing at 3000: paths it hides cannot be ruled out.
-    if truncated or (touched and not bump):
+    # Compare stops at 300 files. A hidden path cannot be ruled out.
+    if pinned is None or (touched and not bump):
         needed.append(SECURITY)
     statuses = [status for page in read(f"repos/{repo}/commits/{head}/status?per_page=100") for status in page["statuses"]]
-    present = {status["context"] for status in statuses}
+    # The combined list is newest first. An older success in that list does not erase a newer failure.
+    newest = {}
+    for status in statuses:
+        newest.setdefault(status["context"], status["state"])
+    present = set(newest)
     for context in (INDEPENDENT, SECURITY):
         if context not in needed and context in present:
             needed.append(context)
-    passed = {status["context"] for status in statuses if status["state"] == "success"}
+    passed = {context for context, state in newest.items() if state == "success"}
     absent = [context for context in needed if context not in passed]
     # A failure or pending state on this head stands. Only a missing context can reuse an unchanged diff.
     reusable = [context for context in absent if context not in present]
@@ -495,8 +535,6 @@ def missing(repo, number, head, base, read=read_api, read_diff=None):
             repo, number, head, base, reusable, read, read_diff or read_diff_api, pull.get("commits"))
         result = [context for context in absent if context not in carried]
     # The owner comment is tied to this SHA, so an unchanged diff does not carry it. A posted status does not either.
-    # Gate paths come from compare(base, head), not the pull request's live file list.
-    pinned, pinned_commits = pinned_change(repo, base, head, read)
     if pinned is None:
         needs_owner = True
         version_only = False

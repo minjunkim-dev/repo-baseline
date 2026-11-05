@@ -30,7 +30,7 @@
 
 1. `templates/repo-baseline.json`을 프로젝트의 `.github/repo-baseline.json`으로 복사한다.
 2. `templates/claude-settings.json`을 프로젝트의 `.claude/settings.json`으로 둔다. 이미 있으면 합친다.
-   공개 저장소는 `review-status.yml`을 기본 브랜치에 병합하기 전에 Actions 이벤트 정책을 만든다. 비공개 저장소는 이 단락을 건너뛴다. 이 저장소 루트에서, 대상 프로젝트의 `OWNER/NAME`으로 실행한다. 쓰기는 저장소 관리자 승인을 받는다. 먼저 조회하고, 같은 workflow 경로에 `pull_request_target`과 `issue_comment`만 허용하는 정책이 있으면 다시 만들지 않는다. PUT은 `source_type`이 Repository이고 `workflow_path.include`가 `.github/workflows/review-status.yml`뿐인 정책만 한다. 더 넓은 대상은 PUT하지 않는다. 그 파일을 `pull_request_target`만 허용하는 상위 정책이나 더 넓은 정책이 있으면 명령이 실패한다.
+   공개 저장소는 `review-status.yml`을 기본 브랜치에 병합하기 전에 Actions 이벤트 정책을 만든다. 비공개 저장소는 이 단락을 건너뛴다. 이 저장소 루트에서, 대상 프로젝트의 `OWNER/NAME`으로 실행한다. 쓰기는 저장소 관리자 승인을 받는다. 먼저 조회하고, 같은 workflow 경로에 `pull_request_target`과 `issue_comment`만 허용하는 정책이 있으면 다시 만들지 않는다. PUT은 `source_type`이 Repository이고 `workflow_path.include`가 `.github/workflows/review-status.yml`뿐인 정책만 한다. 더 넓은 대상은 PUT하지 않는다. `include`의 glob이 그 파일에 맞으면 그 정책의 대상이다. `*`는 `/`를 넘지 않고 `**`는 넘는다. 그 파일을 `pull_request_target`만 허용하는 상위 정책이나 더 넓은 정책이 있으면 명령이 실패한다. 패턴을 판별할 수 없으면 POST하지 않고 멈춘다.
 
    ```bash
    set -euo pipefail
@@ -39,7 +39,10 @@
    narrow=
    parent_narrow=0
    for id in $ids; do
-     kind=$(gh api "repos/OWNER/NAME/actions/policies/$id" --jq 'def inc: (.conditions.workflow_path.include // []); def exact: inc == [".github/workflows/review-status.yml"]; def excl: (.conditions.workflow_path.exclude // []); def applies: (exact or (inc | length) == 0 or (inc | index(".github/workflows/review-status.yml")) or (inc | index("~ALL"))) and ((excl | index(".github/workflows/review-status.yml")) == null); def only: any(.rules[]?; .type=="restrict_action_events" and ((.parameters.allowed_events // []) | sort) == ["pull_request_target"]); def both: any(.rules[]?; .type=="restrict_action_events" and ((.parameters.allowed_events // []) | sort) == ["issue_comment","pull_request_target"]); if .enforcement=="active" and applies then (if both and exact then "both" elif only and exact and ((.source_type // "Repository")=="Repository") then "narrow" elif only then "parent" else "other" end) else "other" end')
+     kind=$(gh api "repos/OWNER/NAME/actions/policies/$id" | python3 tools/review_status_policy.py) || {
+       echo "cannot classify actions policy $id" >&2
+       exit 1
+     }
      if [ "$kind" = "both" ]; then found=1; fi
      if [ "$kind" = "narrow" ]; then narrow="$narrow $id"; fi
      if [ "$kind" = "parent" ]; then parent_narrow=1; fi
