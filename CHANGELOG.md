@@ -18,7 +18,7 @@
 ## 2026-11-05 — 작성 도구와 리뷰 모델
 
 - `docs/development-workflow.md` 역할 분담: 구독은 Claude Code와 X 구독(Cursor, Grok Bot)뿐이다. 별도의 GPT·Codex 구독은 없다. Cursor 안의 GPT는 쓸 수 있다. PR을 쓰는 도구는 로컬·비밀·대화로 따라가는 작업이면 Claude Code(Mac)이고, 이슈 하나로 클라우드에서 끝까지 검사되면 Cursor 클라우드 에이전트다. 애매하면 Cursor 클라우드 에이전트이고, 로컬·비밀에서 막히면 Claude Code로 넘긴다. PR 본문에 작성 도구와 작성 모델을 적는다.
-- 리뷰 모델은 작성 모델의 반대쪽이다. Claude Code가 쓰면 Cursor 모델(Grok, Gemini, GPT, Composer)이 리뷰한다. Cursor 모델이 쓰면 Claude Code 모델(Opus, Sonnet)이 리뷰한다. 버그 찾기·Security는 그 쪽의 강한 모델과 effort `high`(Claude Code 쪽은 Opus)다. Standards·Spec은 가벼운 모델(Sonnet, Composer)로 충분하다. 사용 한도로 막히면 같은 쪽의 다음 모델로 대체하고 근거에 적는다. 버그 찾기·Security를 약한 모델만으로 끝냈으면 한도가 풀린 뒤 강한 모델로 다시 돌리기 전에는 병합 가능이 아니다.
+- 당시 규칙(현행 아님. 현행은 위 「리뷰는 패밀리가 다르면 된다」): 리뷰 모델을 작성 도구의 반대쪽으로 두었고, 약한 모델만으로 끝나면 병합 가능이 아니라고 적었다. 그 두 문장은 위 절이 바꾼다.
 - 근거 표의 열은 축, 모델, effort, head SHA, P0, P1, P2다. P0·P1은 수정, 기각, 또는 소유자가 한계로 수용한다.
 - `POLICY.md` §5·§10과 셋업 프롬프트 §5: 모델·effort·근거 표·P0·P1 처리는 위 절을 따른다. 예전의 양쪽 문 `low`·한쪽 문 `high` 깊이 문장은 뺐다. 게이트 파일과 CI workflow는 안 바꿨다. 소비 프로젝트 재적용은 필요 없다.
 
