@@ -6,9 +6,10 @@ STATUS_ACTORS (empty until the server app exists). Another creator is failure, n
 context, so an older success is not carried over it. The same account still cannot tell a person
 from an agent. A team profile does not look at the creator.
 A base update creates a new head SHA. When the added and removed lines, the hunk context lines,
-and the binary blobs match a prior success, that status covers this head. Line numbers do not count.
-A base update that changes a context line does not match, so that head is reviewed again. Reuse is
-still only a process record, and it uses the same creator rule.
+the function name after the second @@, and the binary blobs match a prior success, that status
+covers this head. Line numbers do not count. Two identical blocks in the same function still match.
+A base update that changes a context line or that function name does not, so that head is reviewed
+again. Reuse is still only a process record, and it uses the same creator rule.
 A 1-person pull request that changes a POLICY.md §10 gate path also needs the repository owner's
 approval comment on this head. That comment is not reused from an older head. An edited comment
 is not approval: updated_at must equal created_at, and lastEditedAt must be null. A same-second
@@ -151,11 +152,15 @@ def force_push_oids(nodes):
 
 
 def diff_identity(diff):
-    """SHA-256 of added, removed, and hunk context lines, plus paths, modes, renames, and binary blob ids.
-    The @@ line does not count, so a base update that only shifts line numbers still matches.
-    A context line starts with a space. Moving an added line into another function changes those
-    lines, and so does a base update that rewrites them. Either one is reviewed again.
-    Whitespace does count. None means the diff is not safe to treat as unchanged."""
+    """SHA-256 of added, removed, and hunk context lines, the function named after the second @@,
+    plus paths, modes, renames, and binary blob ids.
+    The numbers in the @@ line do not count, so a base update that only shifts line numbers still
+    matches. The text after the second @@ is the function git named. A context line starts with a
+    space. Moving a line between two functions is reviewed again even when those context lines are
+    the same, including when they are blank. Two identical blocks inside that same function still
+    hash the same. That limit remains. A base update that changes a context line or the named
+    function does not match. Whitespace does count. None means the diff is not safe to treat as
+    unchanged."""
     if diff is None:
         return None
     # GitHub's diff is LF. splitlines() would also cut Unicode separators inside a line.
@@ -206,6 +211,8 @@ def diff_identity(diff):
         # before the first hunk.
         if line.startswith("@@"):
             in_hunk = True
+            # Numbers sit between the markers. The function git named follows the second @@.
+            body.append("@@" + line.split("@@", 2)[-1])
             continue
         if not in_hunk and line.startswith(("--- ", "+++ ", "similarity index ", "dissimilarity index ")):
             continue

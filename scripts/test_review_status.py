@@ -6,6 +6,7 @@ from io import StringIO
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -388,6 +389,61 @@ class ReviewStatusTests(unittest.TestCase):
         team = api(files, commit_shas=["OLD", HEAD], force_pushes=[], agents="프로필: 팀\n",
                    extra_status={"OLD": [(tool.INDEPENDENT, "success", "github-actions[bot]")]})
         self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", team, same), [])
+
+    def test_a_same_context_move_between_functions_does_not_carry(self):
+        def block(name):
+            return (
+                f"def {name}():\n"
+                "    a = 1\n    b = 2\n    c = 3\n"
+                "    d = 4\n    e = 5\n    f = 6\n"
+            )
+
+        def blank(name):
+            return f"def {name}():\n" + "\n" * 4 + "    marker = 0\n    tail = 1\n    tail2 = 2\n    tail3 = 3\n"
+
+        def git_diff(before, after):
+            with tempfile.TemporaryDirectory() as folder:
+                root = Path(folder)
+                subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+                subprocess.run(["git", "config", "user.email", "t@example.com"], cwd=root, check=True)
+                subprocess.run(["git", "config", "user.name", "t"], cwd=root, check=True)
+                (root / "app.py").write_text(before)
+                subprocess.run(["git", "add", "app.py"], cwd=root, check=True)
+                subprocess.run(["git", "commit", "-q", "-m", "base"], cwd=root, check=True)
+                (root / "app.py").write_text(after)
+                result = subprocess.run(["git", "diff"], cwd=root, check=True, capture_output=True, text=True)
+                return result.stdout
+
+        def added(source, name, needle, replacement):
+            return source.replace(f"def {name}():\n{needle}", f"def {name}():\n{replacement}", 1)
+
+        same = block("format_name") + "\n" + block("is_admin")
+        needle = "    a = 1\n    b = 2\n    c = 3\n"
+        planted = "    a = 1\n    b = 2\n    c = 3\n    return True\n"
+        from_diff = git_diff(same, added(same, "format_name", needle, planted))
+        to_diff = git_diff(same, added(same, "is_admin", needle, planted))
+        self.assertIn("@@", from_diff)
+        self.assertIn("def format_name():", from_diff.split("@@", 2)[-1].split("\n", 1)[0])
+        self.assertIn("def is_admin():", to_diff.split("@@", 2)[-1].split("\n", 1)[0])
+        self.assertNotEqual(tool.diff_identity(from_diff), tool.diff_identity(to_diff))
+        # The same function name and the same context still match. Identical blocks in one function are not split.
+        self.assertEqual(tool.diff_identity(from_diff), tool.diff_identity(to_diff.replace("def is_admin():", "def format_name():")))
+        shifted = from_diff.replace("@@ -2,6 +2,7 @@", "@@ -40,6 +40,7 @@", 1)
+        self.assertEqual(tool.diff_identity(from_diff), tool.diff_identity(shifted))
+
+        blanks = blank("format_name") + "\n" + blank("is_admin")
+        empty = "\n" * 4
+        planted_blank = "\n" * 3 + "    return True\n"
+        blank_from = git_diff(blanks, added(blanks, "format_name", empty, planted_blank))
+        blank_to = git_diff(blanks, added(blanks, "is_admin", empty, planted_blank))
+        self.assertNotEqual(tool.diff_identity(blank_from), tool.diff_identity(blank_to))
+
+        files = [{"filename": "src/app.py"}]
+        read = api(files, commit_shas=["OLD", HEAD], extra_status={"OLD": [OK]}, force_pushes=[])
+        self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", read, diffs({"OLD": from_diff, HEAD: to_diff})),
+                         [tool.INDEPENDENT])
+        self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", read, diffs({"OLD": blank_from, HEAD: blank_to})),
+                         [tool.INDEPENDENT])
 
     def test_moving_a_line_into_another_function_does_not_carry(self):
         files = [{"filename": "src/app.py"}]
