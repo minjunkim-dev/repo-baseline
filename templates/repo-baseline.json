@@ -21,6 +21,9 @@
     "scripts/rerun_review_status.py": {
       "source": "scripts/rerun_review_status.py"
     },
+    ".github/pull_request_template.md": {
+      "source": ".github/pull_request_template.md"
+    },
     ".agents/skills/matt-code-review/SKILL.md": {
       "source": "vendor/mattpocock-skills/matt-code-review/SKILL.md"
     },
