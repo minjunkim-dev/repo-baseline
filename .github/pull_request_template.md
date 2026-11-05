@@ -6,7 +6,7 @@ PR 본문 양식. 헤더 이름(## Summary, ## Evidence, ## Merge Danger)과 Doo
 tool과 모델이 둘 다 있어야 한다. 이전 도구가 있으면 이전 작성 모델: 에 이름을 쉼표로 적는다.
 축 이름은 Standards, Spec, 버그 찾기, Security다. 버그 찾기와 Security를 돌리지 않으면 모델은 `해당 없음: <이유>`이고 P0·P1·P2는 0이다.
 리뷰를 시작하지 못한 축은 모델·effort·P0·P1·P2에 미실행이라고 적는다. 미실행은 0이 아니다.
-head SHA는 이 표를 쓸 때의 PR head 전체 40자다. 리뷰 모델의 패밀리가 작성 모델의 패밀리와 같으면 안 된다. 패밀리는 `docs/development-workflow.md` 역할 분담이다.
+head SHA는 이 표를 쓸 때의 PR head 전체 40자다. 리뷰 모델의 패밀리가 최종 작성 모델 또는 이전 작성 모델의 패밀리와 같으면 안 된다. 패밀리는 `docs/development-workflow.md` 역할 분담이다.
 -->
 
 Author: <tool> / <model>
