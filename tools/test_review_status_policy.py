@@ -165,6 +165,48 @@ class RerunCommandTests(unittest.TestCase):
             self.assertEqual(calls[1][0][3], "5")
         self.assertTrue(rerun.comment_triggers(True, "open", "owner", "owner"))
 
+    def test_an_unreadable_run_list_posts_a_failing_check(self):
+        sha = "a" * 40
+
+        def failing(command, input=None):
+            if "actions/workflows" in " ".join(command):
+                raise subprocess.CalledProcessError(1, command)
+
+            class Result:
+                stdout = pull_body(sha) + "\n"
+
+            return Result()
+
+        calls = []
+
+        def execute(command, input=None):
+            calls.append(list(command))
+            return failing(command, input)
+
+        code = rerun.main({"PR_NUMBER": "1", "REPO": "owner/repo"}, execute)
+        self.assertEqual(code, 1)
+        posted = next(command for command in calls if "check-runs" in " ".join(command[0] if isinstance(command, tuple) else command))
+        self.assertIn("check-runs", " ".join(posted))
+
+        def broken_json(command, input=None):
+            class Result:
+                stdout = pull_body(sha) + "\n" if "pulls/" in " ".join(command) else "not-json"
+
+            return Result()
+
+        calls.clear()
+
+        def execute_json(command, input=None):
+            calls.append((list(command), input))
+            return broken_json(command, input)
+
+        code = rerun.main({"PR_NUMBER": "1", "REPO": "owner/repo"}, execute_json)
+        self.assertEqual(code, 1)
+        body = json.loads(calls[-1][1])
+        self.assertEqual(body["head_sha"], sha)
+        self.assertEqual(body["conclusion"], "failure")
+        self.assertEqual(body["name"], "Review status")
+
     def test_a_failed_rerun_posts_a_failing_check(self):
         sha = "a" * 40
         pages = [[{"id": 5, "status": "completed", "head_sha": sha, "pull_requests": []}]]

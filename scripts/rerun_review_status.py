@@ -165,7 +165,13 @@ def main(env=None, execute=None, pages=None):
     if len(sha) != 40 or any(char not in "0123456789abcdefABCDEF" for char in sha):
         print("bad head sha", file=sys.stderr)
         return 1
-    runs, complete = collect(pages if pages is not None else fetch_pages(repo, execute))
+    # A failed or unreadable run list is incomplete. Post the failing check instead of
+    # leaving the previous Review status success in place.
+    try:
+        runs, complete = collect(pages if pages is not None else fetch_pages(repo, execute))
+    except (subprocess.CalledProcessError, OSError, ValueError) as error:
+        print(f"run list unreadable: {error}", file=sys.stderr)
+        runs, complete = [], False
     action, run_id = plan(runs, int(number), sha)
     if action == "wait":
         print("matching run still in progress", file=sys.stderr)
