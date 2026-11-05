@@ -5,11 +5,13 @@ and review/security count only when creator.login is the repository owner or a l
 STATUS_ACTORS (empty until the server app exists). Another creator is failure, not a missing
 context, so an older success is not carried over it. The same account still cannot tell a person
 from an agent. A team profile does not look at the creator.
-A base update creates a new head SHA. When the added and removed lines, the hunk context lines,
-the function name after the second @@, and the binary blobs match a prior success, that status
-covers this head. Line numbers do not count. Two identical blocks in the same function still match.
-A base update that changes a context line or that function name does not, so that head is reviewed
-again. Reuse is still only a process record, and it uses the same creator rule.
+A base update creates a new head SHA. Carry hashes the diff and the full post-change blob id of
+each changed file. Line numbers do not count. Another file changing on the base leaves this file's
+blob in place, so that success still covers the head. The same file changing, even when the diff
+only shifts line numbers, is a new blob and is reviewed again. The function name after the second
+@@ stays in the hash: it records which function git named, and the blob id is what separates files
+where that name is missing or shared. Reuse is still only a process record, and it uses the same
+creator rule.
 A 1-person pull request that changes a POLICY.md §10 gate path also needs the repository owner's
 approval comment on this head. That comment is not reused from an older head. An edited comment
 is not approval: updated_at must equal created_at, and lastEditedAt must be null. A same-second
@@ -151,49 +153,67 @@ def force_push_oids(nodes):
     return [event["oid"] for event in events]
 
 
-def diff_identity(diff):
-    """SHA-256 of added, removed, and hunk context lines, the function named after the second @@,
-    plus paths, modes, renames, and binary blob ids.
-    The numbers in the @@ line do not count, so a base update that only shifts line numbers still
-    matches. The text after the second @@ is the function git named. A context line starts with a
-    space. Moving a line between two functions is reviewed again even when those context lines are
-    the same, including when they are blank. Two identical blocks inside that same function still
-    hash the same. That limit remains. A base update that changes a context line or the named
-    function does not match. Whitespace does count. None means the diff is not safe to treat as
-    unchanged."""
+def full_oid(value):
+    """True for a full Git object id. An abbreviated index line is not one."""
+    return isinstance(value, str) and len(value) == 40 and all(char in "0123456789abcdefABCDEF" for char in value)
+
+
+def diff_paths(line):
+    """(old, new) from a diff --git line. None when the line is quoted or not that header."""
+    if not isinstance(line, str) or not line.startswith("diff --git a/"):
+        return None
+    rest = line[len("diff --git a/"):]
+    split_at = rest.rfind(" b/")
+    if split_at < 0:
+        return None
+    return rest[:split_at], rest[split_at + 3:]
+
+
+def diff_identity(diff, blobs=None):
+    """SHA-256 of the diff body plus each changed file's post-change blob id.
+    blobs maps the path after the change to a full blob SHA, or None when that path was deleted.
+    The numbers in an @@ line do not count. The text after the second @@ stays: it is the function
+    git named. The blob id is the whole file, so a move still differs when that name is missing,
+    shared, or cut off, and when the surrounding lines are blank. A lone CR is part of the line.
+    None blobs means the caller is comparing diff text only. A provided map that misses a path, or
+    a blob that is not a full id, is not safe to treat as unchanged."""
     if diff is None:
         return None
-    # GitHub's diff is LF. splitlines() would also cut Unicode separators inside a line.
-    text = diff.replace("\r\n", "\n").replace("\r", "\n")
+    # GitHub's diff is LF. A bare CR is not a line ending here: stripping it would hide an injected CR.
+    text = diff.replace("\r\n", "\n")
     stripped = text.lstrip()
     if not stripped:
         return "empty"
     if stripped.startswith("{") or stripped.startswith("["):
         return None
     chunks = []
-    current = index_line = None
+    current = new_path = None
+    deleted = False
     header, body = [], []
     binary = False
     in_hunk = False
 
     def flush():
-        nonlocal current, index_line, header, body, binary
+        nonlocal current, new_path, deleted, header, body, binary
         if current is None:
             return True
-        if binary and not index_line:
+        if new_path is None:
             return False
-        if binary:
-            header.append(index_line)
-        chunks.append((current, tuple(header), tuple(body)))
-        current = index_line = None
-        header, body, binary = [], [], False
+        chunks.append((current, new_path, deleted, binary, tuple(header), tuple(body)))
+        current = new_path = None
+        deleted = binary = False
+        header, body = [], []
         return True
 
     for line in text.split("\n"):
         if line.startswith("diff --git "):
             if not flush():
                 return None
+            paths = diff_paths(line)
+            if paths is None:
+                return None
             current = line
+            new_path = paths[1]
             in_hunk = False
             continue
         if current is None:
@@ -201,8 +221,11 @@ def diff_identity(diff):
                 continue
             return None
         if line.startswith("index "):
-            index_line = line
+            # Abbreviated blob ids in this line are not the post-change id.
             continue
+        # A hunk line "+ ++ /dev/null" is content. Only the header marks a deleted file.
+        if not in_hunk and (line.startswith("deleted file mode ") or line == "+++ /dev/null"):
+            deleted = True
         if line.startswith(("new file mode ", "deleted file mode ", "old mode ", "new mode ",
                             "rename from ", "rename to ", "copy from ", "copy to ")):
             header.append(line)
@@ -228,13 +251,116 @@ def diff_identity(diff):
         return None
     if not flush() or not chunks:
         return None
+    blob_lines = []
+    if blobs is not None:
+        if not isinstance(blobs, dict):
+            return None
+        for _, path, removed, _binary, _header, _body in chunks:
+            if path not in blobs:
+                return None
+            oid = blobs[path]
+            if removed:
+                if oid is not None:
+                    return None
+                blob_lines.append("blob\tdeleted\t" + path)
+                continue
+            if not full_oid(oid):
+                return None
+            blob_lines.append("blob\t" + path + "\t" + oid.lower())
     chunks.sort(key=lambda item: item[0])
     lines = []
-    for path, kept_header, kept_body in chunks:
+    for path, _new_path, _removed, _binary, kept_header, kept_body in chunks:
         lines.append(path)
         lines.extend(kept_header)
         lines.extend(kept_body)
+    lines.extend(sorted(blob_lines))
     return hashlib.sha256("\n".join(lines).encode("utf-8")).hexdigest()
+
+
+def commit_blobs(repo, sha, read):
+    """Every blob path at that commit. Raises when the tree is incomplete or an id is abbreviated."""
+    commit = read(f"repos/{repo}/commits/{sha}")
+    tree = ((commit.get("commit") or {}).get("tree") or {}).get("sha") if isinstance(commit, dict) else None
+    if not full_oid(tree):
+        raise ValueError("tree")
+    found = {}
+    pending = [(tree, "")]
+    while pending:
+        current, prefix = pending.pop()
+        data = read(f"repos/{repo}/git/trees/{current}")
+        if not isinstance(data, dict) or data.get("truncated") or not isinstance(data.get("tree"), list):
+            raise ValueError("tree")
+        for item in data["tree"]:
+            if not isinstance(item, dict):
+                raise ValueError("tree")
+            name = item.get("path")
+            kind = item.get("type")
+            oid = item.get("sha")
+            if not isinstance(name, str) or name == "" or "/" in name:
+                raise ValueError("tree")
+            path = prefix + name
+            if kind == "blob":
+                if not full_oid(oid):
+                    raise ValueError("tree")
+                found[path] = oid.lower()
+            elif kind == "tree":
+                if not full_oid(oid):
+                    raise ValueError("tree")
+                pending.append((oid, path + "/"))
+            elif kind == "commit":
+                raise ValueError("tree")
+            else:
+                raise ValueError("tree")
+    return found
+
+
+def changed_blobs(repo, sha, diff, read):
+    """Post-change blob id for each path in the diff. None on a path means that file was deleted."""
+    specs = []
+    current = new_path = None
+    deleted = False
+    in_hunk = False
+
+    def flush():
+        nonlocal current, new_path, deleted, in_hunk
+        if current is None:
+            return
+        if new_path is None:
+            raise ValueError("blobs")
+        specs.append((new_path, deleted))
+        current = new_path = None
+        deleted = False
+        in_hunk = False
+
+    for line in diff.replace("\r\n", "\n").split("\n"):
+        if line.startswith("diff --git "):
+            flush()
+            paths = diff_paths(line)
+            if paths is None:
+                raise ValueError("blobs")
+            current = line
+            new_path = paths[1]
+            continue
+        if current is None:
+            continue
+        if line.startswith("@@"):
+            in_hunk = True
+        if not in_hunk and (line.startswith("deleted file mode ") or line == "+++ /dev/null"):
+            deleted = True
+    flush()
+    if not specs:
+        raise ValueError("blobs")
+    tree = commit_blobs(repo, sha, read)
+    found = {}
+    for path, removed in specs:
+        if removed:
+            found[path] = None
+            continue
+        oid = tree.get(path)
+        if not full_oid(oid):
+            raise ValueError("blobs")
+        found[path] = oid
+    return found
 
 
 def matches(path, patterns):
@@ -657,11 +783,15 @@ def prior_shas(repo, number, head, read, commit_count):
     return ordered[:PRIOR_LIMIT]
 
 
-def identity_of(repo, base, sha, read_diff, cache):
+def identity_of(repo, base, sha, read_diff, cache, read):
     if sha not in cache:
         try:
-            cache[sha] = diff_identity(read_diff(f"repos/{repo}/compare/{base}...{sha}"))
-        except (OSError, subprocess.SubprocessError, ValueError, TypeError):
+            diff = read_diff(f"repos/{repo}/compare/{base}...{sha}")
+            if isinstance(diff, str) and diff.replace("\r\n", "\n").strip() == "":
+                cache[sha] = "empty"
+            else:
+                cache[sha] = diff_identity(diff, changed_blobs(repo, sha, diff, read))
+        except (OSError, subprocess.SubprocessError, ValueError, TypeError, AttributeError):
             cache[sha] = None
     return cache[sha]
 
@@ -698,8 +828,8 @@ def carried_contexts(repo, number, head, base, contexts, read, read_diff, commit
                 continue
             if state != "success":
                 break
-            current = identity_of(repo, base, head, read_diff, cache)
-            prior = identity_of(repo, base, sha, read_diff, cache)
+            current = identity_of(repo, base, head, read_diff, cache, read)
+            prior = identity_of(repo, base, sha, read_diff, cache, read)
             if current is not None and current == prior:
                 donor = sha
             break
