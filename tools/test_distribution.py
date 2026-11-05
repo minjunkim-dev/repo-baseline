@@ -118,19 +118,21 @@ class TrustBoundaryPathTests(unittest.TestCase):
         self.assertIn("github.repository_owner", text)
         self.assertIn("github.event.issue.state == 'open'", text)
         self.assertIn("cancel-in-progress: true", text)
-        self.assertIn(".pull_requests[]?", text)
+        self.assertIn("tools/rerun_review_status.py", text)
+        self.assertNotIn("--limit 50", text)
         self.assertNotIn('--commit "$sha"', text)
         self.assertIn("actions: write", text)
+        self.assertEqual(text.count("\n      checks: write\n"), 1)
         self.assertNotIn("contents: write", text)
+        self.assertEqual(text, (ROOT / ".github/workflows/review-status.yml").read_text(encoding="utf-8"))
         self.assertNotIn("ref: ${{ github.event.pull_request.head.sha }}", text)
         self.assertIn('"issue_comment"', policy)
         self.assertIn('"pull_request_target"', policy)
 
     def test_a_policy_that_excludes_review_status_is_not_a_parent_block(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
-        marker = "def inc:"
-        start = readme.index(marker)
-        program = readme[start:readme.index("')", start)]
+        self.assertIn("python3 tools/review_status_policy.py", readme)
+        self.assertNotIn("def inc:", readme)
         excluded = {
             "enforcement": "active",
             "source_type": "Organization",
@@ -140,17 +142,21 @@ class TrustBoundaryPathTests(unittest.TestCase):
             }},
             "rules": [{"type": "restrict_action_events", "parameters": {"allowed_events": ["pull_request_target"]}}],
         }
-        self.assertEqual(self.policy_kind(program, excluded), "other")
+        self.assertEqual(self.policy_kind(excluded), "other")
         empty = json.loads(json.dumps(excluded))
         empty["conditions"]["workflow_path"]["include"] = []
-        self.assertEqual(self.policy_kind(program, empty), "other")
+        self.assertEqual(self.policy_kind(empty), "other")
         blocked = json.loads(json.dumps(excluded))
         blocked["conditions"]["workflow_path"]["exclude"] = []
-        self.assertEqual(self.policy_kind(program, blocked), "parent")
+        self.assertEqual(self.policy_kind(blocked), "parent")
+        globbed = json.loads(json.dumps(blocked))
+        globbed["conditions"]["workflow_path"]["include"] = [".github/workflows/**"]
+        self.assertEqual(self.policy_kind(globbed), "parent")
 
-    def policy_kind(self, program, policy):
-        result = subprocess.run(["jq", "-r", program], input=json.dumps(policy),
-                                capture_output=True, text=True, timeout=10)
+    def policy_kind(self, policy):
+        result = subprocess.run(
+            [sys.executable, str(ROOT / "tools/review_status_policy.py")],
+            input=json.dumps(policy), capture_output=True, text=True, timeout=10)
         self.assertEqual(result.returncode, 0, result.stderr)
         return result.stdout.strip()
 

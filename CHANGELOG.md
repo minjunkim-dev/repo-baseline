@@ -1,5 +1,11 @@
 # 변경 기록
 
+## 2026-11-05 — 이벤트 정책 glob과 승인 댓글 재실행
+
+- README의 이벤트 정책 판별은 `workflow_path` glob을 본다. `*`는 `/`를 넘지 않고 `**`는 넘는다. 그 파일에 맞는 glob이 `pull_request_target`만 허용하면 설치를 멈추고 POST하지 않는다. 패턴을 판별할 수 없어도 POST하지 않는다.
+- `templates/review-status.yml`: 소유자 승인 댓글이 생기거나, 수정되거나, 삭제되면 그 head의 `pull_request_target` 실행을 `head_sha`로 찾는다. 목록의 `pull_requests`는 비어 있어 그 배열만 보면 실행을 놓친다. 최근 50개 밖에 있어도 다시 돌린다. 실행을 끝까지 찾지 못하면 그 head에 실패하는 `Review status` 체크를 남겨 이전 성공이 최신 결과가 아니게 한다. `review/independent`와 `review/security`는 쓰지 않는다. 재실행 job은 기본 브랜치만 checkout하고 댓글 본문을 읽지 않는다. 권한에 `checks: write`가 더해진다.
+- 다시 적용할 프로젝트: Smallnext·BGLike·Runstir. workflow 템플릿을 `.github/workflows/review-status.yml`로 다시 복사한다. `scripts/check_review_status.py`는 안 바뀌어 `tools/apply_baseline.py`로 검사기를 다시 복사하지 않는다. 이벤트 정책 조회는 이 저장소 루트의 `tools/review_status_policy.py`를 쓴다.
+
 ## 2026-11-04 — 동결 전 역할과 리뷰 기록
 
 - `docs/development-workflow.md`: Grok Bot은 코드를 쓰지 않고 접수·추적·근거 확인·보고를 맡는다. 코드는 Claude Code(Mac)와 Cursor 클라우드 에이전트가 쓴다. 1인 프로필의 `review/independent`·`review/security`는 소유자가 남긴다. 서버 절차 전에는 Mac의 `gh`이고, 마치면 서버의 앱이다. 구현 에이전트와 `Review status` workflow는 쓰지 않는다. Cursor·Codex의 버그 찾기와 Security는 실제 PR로 확인하기 전까지 미확인이다. 템플릿과 검사기는 안 바뀌어 소비 프로젝트 재적용은 필요 없다.
