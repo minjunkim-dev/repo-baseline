@@ -19,7 +19,7 @@
 
 이 기준이 스킬에 더하는 것은 `main`에 들어가는 경계, `POLICY.md` §5의 리뷰 도구, 아래 "역할 분담"의 작성 도구·리뷰 모델, 그 아래 절의 pstack 배치다.
 
-- 모든 변경은 PR로 `main`에 들어가고 필수 CI가 통과해야 한다. 문 유형은 `POLICY.md` §10만 따른다. 되돌리기 쉬움은 맡은 에이전트가 병합할 수 있고, 되돌리기 어려움은 사람이 최종 head를 승인한다(셋업 프롬프트 §10은 그 판정의 병합 절차다). 1인 프로필의 게이트 경로 PR은 소유자 댓글이 `되돌리기 어려움 승인: <head sha>` 또는 deprecated인 `한쪽 문 승인: <head sha>`로 시작하고, 그 SHA가 현재 head와 같아야 한다. 필수 체크 `Review status`가 그 댓글을 통과해야 병합된다(`POLICY.md` §5·§10). 팀 프로필은 모든 PR에 다른 팀원의 GitHub 승인이 필요하다(`POLICY.md` §9).
+- 모든 변경은 PR로 `main`에 들어가고 필수 CI가 통과해야 한다. 문 유형은 `POLICY.md` §10만 따른다. 되돌리기 쉬움(two-way door: 되돌리기 쉬운 결정)은 맡은 에이전트가 병합할 수 있고, 되돌리기 어려움(one-way door: 되돌리기 어려운 결정)은 사람이 최종 head를 승인한다(셋업 프롬프트 §10은 그 판정의 병합 절차다). 1인 프로필의 게이트 경로 PR은 소유자 댓글이 `되돌리기 어려움 승인: <head sha>` 또는 deprecated인 `한쪽 문 승인: <head sha>`로 시작하고, 그 SHA가 현재 head와 같아야 한다. 필수 체크 `Review status`가 그 댓글을 통과해야 병합된다(`POLICY.md` §5·§10). 팀 프로필은 모든 PR에 다른 팀원의 GitHub 승인이 필요하다(`POLICY.md` §9).
 - 리뷰·수정은 셋업 프롬프트 §5와 `POLICY.md` §5를 따른다. Security 리뷰와 외부 리뷰(공개 저장소는 CodeRabbit)를 더할 변경도 거기서 정한다. Standards·Spec의 독립 리뷰 이름은 `/matt-code-review` 하나다. `/implement` 안의 리뷰는 `review/independent`로 세지 않는다.
 - 에이전트 환경 개선은 사용자가 `/retro`를 실행할 때 한다(`POLICY.md` §6). 에이전트는 실행을 요청만 한다.
 

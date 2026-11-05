@@ -415,6 +415,18 @@ class ReviewStatusTests(unittest.TestCase):
         check([comment(f"되돌리기 어려움 승인: {head} 메모")], [])
         check([comment(f"되돌리기 어려움 승인: {head}\r\n메모")], [])
         check([comment(f"되돌리기 어려움 승인: {other}")], [tool.OWNER])
+        check([
+            comment(f"되돌리기 어려움 승인: {other}"),
+            comment(f"한쪽 문 승인: {other}"),
+        ], [tool.OWNER])
+        check([
+            comment(f"되돌리기 어려움 승인: {other}"),
+            comment(f"한쪽 문 승인: {head}"),
+        ], [])
+        check([
+            comment(f"되돌리기 어려움 승인: {head}"),
+            comment(f"한쪽 문 승인: {other}"),
+        ], [])
         check([comment(f"되돌리기어려움 승인: {head}")], [tool.OWNER])
         check([comment(f"되돌리기 어려움승인: {head}")], [tool.OWNER])
         check([comment(f"되돌리기 쉬움 승인: {head}")], [tool.OWNER])
