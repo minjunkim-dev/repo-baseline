@@ -653,7 +653,7 @@ def evidence_problems(body, head):
         if _not_applicable(reviewer):
             if key in ("standards", "spec"):
                 problems.append("not-applicable")
-            if row.get("p0", "").strip() != "0" or row.get("p1", "").strip() != "0":
+            if any(row.get(column, "").strip() != "0" for column in ("p0", "p1", "p2")):
                 problems.append("p0")
         elif reviewer.strip() == "" or reviewer.strip() == "미실행":
             problems.append("model")

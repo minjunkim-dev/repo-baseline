@@ -547,6 +547,10 @@ class ReviewStatusTests(unittest.TestCase):
         skipped = table("Sonnet 5.5", head).replace(
             "| 버그 찾기 | Opus 5.5 |", "| 버그 찾기 | 해당 없음: 코드 diff 없음 |")
         self.assertEqual(tool.evidence_problems(skipped, head), [])
+        bad_p2 = skipped.replace(
+            f"| 버그 찾기 | 해당 없음: 코드 diff 없음 | high | {head} | 0 | 0 | 0 |",
+            f"| 버그 찾기 | 해당 없음: 코드 diff 없음 | high | {head} | 0 | 0 | 1 |")
+        self.assertIn("p0", tool.evidence_problems(bad_p2, head))
         self.assertIn("not-applicable", tool.evidence_problems(table("해당 없음: 문서", head), head))
         korean = "\n".join([
             "작성 도구: Cursor",
