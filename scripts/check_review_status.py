@@ -6,6 +6,8 @@ A base update creates a new head SHA. When the added and removed lines and binar
 success, that status covers this head. Reuse is still only a process record.
 A 1-person pull request that changes a POLICY.md §10 gate path also needs the repository owner's
 approval comment on this head. That comment is not reused from an older head.
+The first line must be the current prefix or the deprecated prefix, then the full head SHA.
+A comment rerun does not parse the body. It runs this checker, so both prefixes share this match.
 The pull request body is parsed for the review evidence table. It is never executed.
 The pull request base ref must be the repository default branch, and the event base SHA must be
 that branch or an ancestor of it. A pull request with a different base is not evidence."""
@@ -34,7 +36,10 @@ BASE_REF = "review/base-branch"
 DEPENDABOT = "dependabot[bot]"
 WEB_FLOW = "web-flow"
 TEAM_LINE = "프로필: 팀"
-APPROVAL_LINE = re.compile(r"한쪽 문 승인:[ \t]*([0-9a-fA-F]{40})(?:[ \t].*)?\Z")
+# Exact first-line prefixes. The second is deprecated and means the same approval.
+APPROVAL_LINE = re.compile(
+    r"(?:되돌리기 어려움 승인:|한쪽 문 승인:)"
+    r"[ \t]*([0-9a-fA-F]{40})(?:[ \t].*)?\Z")
 FORCE_PUSHES = "graphql://force-push-befores/"
 PRIOR_LIMIT = 40
 PROJECT_PATHS = ".github/trust-boundary-paths"
@@ -48,7 +53,7 @@ COMMON_PATHS = (
     ".claude/skills/**", ".mcp.json", "Dockerfile", ".env*",
 )
 # POLICY.md §10 gate paths. A change here needs the 1-person owner comment unless the Dependabot
-# version-only exception applies. Other one-way doors (money, account, migration) are not in this list.
+# version-only exception applies. Other hard-to-reverse decisions (money, account, migration) are not in this list.
 ONE_WAY_PATHS = (
     ".github/workflows/**", "templates/review-status.yml", "templates/pr-policy.yml",
     "scripts/check_review_status.py", "scripts/workflow_policy.py", "scripts/pr_author.py",
@@ -304,7 +309,7 @@ def dependabot_bump(pull, commits, files):
 
 
 def approval_sha(body):
-    """Full SHA from a comment that starts with the owner approval line. None when it does not."""
+    """Full SHA when the first line is exactly one approval prefix plus that SHA. None otherwise."""
     if not isinstance(body, str) or body == "":
         return None
     # GitHub's web UI stores comment bodies with CRLF. A leftover CR is not whitespace in APPROVAL_LINE.
