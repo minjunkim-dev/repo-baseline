@@ -10,8 +10,11 @@ each changed file. Line numbers do not count. Another file changing on the base 
 blob in place, so that success still covers the head. The same file changing, even when the diff
 only shifts line numbers, is a new blob and is reviewed again. The function name after the second
 @@ stays in the hash: it records which function git named, and the blob id is what separates files
-where that name is missing or shared. Reuse is still only a process record, and it uses the same
-creator rule.
+where that name is missing or shared. A diff --git header that names one path twice is split in
+the middle, so a directory named "svc b" is not read as the root file. A rename or copy takes the
+new path from rename to or copy to. Anything else is not carried. Only the parent trees of changed
+paths are read. A gitlink that is itself the changed path contributes its commit id. Reuse is still
+only a process record, and it uses the same creator rule.
 A 1-person pull request that changes a POLICY.md §10 gate path also needs the repository owner's
 approval comment on this head. That comment is not reused from an older head. An edited comment
 is not approval: updated_at must equal created_at, and lastEditedAt must be null. A same-second
@@ -158,15 +161,36 @@ def full_oid(value):
     return isinstance(value, str) and len(value) == 40 and all(char in "0123456789abcdefABCDEF" for char in value)
 
 
-def diff_paths(line):
-    """(old, new) from a diff --git line. None when the line is quoted or not that header."""
-    if not isinstance(line, str) or not line.startswith("diff --git a/"):
-        return None
-    rest = line[len("diff --git a/"):]
-    split_at = rest.rfind(" b/")
-    if split_at < 0:
-        return None
-    return rest[:split_at], rest[split_at + 3:]
+def git_header_path(line):
+    """('path', path) when diff --git names one path on both sides, split at the middle.
+    ('rename', None) when the sides differ, so the new path comes from rename to or copy to.
+    ('bad', None) when the header is quoted or not diff --git a/. A last ' b/' is not a split:
+    a/svc b/package.json b/svc b/package.json is the file svc b/package.json, not package.json."""
+    prefix = "diff --git "
+    if not isinstance(line, str) or not line.startswith(prefix + "a/"):
+        return "bad", None
+    body = line[len(prefix):]
+    if (len(body) - 5) % 2 == 0:
+        length = (len(body) - 5) // 2
+        path = body[2:2 + length]
+        if length > 0 and body == f"a/{path} b/{path}":
+            return "path", path
+    return "rename", None
+
+
+def destination_path(line, current):
+    """New path after a rename to or copy to line. current when this line is not one of those.
+    False when the path is empty, quoted, or a different path was already chosen."""
+    dest = None
+    for prefix in ("rename to ", "copy to "):
+        if line.startswith(prefix):
+            dest = line[len(prefix):]
+            break
+    if dest is None:
+        return current
+    if dest == "" or dest.startswith('"') or (current is not None and current != dest):
+        return False
+    return dest
 
 
 def diff_identity(diff, blobs=None):
@@ -209,11 +233,11 @@ def diff_identity(diff, blobs=None):
         if line.startswith("diff --git "):
             if not flush():
                 return None
-            paths = diff_paths(line)
-            if paths is None:
+            status, path = git_header_path(line)
+            if status == "bad":
                 return None
             current = line
-            new_path = paths[1]
+            new_path = path if status == "path" else None
             in_hunk = False
             continue
         if current is None:
@@ -228,6 +252,10 @@ def diff_identity(diff, blobs=None):
             deleted = True
         if line.startswith(("new file mode ", "deleted file mode ", "old mode ", "new mode ",
                             "rename from ", "rename to ", "copy from ", "copy to ")):
+            chosen = destination_path(line, new_path)
+            if chosen is False:
+                return None
+            new_path = chosen
             header.append(line)
             continue
         # "--- a/file" is a header. A removed line "-- note" is also "--- note", so only skip headers
@@ -277,45 +305,67 @@ def diff_identity(diff, blobs=None):
     return hashlib.sha256("\n".join(lines).encode("utf-8")).hexdigest()
 
 
-def commit_blobs(repo, sha, read):
-    """Every blob path at that commit. Raises when the tree is incomplete or an id is abbreviated."""
+def path_oids(repo, sha, paths, read):
+    """Post-change id for each path. Only parent trees of those paths are read.
+    A blob contributes its blob id. A gitlink on the path itself contributes its commit id.
+    A gitlink anywhere else is not opened. Raises when a needed tree is truncated or an id is short."""
+    if not paths:
+        return {}
     commit = read(f"repos/{repo}/commits/{sha}")
-    tree = ((commit.get("commit") or {}).get("tree") or {}).get("sha") if isinstance(commit, dict) else None
-    if not full_oid(tree):
+    root = ((commit.get("commit") or {}).get("tree") or {}).get("sha") if isinstance(commit, dict) else None
+    if not full_oid(root):
         raise ValueError("tree")
+    cache = {}
+
+    def load(oid):
+        if oid not in cache:
+            data = read(f"repos/{repo}/git/trees/{oid}")
+            if not isinstance(data, dict) or data.get("truncated") or not isinstance(data.get("tree"), list):
+                raise ValueError("tree")
+            entries = {}
+            for item in data["tree"]:
+                if not isinstance(item, dict):
+                    raise ValueError("tree")
+                name = item.get("path")
+                kind = item.get("type")
+                child = item.get("sha")
+                if not isinstance(name, str) or name == "" or "/" in name or not full_oid(child):
+                    raise ValueError("tree")
+                if kind not in ("blob", "tree", "commit"):
+                    raise ValueError("tree")
+                entries[name] = (kind, child.lower())
+            cache[oid] = entries
+        return cache[oid]
+
     found = {}
-    pending = [(tree, "")]
-    while pending:
-        current, prefix = pending.pop()
-        data = read(f"repos/{repo}/git/trees/{current}")
-        if not isinstance(data, dict) or data.get("truncated") or not isinstance(data.get("tree"), list):
+    for path in paths:
+        parts = path.split("/")
+        if any(part == "" for part in parts):
             raise ValueError("tree")
-        for item in data["tree"]:
-            if not isinstance(item, dict):
+        current = root
+        matched = False
+        for index, part in enumerate(parts):
+            item = load(current).get(part)
+            if item is None:
                 raise ValueError("tree")
-            name = item.get("path")
-            kind = item.get("type")
-            oid = item.get("sha")
-            if not isinstance(name, str) or name == "" or "/" in name:
-                raise ValueError("tree")
-            path = prefix + name
-            if kind == "blob":
-                if not full_oid(oid):
-                    raise ValueError("tree")
-                found[path] = oid.lower()
-            elif kind == "tree":
-                if not full_oid(oid):
-                    raise ValueError("tree")
-                pending.append((oid, path + "/"))
-            elif kind == "commit":
-                raise ValueError("tree")
-            else:
-                raise ValueError("tree")
+            kind, oid = item
+            last = index == len(parts) - 1
+            if kind == "tree" and not last:
+                current = oid
+                continue
+            if last and kind in ("blob", "commit"):
+                found[path] = oid
+                matched = True
+                break
+            raise ValueError("tree")
+        if not matched:
+            raise ValueError("tree")
     return found
 
 
 def changed_blobs(repo, sha, diff, read):
-    """Post-change blob id for each path in the diff. None on a path means that file was deleted."""
+    """Post-change id for each path in the diff. None on a path means that file was deleted.
+    A gitlink contributes its commit id."""
     specs = []
     current = new_path = None
     deleted = False
@@ -335,14 +385,19 @@ def changed_blobs(repo, sha, diff, read):
     for line in diff.replace("\r\n", "\n").split("\n"):
         if line.startswith("diff --git "):
             flush()
-            paths = diff_paths(line)
-            if paths is None:
+            status, path = git_header_path(line)
+            if status == "bad":
                 raise ValueError("blobs")
             current = line
-            new_path = paths[1]
+            new_path = path if status == "path" else None
             continue
         if current is None:
             continue
+        if line.startswith(("rename to ", "copy to ")):
+            chosen = destination_path(line, new_path)
+            if chosen is False:
+                raise ValueError("blobs")
+            new_path = chosen
         if line.startswith("@@"):
             in_hunk = True
         if not in_hunk and (line.startswith("deleted file mode ") or line == "+++ /dev/null"):
@@ -350,16 +405,12 @@ def changed_blobs(repo, sha, diff, read):
     flush()
     if not specs:
         raise ValueError("blobs")
-    tree = commit_blobs(repo, sha, read)
-    found = {}
-    for path, removed in specs:
-        if removed:
-            found[path] = None
-            continue
-        oid = tree.get(path)
-        if not full_oid(oid):
-            raise ValueError("blobs")
+    needed = [path for path, removed in specs if not removed]
+    found = {path: None for path, removed in specs if removed}
+    for path, oid in path_oids(repo, sha, needed, read).items():
         found[path] = oid
+    if any(not removed and not full_oid(found.get(path)) for path, removed in specs):
+        raise ValueError("blobs")
     return found
 
 

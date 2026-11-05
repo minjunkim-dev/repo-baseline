@@ -203,6 +203,10 @@ def install_blobs(routes, commit, mapping):
             child = node[name]
             if isinstance(child, dict):
                 entries.append({"path": name, "mode": "040000", "type": "tree", "sha": emit(child, label + "/" + name)})
+            elif isinstance(child, tuple):
+                kind, oid = child
+                entries.append({"path": name, "mode": "160000" if kind == "commit" else "100644",
+                                "type": kind, "sha": oid})
             else:
                 entries.append({"path": name, "mode": "100644", "type": "blob", "sha": child})
         routes[f"repos/o/n/git/trees/{tree_sha}"] = {"truncated": False, "tree": entries}
@@ -688,14 +692,122 @@ jobs:
             if endpoint not in routes:
                 raise subprocess.CalledProcessError(1, "gh", stderr="gh: Not Found (HTTP 404)")
             return routes[endpoint]
-        found = tool.commit_blobs("minjunkim-dev/repo-baseline", commit, read)
+        found = tool.path_oids("minjunkim-dev/repo-baseline", commit, ["scripts/check_review_status.py"], read)
         self.assertEqual(found["scripts/check_review_status.py"], "6855001f4a45ae2eb22c93d4057642d7fc0f4740")
         short = dict(routes)
         short[f"repos/minjunkim-dev/repo-baseline/git/trees/{scripts}"] = {
             "sha": scripts, "truncated": False, "tree": [
                 {"path": "check_review_status.py", "mode": "100644", "type": "blob", "sha": "6855001"}]}
-        self.assertRaises(ValueError, tool.commit_blobs, "minjunkim-dev/repo-baseline", commit,
-                          lambda endpoint: short[endpoint])
+        self.assertRaises(ValueError, tool.path_oids, "minjunkim-dev/repo-baseline", commit,
+                          ["scripts/check_review_status.py"], lambda endpoint: short[endpoint])
+
+    def test_a_directory_named_with_b_does_not_hash_the_root_file(self):
+        self.assertEqual(tool.git_header_path("diff --git a/svc b/package.json b/svc b/package.json"),
+                         ("path", "svc b/package.json"))
+        self.assertEqual(tool.git_header_path("diff --git a/svc/package.json b/svc/package.json"),
+                         ("path", "svc/package.json"))
+        self.assertEqual(tool.git_header_path("diff --git a/svc b/old.json b/svc b/new.json"), ("rename", None))
+        self.assertIsNone(tool.diff_identity("diff --git a/svc b/old.json b/svc b/new.json\n"))
+        renamed = ("diff --git a/svc b/old.json b/svc b/new.json\nsimilarity index 100%\n"
+                   "rename from svc b/old.json\nrename to svc b/new.json\n")
+        self.assertIsNotNone(tool.diff_identity(renamed, {"svc b/new.json": BLOB}))
+        self.assertIsNone(tool.diff_identity('diff --git "a/svc b/x" "b/svc b/x"\n'))
+
+        def git_blob(text):
+            return git(["hash-object", "--stdin"], input=text, capture_output=True).stdout.decode().strip()
+
+        def git_diff(path, before, after):
+            with tempfile.TemporaryDirectory() as folder:
+                root = Path(folder)
+                git(["init", "-q"], cwd=root)
+                git(["config", "user.email", "t@example.com"], cwd=root)
+                git(["config", "user.name", "t"], cwd=root)
+                target = root / path
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(before)
+                git(["add", path], cwd=root)
+                git(["commit", "-q", "-m", "base"], cwd=root)
+                target.write_bytes(after)
+                return git(["diff"], cwd=root, capture_output=True).stdout.decode()
+
+        def move(text, needle, insert):
+            left = text.replace(needle, insert, 1)
+            head, _sep, tail = text.rpartition(needle)
+            return left, head + insert + tail
+
+        payload = """{
+  "a": {
+    "k": 1,
+    "m": 1,
+    "n": 1,
+    "p": 2,
+    "q": 3,
+    "r": 4
+  },
+  "b": {
+    "k": 1,
+    "m": 1,
+    "n": 1,
+    "p": 2,
+    "q": 3,
+    "r": 4
+  }
+}
+""".encode()
+        needle = b'    "n": 1,\n    "p": 2,\n'
+        insert = b'    "n": 1,\n    "x": true,\n    "p": 2,\n'
+        for directory in ("svc b", "svc"):
+            path = directory + "/package.json"
+            before = payload
+            left, right = move(before, needle, insert)
+            old_diff, new_diff = git_diff(path, before, left), git_diff(path, before, right)
+            self.assertIn("diff --git a/" + path + " b/" + path, old_diff)
+            self.assertEqual(tool.diff_identity(old_diff), tool.diff_identity(new_diff))
+            old_blob, new_blob = git_blob(left), git_blob(right)
+            self.assertNotEqual(tool.diff_identity(old_diff, {path: old_blob}),
+                                tool.diff_identity(new_diff, {path: new_blob}))
+            # The root package.json blob is not the file that changed.
+            self.assertIsNone(tool.diff_identity(old_diff, {"package.json": old_blob}))
+            read = api([{"filename": path}], commit_shas=["OLD", HEAD], extra_status={"OLD": [OK]}, force_pushes=[],
+                       blobs={"OLD": {path: old_blob, "package.json": BLOB},
+                              HEAD: {path: new_blob, "package.json": BLOB}})
+            self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", read,
+                                          diffs({"OLD": old_diff, HEAD: new_diff})),
+                             [tool.INDEPENDENT, tool.SECURITY])
+
+    def test_tree_reads_follow_changed_paths_and_ignore_other_gitlinks(self):
+        def tree_calls(path, extra=None):
+            mapping = {path: BLOB, "vendor": ("commit", "d" * 40)}
+            for index in range(30):
+                mapping[f"side{index}/file.txt"] = BLOB
+            if extra:
+                mapping.update(extra)
+            base = api([{"filename": path}], commit_shas=["OLD", HEAD], extra_status={"OLD": [OK]},
+                       force_pushes=[], blobs={"OLD": mapping, "HEAD": mapping})
+            seen = []
+
+            def read(endpoint):
+                seen.append(endpoint)
+                return base(endpoint)
+            diff = ADDED.replace("src/app.py", path)
+            self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", read, diffs({"OLD": diff, HEAD: diff})), [])
+            return sum("/git/trees/" in item for item in seen)
+
+        shallow = tree_calls("pkg.json")
+        deep = tree_calls("a/b/c/d.txt")
+        self.assertEqual(shallow, 2)
+        self.assertEqual(deep, 8)
+        self.assertEqual(deep // 2, len("a/b/c/d.txt".split("/")))
+        link = ("diff --git a/vendor b/vendor\nindex 1111111..2222222 160000\n--- a/vendor\n+++ b/vendor\n"
+                "@@ -1 +1 @@\n-Subproject commit " + ("a" * 40) + "\n+Subproject commit " + ("a" * 40) + "\n")
+        same = api([{"filename": "vendor"}], commit_shas=["OLD", HEAD], extra_status={"OLD": [OK]}, force_pushes=[],
+                   blobs={"OLD": {"vendor": ("commit", "e" * 40), "other": ("commit", "d" * 40)},
+                          HEAD: {"vendor": ("commit", "e" * 40), "other": ("commit", "d" * 40)}})
+        self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", same, diffs({"OLD": link, HEAD: link})), [])
+        moved = api([{"filename": "vendor"}], commit_shas=["OLD", HEAD], extra_status={"OLD": [OK]}, force_pushes=[],
+                    blobs={"OLD": {"vendor": ("commit", "e" * 40)}, "HEAD": {"vendor": ("commit", "f" * 40)}})
+        self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", moved, diffs({"OLD": link, HEAD: link})),
+                         [tool.INDEPENDENT])
 
     def test_moving_a_line_into_another_function_does_not_carry(self):
         files = [{"filename": "src/app.py"}]
