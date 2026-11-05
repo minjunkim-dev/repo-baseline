@@ -9,7 +9,10 @@
 /.github/dependabot.yaml @REPLACE-OWNERS
 /.github/CODEOWNERS @REPLACE-OWNERS
 /.github/repo-baseline.json @REPLACE-OWNERS
+/.github/workflow-policy.json @REPLACE-OWNERS
 /scripts/check_*.py @REPLACE-OWNERS
+/scripts/workflow_policy.py @REPLACE-OWNERS
+/scripts/pr_author.py @REPLACE-OWNERS
 /scripts/rerun_review_status.py @REPLACE-OWNERS
 /.github/trust-boundary-paths @REPLACE-OWNERS
 /.claude/settings.json @REPLACE-OWNERS

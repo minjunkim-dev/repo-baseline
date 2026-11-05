@@ -15,6 +15,7 @@
 | `templates/repo-baseline.json` | 복사 목록(manifest) 시작점 | 예. `.github/repo-baseline.json`으로 둔다 |
 | `templates/repository-settings.json` | GitHub 설정 기준선 시작점(1인 프로필 값) | 예. `.github/repository-settings.json`으로 두고 `REPLACE` 값과 저장소 정보를 채운다. 팀 프로필은 `POLICY.md` §9의 값으로 바꾼다 |
 | `templates/review-status.yml` | 리뷰 status를 경로로 검사하는 workflow | 예. `.github/workflows/review-status.yml`로 둔다. 프로젝트 파일이라 해시로 검사하지 않고 Dependabot이 pin을 올린다 |
+| `templates/pr-policy.yml` | PR 제목·브랜치·본문 양식을 검사하는 workflow | 예. `.github/workflows/pr-policy.yml`로 둔다. 프로젝트 파일이라 해시로 검사하지 않는다 |
 | `.github/pull_request_template.md` | PR 본문 양식(Summary, Evidence, Merge Danger, Author, 리뷰 근거 표) | 예. manifest가 같은 경로로 복사한다 |
 | `templates/review-status-policy.json` | 공개 저장소에서 `Review status` workflow의 `pull_request_target`과 `issue_comment`만 허용하는 Actions 이벤트 정책 | 아니요. GitHub API로 만든다(`POLICY.md` §9) |
 | `templates/CODEOWNERS` | 팀 프로필의 신뢰 경계 경로 소유자 | 팀 프로필만. `.github/CODEOWNERS`로 두고 소유자를 채운다 |
@@ -64,7 +65,7 @@
 
    목록이나 상세 조회가 실패하면 멈춘다. 실패를 정책이 없는 것으로 보고 POST하지 않는다.
 
-   재조회에서 그 허용이 보이기 전에는 workflow를 병합하지 않는다. 그다음 `templates/review-status.yml`을 별도 파일 `.github/workflows/review-status.yml`로 둔다. 다른 workflow와 합치거나 이 두 이벤트 외의 이벤트를 더하지 않는다(`POLICY.md` §9).
+   재조회에서 그 허용이 보이기 전에는 workflow를 병합하지 않는다. 그다음 `templates/review-status.yml`을 별도 파일 `.github/workflows/review-status.yml`로 둔다. 다른 workflow와 합치거나 이 두 이벤트 외의 이벤트를 더하지 않는다(`POLICY.md` §9). `templates/pr-policy.yml`도 `.github/workflows/pr-policy.yml`로 둔다. `apply_baseline`은 이 workflow를 복사하지 않는다. Dependabot이 pin을 올리기 때문이다.
 3. `.github/dependabot.yml` 항목의 `ecosystems`에 GitHub Actions 외의 실제 생태계를 적는다. 예: `{"package-ecosystem": "cargo", "directory": "/services/api"}`.
 4. 테스트를 다른 폴더에서 실행하면 `files`의 대상 경로를 바꾼다. 예: `"scripts/source-only/test_github_settings.py": {"source": "scripts/test_github_settings.py"}`.
 5. 이 저장소에서 다음을 실행한다.

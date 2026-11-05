@@ -21,6 +21,15 @@
     "scripts/rerun_review_status.py": {
       "source": "scripts/rerun_review_status.py"
     },
+    "scripts/workflow_policy.py": {
+      "source": "scripts/workflow_policy.py"
+    },
+    "scripts/pr_author.py": {
+      "source": "scripts/pr_author.py"
+    },
+    "scripts/test_workflow_policy.py": {
+      "source": "scripts/test_workflow_policy.py"
+    },
     ".github/pull_request_template.md": {
       "source": ".github/pull_request_template.md"
     },

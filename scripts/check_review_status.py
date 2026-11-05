@@ -5,7 +5,8 @@ head; a status from the same account cannot tell a person from an agent, so it i
 A base update creates a new head SHA. When the added and removed lines and binary blobs match a prior
 success, that status covers this head. Reuse is still only a process record.
 A 1-person pull request that changes a POLICY.md §10 gate path also needs the repository owner's
-approval comment on this head. That comment is not reused from an older head."""
+approval comment on this head. That comment is not reused from an older head.
+The pull request body is parsed for the review evidence table. It is never executed."""
 
 import base64
 import fnmatch
@@ -16,11 +17,15 @@ import re
 import subprocess
 import sys
 
+from pr_author import parse_author
+
 INDEPENDENT = "review/independent"
 SECURITY = "review/security"
 # Not a commit status. The job fails with this name when the owner comment is missing.
 # A status posted under this name does not count: the same account can post one without the comment.
 OWNER = "review/owner-approval"
+# Not a commit status. The job fails with this name when the evidence table does not match this head.
+EVIDENCE = "review/evidence"
 DEPENDABOT = "dependabot[bot]"
 WEB_FLOW = "web-flow"
 TEAM_LINE = "프로필: 팀"
@@ -31,16 +36,18 @@ PROJECT_PATHS = ".github/trust-boundary-paths"
 # POLICY.md §5 common paths. A pattern without "/" matches the file name at any depth.
 COMMON_PATHS = (
     ".github/workflows/**", ".github/actions/**", ".github/repository-settings.json", ".github/dependabot.yml",
-    ".github/dependabot.yaml", ".github/CODEOWNERS", ".github/repo-baseline.json", PROJECT_PATHS, "scripts/check_*.py",
-    "scripts/rerun_review_status.py",
+    ".github/dependabot.yaml", ".github/CODEOWNERS", ".github/repo-baseline.json", ".github/workflow-policy.json",
+    PROJECT_PATHS, "scripts/check_*.py",
+    "scripts/workflow_policy.py", "scripts/pr_author.py", "scripts/rerun_review_status.py",
     ".claude/settings.json", ".claude/hooks/**", ".claude/agents/**", ".claude/commands/**", ".agents/skills/**",
     ".claude/skills/**", ".mcp.json", "Dockerfile", ".env*",
 )
 # POLICY.md §10 gate paths. A change here needs the 1-person owner comment unless the Dependabot
 # version-only exception applies. Other one-way doors (money, account, migration) are not in this list.
 ONE_WAY_PATHS = (
-    ".github/workflows/**", "templates/review-status.yml", "scripts/check_review_status.py",
-    "scripts/rerun_review_status.py",
+    ".github/workflows/**", "templates/review-status.yml", "templates/pr-policy.yml",
+    "scripts/check_review_status.py", "scripts/workflow_policy.py", "scripts/pr_author.py",
+    "scripts/rerun_review_status.py", ".github/workflow-policy.json",
     "templates/review-status-policy.json", ".github/repository-settings.json", "templates/repository-settings.json",
 )
 # Dependency manifests and lockfiles; a project adds other ecosystems to PROJECT_PATHS.
@@ -495,6 +502,179 @@ def carried_contexts(repo, number, head, base, contexts, read, read_diff, commit
     return carried
 
 
+# Alias, then family. Opus and Sonnet are both Claude. Two families in one name is unknown.
+FAMILY_ALIASES = (
+    ("composer", "composer"),
+    ("gemini", "gemini"),
+    ("sonnet", "claude"),
+    ("opus", "claude"),
+    ("claude", "claude"),
+    ("grok", "grok"),
+    ("gpt", "gpt"),
+)
+FAMILY_NAMES = "Claude, Grok, Composer, Gemini, or GPT"
+COLUMN_NAMES = {
+    "axis": "axis", "축": "axis", "model": "model", "모델": "model", "effort": "effort",
+    "head sha": "sha", "p0": "p0", "p1": "p1", "p2": "p2", "result": "result", "결과": "result",
+}
+TABLE_COLUMNS = ("axis", "model", "effort", "sha", "p0", "p1", "p2")
+AXIS_KEYS = {
+    "standards": "standards", "spec": "spec", "security": "security",
+    "버그 찾기": "bug", "bug-finding": "bug", "bug finding": "bug",
+}
+BODY_LIMIT = 200000
+
+
+def model_family(name):
+    """Family of a model name, or None when it is empty, mixed, or not in the alias table."""
+    if not isinstance(name, str):
+        return None
+    text = name.strip().lower()
+    if not text or "chatgpt" in text or re.search(r"(?<![a-z0-9])codex(?![a-z0-9])", text):
+        return None
+    found = set()
+    for alias, family in FAMILY_ALIASES:
+        if re.search(rf"(?<![a-z0-9]){alias}(?![a-z0-9])", text):
+            found.add(family)
+    if len(found) != 1:
+        return None
+    return found.pop()
+
+
+def _cells(line):
+    stripped = line.strip()
+    if len(stripped) < 2 or not stripped.startswith("|") or not stripped.endswith("|"):
+        return None
+    return [cell.strip() for cell in stripped[1:-1].split("|")]
+
+
+def _separator(cells):
+    return bool(cells) and all(re.fullmatch(r":?-{3,}:?", cell) for cell in cells)
+
+
+def _integer(value):
+    return re.fullmatch(r"0|[1-9][0-9]*", value.strip()) is not None
+
+
+def _not_applicable(model):
+    text = model.strip()
+    return text.startswith("해당 없음:") and text.split(":", 1)[1].strip() != ""
+
+
+def evidence_table(body):
+    """Rows of the last evidence table. An earlier table does not hide a later one. Parse only."""
+    lines = body.split("\n")
+    chosen = None
+    index = 0
+    while index < len(lines):
+        cells = _cells(lines[index])
+        mapped = [COLUMN_NAMES.get(cell.lower()) for cell in cells] if cells else []
+        named = [name for name in mapped if name]
+        if not cells or any(column not in named for column in TABLE_COLUMNS) or len(named) != len(set(named)):
+            index += 1
+            continue
+        # A later header replaces any earlier table. A broken later table does not keep the old one.
+        chosen = None
+        rows = []
+        broken = False
+        index += 1
+        while index < len(lines):
+            row = _cells(lines[index])
+            if row is None:
+                break
+            if _separator(row):
+                index += 1
+                continue
+            if len(row) != len(cells):
+                broken = True
+                break
+            rows.append({mapped[i]: row[i] for i in range(len(cells)) if mapped[i]})
+            index += 1
+        if not broken:
+            chosen = rows
+    return chosen
+
+
+def evidence_problems(body, head):
+    """Why the evidence table does not cover this head. Empty means it does. The body is not executed."""
+    if not isinstance(body, str):
+        return ["body"]
+    text = body.replace("\r\n", "\n").replace("\r", "\n")[:BODY_LIMIT]
+    problems = []
+    record, previous, author_errors = parse_author(text)
+    if any("person author" in error for error in author_errors):
+        problems.append("author-model")
+        families = set()
+        tool = model = None
+    elif record is None or any("disagree" in error or "conflicts" in error for error in author_errors):
+        problems.append("author")
+        families = set()
+        tool = model = None
+    else:
+        tool, model = record
+    if tool == "사람" and model == "없음":
+        families = set()
+    elif tool:
+        families = set()
+        author = model_family(model)
+        if author is None:
+            problems.append("unknown-family")
+        else:
+            families.add(author)
+    for name in previous:
+        family = model_family(name)
+        if family is None:
+            problems.append("unknown-family")
+        else:
+            families.add(family)
+    rows = evidence_table(text)
+    if rows is None:
+        problems.append("table")
+        return problems
+    seen = {}
+    for row in rows:
+        key = AXIS_KEYS.get(row.get("axis", "").strip().lower())
+        if key is None:
+            problems.append("axis-name")
+            continue
+        if key in seen:
+            problems.append("duplicate")
+        seen[key] = row
+    wanted = (head or "").lower()
+    for key in ("standards", "spec", "bug", "security"):
+        row = seen.get(key)
+        if row is None:
+            problems.append("axis-" + key)
+            continue
+        reviewer = row.get("model", "")
+        if _not_applicable(reviewer):
+            if key in ("standards", "spec"):
+                problems.append("not-applicable")
+            if any(row.get(column, "").strip() != "0" for column in ("p0", "p1", "p2")):
+                problems.append("p0")
+        elif reviewer.strip() == "" or reviewer.strip() == "미실행":
+            problems.append("model")
+        else:
+            family = model_family(reviewer)
+            if family is None:
+                problems.append("unknown-family")
+            elif family in families:
+                problems.append("same-family")
+            if not _integer(row.get("p0", "")):
+                problems.append("p0")
+            if not _integer(row.get("p1", "")):
+                problems.append("p1")
+        sha = row.get("sha", "").strip()
+        if not re.fullmatch(r"[0-9a-fA-F]{40}", sha) or sha.lower() != wanted:
+            problems.append("sha")
+    return problems
+
+
+def _dependabot_author(pull):
+    user = pull.get("user") if isinstance(pull, dict) else None
+    return isinstance(user, dict) and user.get("login") == DEPENDABOT
+
+
 def missing(repo, number, head, base, read=read_api, read_diff=None):
     pull = read(f"repos/{repo}/pulls/{number}")
     # The open pull request's file and commit lists follow its current head, which can move
@@ -545,6 +725,15 @@ def missing(repo, number, head, base, read=read_api, read_diff=None):
                         and not major_change(pinned))
     if needs_owner and not version_only and not team_profile(repo, base, read) and not owner_approved(repo, number, head, read):
         result.append(OWNER)
+    # The body is the current pull request text. This run's head is the event SHA, not a later push.
+    if isinstance(pull, dict) and not _dependabot_author(pull):
+        found = evidence_problems(pull.get("body"), head)
+        if found:
+            detail = ", ".join(found)
+            if "unknown-family" in found:
+                detail += "; expected family " + FAMILY_NAMES
+            print("review evidence: " + detail)
+            result.append(EVIDENCE)
     return result
 
 

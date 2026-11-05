@@ -111,6 +111,7 @@ class TrustBoundaryPathTests(unittest.TestCase):
         text = (ROOT / "templates/review-status.yml").read_text(encoding="utf-8")
         policy = (ROOT / "templates/review-status-policy.json").read_text(encoding="utf-8")
         self.assertIn("issue_comment:", text)
+        self.assertIn("types: [opened, synchronize, reopened, ready_for_review, edited]", text)
         self.assertIn("types: [created, edited, deleted]", text)
         self.assertIn("ref: ${{ github.event.repository.default_branch }}", text)
         self.assertNotIn("github.event.pull_request.head.ref", text)
@@ -128,6 +129,22 @@ class TrustBoundaryPathTests(unittest.TestCase):
         self.assertNotIn("ref: ${{ github.event.pull_request.head.sha }}", text)
         self.assertIn('"issue_comment"', policy)
         self.assertIn('"pull_request_target"', policy)
+        conventions = (ROOT / "templates/pr-policy.yml").read_text(encoding="utf-8")
+        self.assertEqual(conventions, (ROOT / ".github/workflows/pr-policy.yml").read_text(encoding="utf-8"))
+        self.assertNotIn("\n  pull_request_target:", conventions)
+        self.assertIn("\n  pull_request:", conventions)
+        self.assertIn("types: [opened, edited, synchronize, reopened, ready_for_review]", conventions)
+        self.assertIn("ref: ${{ github.event.pull_request.base.sha }}", conventions)
+        self.assertIn("if [ -f policy-base/scripts/workflow_policy.py ]; then", conventions)
+        self.assertIn('python3 "$checker" --pr --root policy-head', conventions)
+        self.assertNotIn("github.event.pull_request.head.sha", conventions)
+        protected = json.loads((ROOT / ".github/workflow-policy.json").read_text(encoding="utf-8"))["protected_paths"]
+        sys.path.insert(0, str(ROOT / "scripts"))
+        from check_review_status import ONE_WAY_PATHS, COMMON_PATHS, matches
+        for path in ("scripts/workflow_policy.py", "scripts/pr_author.py", ".github/workflow-policy.json"):
+            self.assertIn(path, protected)
+            self.assertTrue(matches(path, ONE_WAY_PATHS))
+            self.assertTrue(matches(path, COMMON_PATHS))
 
     def test_a_policy_that_excludes_review_status_is_not_a_parent_block(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
