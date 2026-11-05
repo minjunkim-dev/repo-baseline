@@ -1,0 +1,18 @@
+# Canary only. pull_request (not pull_request_target) so this file runs from the PR head.
+# The job name matches the required check. It always succeeds.
+name: Canary fake review status
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  review-status:
+    name: Review status
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Always succeed
+        run: echo "canary fake Review status"
