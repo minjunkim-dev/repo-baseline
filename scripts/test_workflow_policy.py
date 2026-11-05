@@ -271,6 +271,21 @@ class ConventionsTest(unittest.TestCase):
         (pull / "config" / "feature-flags.json").write_text('{"version": 1, "flags": []}\n', encoding="utf-8")
         ok = subprocess.run(command, cwd=work, env=env, capture_output=True, text=True, timeout=30)
         self.assertEqual(0, ok.returncode, ok.stdout + ok.stderr)
+        stub = subprocess.run([sys.executable, "policy-head/scripts/workflow_policy.py"], cwd=work, capture_output=True, text=True, timeout=30)
+        self.assertEqual(0, stub.returncode, stub.stdout + stub.stderr)
+        (pull / "CLAUDE.md").write_text("not used\n", encoding="utf-8")
+        claude = subprocess.run(command, cwd=work, env=env, capture_output=True, text=True, timeout=30)
+        self.assertEqual(1, claude.returncode, claude.stdout + claude.stderr)
+        self.assertIn("remove CLAUDE.md", claude.stdout)
+        (pull / "CLAUDE.md").unlink()
+        (pull / "AGENTS.md").unlink()
+        (pull / ".github").mkdir()
+        (pull / ".github" / "workflow-policy.json").write_text(
+            '{"require_agents_md": false, "reject_claude_md": false, "feature_flags": false, "bot_branch_prefixes": ["dependabot"]}\n',
+            encoding="utf-8")
+        ignored = subprocess.run(command, cwd=work, env=env, capture_output=True, text=True, timeout=30)
+        self.assertEqual(1, ignored.returncode, ignored.stdout + ignored.stderr)
+        self.assertIn("AGENTS.md is required", ignored.stdout)
 
 
 class FlagsTest(unittest.TestCase):

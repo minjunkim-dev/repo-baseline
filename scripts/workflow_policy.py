@@ -164,7 +164,7 @@ def checked_tree(value):
 def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("--pr", action="store_true", help="Read PR metadata from GITHUB_EVENT_PATH")
-    parser.add_argument("--root", help="Tree to read. The script and workflow-policy.json stay next to this file.")
+    parser.add_argument("--root", help="Tree to read for AGENTS.md, CLAUDE.md, and feature flags. Config stays beside the checker.")
     args = parser.parse_args(argv)
     try:
         config = load_config(ROOT)
