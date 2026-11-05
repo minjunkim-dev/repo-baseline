@@ -196,13 +196,21 @@ class ConventionsTest(unittest.TestCase):
         self.assertIn("axis | model | effort | head SHA | P0 | P1 | P2 | result", text)
 
     def test_a_pull_request_cannot_replace_the_convention_script(self):
+        source = Path(__file__).resolve().parents[1]
         temporary = TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
-        root = Path(temporary.name)
-        scripts = root / "scripts"
-        scripts.mkdir()
-        (scripts / "workflow_policy.py").write_text("import sys\nsys.exit(0)\n", encoding="utf-8")
-        event = root / "event.json"
+        base = Path(temporary.name) / "base"
+        pull = Path(temporary.name) / "pull"
+        for tree in (base, pull):
+            (tree / "scripts").mkdir(parents=True)
+            (tree / ".github").mkdir()
+        for name in ("workflow_policy.py", "pr_author.py"):
+            (base / "scripts" / name).write_text((source / "scripts" / name).read_text(encoding="utf-8"), encoding="utf-8")
+        config = source / ".github" / "workflow-policy.json"
+        if config.is_file():
+            (base / ".github" / "workflow-policy.json").write_text(config.read_text(encoding="utf-8"), encoding="utf-8")
+        (pull / "scripts" / "workflow_policy.py").write_text("import sys\nsys.exit(0)\n", encoding="utf-8")
+        event = Path(temporary.name) / "event.json"
         event.write_text(json.dumps({"pull_request": {
             "title": "Not conventional",
             "body": "",
@@ -211,12 +219,13 @@ class ConventionsTest(unittest.TestCase):
         }}), encoding="utf-8")
         env = os.environ.copy()
         env["GITHUB_EVENT_PATH"] = str(event)
-        checker = Path(__file__).resolve().parents[1] / "scripts/workflow_policy.py"
-        result = subprocess.run(
-            [sys.executable, str(checker), "--pr"],
-            cwd=root, env=env, capture_output=True, text=True, timeout=30)
-        self.assertEqual(1, result.returncode, result.stdout + result.stderr)
-        self.assertIn("PR title", result.stdout)
+        command = [sys.executable, "scripts/workflow_policy.py", "--pr"]
+        # The job's checkout is the base tree, then this relative command. The pull tree's stub would pass.
+        blocked = subprocess.run(command, cwd=base, env=env, capture_output=True, text=True, timeout=30)
+        bypass = subprocess.run(command, cwd=pull, env=env, capture_output=True, text=True, timeout=30)
+        self.assertEqual(0, bypass.returncode, bypass.stdout + bypass.stderr)
+        self.assertEqual(1, blocked.returncode, blocked.stdout + blocked.stderr)
+        self.assertIn("PR title", blocked.stdout)
 
 
 class FlagsTest(unittest.TestCase):
