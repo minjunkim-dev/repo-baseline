@@ -121,11 +121,16 @@ def run(read):
     return tool.missing("o/n", "1", HEAD, "BASE", read)
 
 
-def comment(body, login="owner", created_at="2020-01-01T00:00:00Z", updated_at=None, omit_times=False):
+def comment(body, login="owner", created_at="2020-01-01T00:00:00Z", updated_at=None, omit_times=False,
+            last_edited_at=None, omit_edit=False, includes_created_edit=False):
     row = {"user": {"login": login}, "body": body}
     if not omit_times:
         row["created_at"] = created_at
         row["updated_at"] = created_at if updated_at is None else updated_at
+    if not omit_edit:
+        row["last_edited_at"] = last_edited_at
+    if includes_created_edit:
+        row["includes_created_edit"] = True
     return row
 
 
@@ -473,6 +478,20 @@ class ReviewStatusTests(unittest.TestCase):
         self.assertNotEqual(tool.diff_identity(one_line), tool.diff_identity(two_lines))
         self.assertIsNotNone(tool.diff_identity("diff --git a/a b/a\n@@ -1 +1 @@\n \x0c\n+x\n"))
 
+    def test_comment_edit_fields_come_from_graphql(self):
+        self.assertIsNone(tool.comment_list_target("repos/o/n"))
+        self.assertEqual(tool.comment_list_target("repos/o/n/issues/12/comments?per_page=100"), ("o/n", "12"))
+        node = {"author": {"login": "Owner"}, "body": "x", "createdAt": "t", "updatedAt": "t",
+                "lastEditedAt": None, "includesCreatedEdit": False}
+        self.assertEqual(tool.comment_record(node)["last_edited_at"], None)
+        self.assertFalse(tool.comment_record(node)["includes_created_edit"])
+        edited = dict(node, lastEditedAt="t", includesCreatedEdit=True)
+        self.assertEqual(tool.comment_record(edited)["last_edited_at"], "t")
+        self.assertTrue(tool.comment_record(edited)["includes_created_edit"])
+        for broken in ({}, {"lastEditedAt": None}, {"includesCreatedEdit": False}):
+            with self.assertRaises(ValueError):
+                tool.comment_record(broken)
+
     def test_owner_comment_matches_only_this_head(self):
         head = "a" * 40
         other = "b" * 40
@@ -488,6 +507,9 @@ class ReviewStatusTests(unittest.TestCase):
         check([comment(f"되돌리기 어려움 승인: {head}", created_at=fresh, updated_at=fresh)], [])
         check([comment(f"한쪽 문 승인: {head}", created_at=fresh, updated_at=fresh)], [])
         check([comment(f"되돌리기 어려움 승인: {head}", updated_at="2020-01-02T00:00:00Z")], [tool.OWNER])
+        check([comment(f"되돌리기 어려움 승인: {head}", last_edited_at=fresh)], [tool.OWNER])
+        check([comment(f"한쪽 문 승인: {head}", includes_created_edit=True)], [tool.OWNER])
+        check([comment(f"되돌리기 어려움 승인: {head}", omit_edit=True)], [tool.OWNER])
         check([comment(f"한쪽 문 승인: {head}", updated_at="2020-01-01T00:00:00+00:00")], [tool.OWNER])
         check([comment(f"되돌리기 어려움 승인: {head}", omit_times=True)], [tool.OWNER])
         check([

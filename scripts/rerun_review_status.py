@@ -6,8 +6,9 @@ until the pull_request_target run for this head is re-run, or until a newer
 failing check named Review status is posted on that head. This does not write
 review/independent or review/security, and it does not read the comment body.
 created, edited, and deleted all re-run. An edited comment is not approval:
-the checker counts a comment only when updated_at equals created_at, so this
-re-run drops it and the old success does not stay green. Post a new comment.
+the checker counts a comment only when updated_at equals created_at and
+lastEditedAt is null, so a same-second edit is dropped too. This re-run
+clears the old success. Post a new comment.
 comment.user on an edit stays the original author, so another account's edit
 of the owner's comment still matches the workflow and still re-runs. Skipping
 edited would leave that success in place. issue_comment has no branch filter.

@@ -5,7 +5,7 @@
 ## 2026-11-05 — 1인 프로필은 다른 계정의 리뷰 status와 편집된 승인 댓글을 받지 않는다
 
 - `scripts/check_review_status.py`: 1인 프로필에서 `review/independent`와 `review/security`는 `creator.login`이 저장소 소유자이거나 `STATUS_ACTORS`에 있을 때만 success다. `STATUS_ACTORS`는 `scripts/check_review_status.py`의 설정이고 지금은 비어 있다. 서버 앱의 로그인을 나중에 넣는다. 다른 작성자(`github-actions[bot]` 포함)의 status는 실패다. 없는 status로 보지 않는다. combined status는 context마다 최신 하나라, 없으면 이어받기가 그 거부를 지울 수 있다. 이어받기의 이전 SHA도 같다. 팀 프로필은 작성자를 보지 않는다. (#34)
-- 승인 댓글은 `updated_at`이 `created_at`과 같은 문자열일 때만 인정한다. 편집한 댓글은 무효이고 새 댓글을 단다. `scripts/rerun_review_status.py`는 `created`·`edited`·`deleted`에서 검사기를 다시 돌린다. 편집 이벤트의 `comment.user`는 처음 작성자라, 다른 계정이 소유자 댓글을 고쳐도 재실행되고 그 댓글은 승인이 아니게 된다.
+- 승인 댓글은 `updated_at`이 `created_at`과 같은 문자열이고 GraphQL `lastEditedAt`이 null이며 `includesCreatedEdit`가 아닐 때만 인정한다. 편집한 댓글은 무효이고 새 댓글을 단다. REST 시각은 초 단위라 같은 초 편집은 두 문자열이 같다. 그 편집은 `lastEditedAt`으로 거절한다. `scripts/rerun_review_status.py`는 `created`·`edited`·`deleted`에서 검사기를 다시 돌린다. 편집 이벤트의 `comment.user`는 처음 작성자라, 다른 계정이 소유자 댓글을 고쳐도 재실행되고 그 댓글은 승인이 아니게 된다.
 - 다시 적용할 프로젝트: smallnext, BGLike, mobile-runtime. `scripts/check_review_status.py`, `scripts/test_review_status.py`, `scripts/rerun_review_status.py`를 `tools/apply_baseline.py`로 다시 복사한다. `templates/review-status.yml`의 주석도 `.github/workflows/review-status.yml`로 다시 복사한다. workflow 파일은 manifest 해시 대상이 아니다. 스크립트 해시는 적용할 때 `.github/repo-baseline.json`에 다시 기록된다. 바뀐 복사 파일의 sha256은 이 변경의 PR 본문에 있다.
 
 ## 2026-11-05 — 결정 분류 이름을 되돌리기 어려움·되돌리기 쉬움으로 바꾼다
