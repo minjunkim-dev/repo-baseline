@@ -182,7 +182,7 @@
 | `.github/workflows/**` | 소비 프로젝트와 이 저장소. `review-status.yml`을 포함한다 |
 | `templates/review-status.yml` | 이 저장소의 workflow 템플릿 |
 | `scripts/check_review_status.py` | 리뷰 게이트 검사기. 버전 전용 예외 없이 항상 한쪽 문 |
-| `scripts/workflow_policy.py`, `scripts/pr_author.py` | PR 본문 검사. base 커밋의 파일을 실행한다. 버전 전용 예외 없이 항상 한쪽 문 |
+| `scripts/workflow_policy.py`, `scripts/pr_author.py` | PR 본문 검사. base에 스크립트가 있으면 그 파일을 실행하고, 없을 때만 PR 쪽을 실행한다. 버전 전용 예외 없이 항상 한쪽 문 |
 | `.github/workflow-policy.json` | 그 검사의 저장소 설정. 버전 전용 예외 없이 항상 한쪽 문 |
 | `templates/pr-policy.yml` | PR conventions workflow 템플릿 |
 | `scripts/rerun_review_status.py` | 승인 댓글 뒤 Review status를 다시 돌리는 스크립트. `checks: write`를 쓴다 |
