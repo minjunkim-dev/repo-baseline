@@ -2,6 +2,8 @@
 
 프로젝트의 `.github/repository-settings.json`은 기대값과 감사 범위를 기록한다. 공통 검사기는 GET만 사용한다. 서버 적용은 원본의 `tools/apply_github_settings.py`가 같은 기준선으로 한다. 시작점은 원본의 `templates/repository-settings.json`이다.
 
+이 저장소의 기대값 `checks`는 `Baseline checks (Python 3.11)`, `Baseline checks (Python 3.13)`, `Review status`다. `strict`는 true이고 `app_id`는 15368이다. `Review status`는 `templates/review-status.yml`과 `.github/workflows/review-status.yml`의 job 이름과 같다. 이 파일은 기대값이다. 기록을 담은 PR은 branch protection을 쓰지 않는다. 병합 뒤 소유자가 Mac에서 적용한다. 적용되면 Dependabot 버전 전용 PR을 뺀 모든 PR(되돌리기 쉬움 포함)에 `review/independent`가 필요하다. 1인 프로필에서 status는 소유자만 올린다는 규칙이다. 에이전트가 status를 올리는 것은 금지지만 GitHub가 기술적으로 막지는 않는다. 검사기는 status 작성자를 아직 확인하지 않고, 그 확인은 후속 검사기 PR에서 고친다. smallnext, BGLike, mobile-runtime은 repo-baseline에 보호 규칙을 적용하고, 카나리 시험(같은 이름 체크 위장, 이전 실패 run이 남은 head의 병합 가능 여부, Dependabot 예외)을 통과하고, status 작성자·편집된 승인 댓글 검사기 수정이 병합·재적용된 뒤에 각자 별도 PR로 자기 기준선에 같은 체크를 적는다. 그 세 저장소도 기본 브랜치에 workflow가 있고 job이 한 번 성공한 뒤에 적는다. `apply_baseline.py`는 `.github/repository-settings.json`을 복사하지 않는다. `templates/repository-settings.json`의 자리표시자는 그대로다. 새 프로젝트는 job이 한 번 성공한 뒤에 그 체크를 적는다.
+
 ## 적용 도구
 
 새 프로젝트의 채울 값은 README "새 프로젝트에 적용" 8단계를 따른다.

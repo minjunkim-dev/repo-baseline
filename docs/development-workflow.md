@@ -19,7 +19,7 @@
 
 이 기준이 스킬에 더하는 것은 `main`에 들어가는 경계, `POLICY.md` §5의 리뷰 도구, 아래 "역할 분담"의 작성 도구·리뷰 모델, 그 아래 절의 pstack 배치다.
 
-- 모든 변경은 PR로 `main`에 들어가고 필수 CI가 통과해야 한다. 문 유형은 `POLICY.md` §10만 따른다. 되돌리기 쉬움(two-way door: 되돌리기 쉬운 결정)은 맡은 에이전트가 병합할 수 있고, 되돌리기 어려움(one-way door: 되돌리기 어려운 결정)은 사람이 최종 head를 승인한다(셋업 프롬프트 §10은 그 판정의 병합 절차다). 1인 프로필의 게이트 경로 PR은 소유자 댓글이 `되돌리기 어려움 승인: <head sha>` 또는 deprecated인 `한쪽 문 승인: <head sha>`로 시작하고, 그 SHA가 현재 head와 같아야 한다. 필수 체크 `Review status`가 그 댓글을 통과해야 병합된다(`POLICY.md` §5·§10). 팀 프로필은 모든 PR에 다른 팀원의 GitHub 승인이 필요하다(`POLICY.md` §9).
+- 모든 변경은 PR로 `main`에 들어가고 필수 CI가 통과해야 한다. 문 유형은 `POLICY.md` §10만 따른다. `Review status`가 필수로 적용된 저장소에서는 Dependabot 버전 전용 PR을 뺀 모든 PR(되돌리기 쉬움 포함)에 `review/independent`가 필요하다. 1인 프로필에서 status는 소유자만 올린다는 규칙이다. 에이전트가 status를 올리는 것은 금지지만 GitHub가 기술적으로 막지는 않는다. 검사기는 status 작성자를 아직 확인하지 않고, 그 확인은 후속 검사기 PR에서 고친다. 적용 전인 프로젝트의 되돌리기 쉬움(two-way door: 되돌리기 쉬운 결정)은 필수 CI·리뷰 뒤 맡은 에이전트가 병합할 수 있다. 되돌리기 어려움(one-way door: 되돌리기 어려운 결정)은 사람이 최종 head를 승인한다(셋업 프롬프트 §10은 그 판정의 병합 절차다). 1인 프로필의 게이트 경로 PR은 소유자 댓글이 `되돌리기 어려움 승인: <head sha>` 또는 deprecated인 `한쪽 문 승인: <head sha>`로 시작하고, 그 SHA가 현재 head와 같아야 한다. 필수 체크 `Review status`가 그 댓글을 통과해야 병합된다(`POLICY.md` §5·§10). 팀 프로필은 모든 PR에 다른 팀원의 GitHub 승인이 필요하다(`POLICY.md` §9).
 - 리뷰·수정은 셋업 프롬프트 §5와 `POLICY.md` §5를 따른다. Security 리뷰와 외부 리뷰(공개 저장소는 CodeRabbit)를 더할 변경도 거기서 정한다. Standards·Spec의 독립 리뷰 이름은 `/matt-code-review` 하나다. `/implement` 안의 리뷰는 `review/independent`로 세지 않는다.
 - 에이전트 환경 개선은 사용자가 `/retro`를 실행할 때 한다(`POLICY.md` §6). 에이전트는 실행을 요청만 한다.
 
@@ -169,7 +169,7 @@ Cursor 공식 문서(2026-11-04 읽음, 이 저장소 PR에서 실행하지 않�
 
 ## 리뷰 status를 남기는 사람
 
-1인 프로필에서 `review/independent`와 `review/security`는 Grok Bot이 근거를 확인한 뒤에 소유자가 남긴다. 서버 절차를 마치기 전에는 Mac의 `gh`이고, 마치면 그 서버의 앱이다. 근거는 리뷰 결과, 리뷰한 모델 이름, 그 status를 남길 head SHA다. 팀 프로필에서는 그 PR을 구현하지 않은 사람이 남긴다. 코드를 쓴 에이전트는 자기 PR에 통과를 찍지 않는다. `Review status` workflow는 이 status를 쓰지 않고, 그 head에 있는지만 읽는다(`POLICY.md` §5).
+1인 프로필에서 `review/independent`와 `review/security`는 Grok Bot이 근거를 확인한 뒤에 소유자가 남긴다. 서버 절차를 마치기 전에는 Mac의 `gh`이고, 마치면 그 서버의 앱이다. 근거는 리뷰 결과, 리뷰한 모델 이름, 그 status를 남길 head SHA다. 팀 프로필에서는 그 PR을 구현하지 않은 사람이 남긴다. 코드를 쓴 에이전트는 자기 PR에 통과를 찍지 않는다. `Review status` workflow는 이 status를 쓰지 않고, 그 head에 있는지만 읽는다(`POLICY.md` §5). 이 저장소의 `.github/repository-settings.json`은 `Review status`를 필수 체크로 기록한다. branch protection 적용은 그 기록을 병합한 뒤 소유자가 Mac에서 한다. 적용되면 Dependabot 버전 전용 PR을 뺀 모든 PR(되돌리기 쉬움 포함)이 그 status 없이 병합되지 않는다. status는 소유자만 올린다는 규칙이다. 에이전트가 status를 올리는 것은 금지지만 GitHub가 기술적으로 막지는 않는다. 검사기는 status 작성자를 아직 확인하지 않고, 그 확인은 후속 검사기 PR에서 고친다. smallnext, BGLike, mobile-runtime은 repo-baseline에 보호 규칙을 적용하고, 카나리 시험(같은 이름 체크 위장, 이전 실패 run이 남은 head의 병합 가능 여부, Dependabot 예외)을 통과하고, status 작성자·편집된 승인 댓글 검사기 수정이 병합·재적용된 뒤에 각자 별도 PR로 같은 체크를 적는다. 그 세 저장소도 기본 브랜치에 workflow가 있고 job이 한 번 성공한 뒤에 적는다.
 
 ## Mac Studio에서 팀으로 옮길 때
 
