@@ -571,6 +571,8 @@ def evidence_table(body):
         if not cells or any(column not in named for column in TABLE_COLUMNS) or len(named) != len(set(named)):
             index += 1
             continue
+        # A later header replaces any earlier table. A broken later table does not keep the old one.
+        chosen = None
         rows = []
         broken = False
         index += 1
@@ -602,7 +604,7 @@ def evidence_problems(body, head):
         problems.append("author-model")
         families = set()
         tool = model = None
-    elif record is None or any("disagree" in error for error in author_errors):
+    elif record is None or any("disagree" in error or "conflicts" in error for error in author_errors):
         problems.append("author")
         families = set()
         tool = model = None

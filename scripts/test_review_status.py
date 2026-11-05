@@ -541,6 +541,10 @@ class ReviewStatusTests(unittest.TestCase):
         stale = table("Sonnet 5.5", other) + "\n" + table("Composer 2.5", head)
         self.assertEqual([], tool.evidence_problems(stale, head))
         self.assertIn("sha", tool.evidence_problems(table("Composer 2.5", head) + "\n" + table("Sonnet 5.5", other), head))
+        broken = table("Sonnet 5.5", head) + "\n| axis | model | effort | head SHA | P0 | P1 | P2 | result |\n| Standards | Sonnet 5.5 | high | " + head + " | 0 |\n"
+        self.assertIn("table", tool.evidence_problems(broken, head))
+        hidden = "Author: Cursor / grok-4.7\nAuthor: Claude Code / Opus 5.5\n" + table("Sonnet 5.5", head)
+        self.assertIn("author", tool.evidence_problems(hidden, head))
         self.assertIn("unknown-family", tool.evidence_problems(table("mystery-model", head), head))
         self.assertIn("author-model", tool.evidence_problems(table("Sonnet 5.5", head).replace(
             "Author: Cursor / grok-4.7", "Author: 사람 / grok-4.7"), head))

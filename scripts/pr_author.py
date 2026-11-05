@@ -20,24 +20,32 @@ def tool_name(value):
 
 def parse_author(body):
     """(tool, model) or None, previous model names, and errors. The body is not executed."""
-    author_tool = author_model = None
+    authors = []
     tool_line = model_line = None
     previous = []
     for line in text_of(body).split("\n"):
-        if line.startswith("Author:") and author_tool is None and "/" in line:
+        if line.startswith("Author:") and "/" in line:
             tool_text, model_text = line[len("Author:"):].split("/", 1)
             found = tool_name(tool_text.strip())
-            if found and model_text.strip():
-                author_tool, author_model = found, model_text.strip()
+            pair = (found, model_text.strip()) if found and model_text.strip() else None
+            if pair and pair not in authors:
+                authors.append(pair)
         elif line.startswith("작성 도구:") and tool_line is None:
             tool_line = tool_name(line[len("작성 도구:"):].strip())
         elif line.startswith("작성 모델:") and model_line is None:
             value = line[len("작성 모델:"):].strip()
             if value:
                 model_line = value
-        elif line.startswith("이전 작성 모델:") and not previous:
-            previous = [part.strip() for part in line[len("이전 작성 모델:"):].split(",") if part.strip()]
+        elif line.startswith("이전 작성 모델:"):
+            for part in line[len("이전 작성 모델:"):].split(","):
+                name = part.strip()
+                if name and name not in previous:
+                    previous.append(name)
     errors = []
+    if len(authors) > 1:
+        errors.append("PR body: Author line conflicts")
+        return None, previous, errors
+    author_tool, author_model = authors[0] if authors else (None, None)
     if author_tool and tool_line and (author_tool != tool_line or author_model != model_line):
         errors.append("PR body: Author line and 작성 도구/작성 모델 disagree")
     tool = author_tool or tool_line

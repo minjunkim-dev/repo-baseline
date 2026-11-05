@@ -141,6 +141,11 @@ class ConventionsTest(unittest.TestCase):
         self.assertIs(review.parse_author, pr_author.parse_author)
         disagreed = "Author: Claude Code / Opus 5.5\n작성 도구: Cursor\n작성 모델: grok-4.7\n"
         self.assertTrue(any("disagree" in error for error in parse_author(disagreed)[2]))
+        conflict = "Author: Cursor / grok-4.7\nAuthor: Claude Code / Opus 5.5\n"
+        self.assertIsNone(parse_author(conflict)[0])
+        self.assertTrue(any("conflicts" in error for error in parse_author(conflict)[2]))
+        previous = parse_author("Author: Cursor / grok-4.7\n이전 작성 모델: Sonnet 5.5\n이전 작성 모델: Composer 2.5\n")[1]
+        self.assertEqual(previous, ["Sonnet 5.5", "Composer 2.5"])
 
     def test_dependabot_skips_body_rules_and_shell_text_is_not_run(self):
         marker = "/tmp/workflow-policy-body-was-executed"
