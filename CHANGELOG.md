@@ -1,5 +1,7 @@
 # 변경 기록
 
+리뷰 모델의 현행은 맨 위 「리뷰는 패밀리가 다르면 된다」만이다. 그보다 아래 절은 그 커밋 당시의 기록이다.
+
 ## 2026-11-05 — 리뷰는 패밀리가 다르면 된다
 
 - `docs/development-workflow.md` 역할 분담: 필수 조건은 리뷰 패밀리가 작성 패밀리와 다른 것이다. 플랫폼은 보지 않는다. Claude는 Opus와 Sonnet을 한 패밀리로 두고, Cursor 안의 Claude도 Claude다. Grok이 쓴 PR은 Composer, Gemini, Claude, GPT가 볼 수 있다. Claude가 쓴 PR은 Grok, Composer, Gemini, GPT가 볼 수 있다.
