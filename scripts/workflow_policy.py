@@ -110,6 +110,9 @@ def load_config(root):
         "reject_claude_md": True,
         "feature_flags": "config/feature-flags.json",
         "bot_branch_prefixes": list(DEFAULT_BOT_PREFIXES),
+        "protected_paths": [
+            "scripts/workflow_policy.py", "scripts/pr_author.py", ".github/workflow-policy.json",
+        ],
     }
     path = root / CONFIG_NAME
     if not path.exists() and not path.is_symlink():
@@ -139,6 +142,12 @@ def load_config(root):
                 not isinstance(item, str) or not re.fullmatch(r"[a-z][a-z0-9-]*", item) for item in prefixes):
             raise ValueError("bot_branch_prefixes must be lowercase names")
         config["bot_branch_prefixes"] = prefixes
+    if "protected_paths" in found:
+        value = found["protected_paths"]
+        required = set(config["protected_paths"])
+        if not isinstance(value, list) or any(not isinstance(item, str) or not item or ".." in item.split("/") for item in value) or required - set(value):
+            raise ValueError("protected_paths must include the convention scripts")
+        config["protected_paths"] = value
     return config
 
 

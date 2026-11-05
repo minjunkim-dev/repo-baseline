@@ -4,6 +4,8 @@ from datetime import date
 import json
 import os
 from pathlib import Path
+import subprocess
+import sys
 from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
@@ -192,6 +194,29 @@ class ConventionsTest(unittest.TestCase):
         for axis in ("Standards", "Spec", "버그 찾기", "Security"):
             self.assertIn(f"| {axis} |", text)
         self.assertIn("axis | model | effort | head SHA | P0 | P1 | P2 | result", text)
+
+    def test_a_pull_request_cannot_replace_the_convention_script(self):
+        temporary = TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        scripts = root / "scripts"
+        scripts.mkdir()
+        (scripts / "workflow_policy.py").write_text("import sys\nsys.exit(0)\n", encoding="utf-8")
+        event = root / "event.json"
+        event.write_text(json.dumps({"pull_request": {
+            "title": "Not conventional",
+            "body": "",
+            "head": {"ref": "evil"},
+            "user": {"login": "alice"},
+        }}), encoding="utf-8")
+        env = os.environ.copy()
+        env["GITHUB_EVENT_PATH"] = str(event)
+        checker = Path(__file__).resolve().parents[1] / "scripts/workflow_policy.py"
+        result = subprocess.run(
+            [sys.executable, str(checker), "--pr"],
+            cwd=root, env=env, capture_output=True, text=True, timeout=30)
+        self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+        self.assertIn("PR title", result.stdout)
 
 
 class FlagsTest(unittest.TestCase):

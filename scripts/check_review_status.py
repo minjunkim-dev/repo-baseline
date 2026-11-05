@@ -36,16 +36,18 @@ PROJECT_PATHS = ".github/trust-boundary-paths"
 # POLICY.md §5 common paths. A pattern without "/" matches the file name at any depth.
 COMMON_PATHS = (
     ".github/workflows/**", ".github/actions/**", ".github/repository-settings.json", ".github/dependabot.yml",
-    ".github/dependabot.yaml", ".github/CODEOWNERS", ".github/repo-baseline.json", PROJECT_PATHS, "scripts/check_*.py",
-    "scripts/rerun_review_status.py",
+    ".github/dependabot.yaml", ".github/CODEOWNERS", ".github/repo-baseline.json", ".github/workflow-policy.json",
+    PROJECT_PATHS, "scripts/check_*.py",
+    "scripts/workflow_policy.py", "scripts/pr_author.py", "scripts/rerun_review_status.py",
     ".claude/settings.json", ".claude/hooks/**", ".claude/agents/**", ".claude/commands/**", ".agents/skills/**",
     ".claude/skills/**", ".mcp.json", "Dockerfile", ".env*",
 )
 # POLICY.md §10 gate paths. A change here needs the 1-person owner comment unless the Dependabot
 # version-only exception applies. Other one-way doors (money, account, migration) are not in this list.
 ONE_WAY_PATHS = (
-    ".github/workflows/**", "templates/review-status.yml", "scripts/check_review_status.py",
-    "scripts/rerun_review_status.py",
+    ".github/workflows/**", "templates/review-status.yml", "templates/pr-policy.yml",
+    "scripts/check_review_status.py", "scripts/workflow_policy.py", "scripts/pr_author.py",
+    "scripts/rerun_review_status.py", ".github/workflow-policy.json",
     "templates/review-status-policy.json", ".github/repository-settings.json", "templates/repository-settings.json",
 )
 # Dependency manifests and lockfiles; a project adds other ecosystems to PROJECT_PATHS.
