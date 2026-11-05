@@ -535,6 +535,8 @@ class ReviewStatusTests(unittest.TestCase):
         self.assertIn("same-model", tool.evidence_problems(table("Opus 5.5", head).replace(
             "Author: Cursor / grok-4.7", "Author: Claude Code / claude-opus-5.5"), head))
         self.assertIn("same-model", tool.evidence_problems(table("cursor-grok-4.6", head), head))
+        self.assertIn("author-model", tool.evidence_problems(table("Sonnet 5.5", head).replace(
+            "Author: Cursor / grok-4.7", "Author: 사람 / grok-4.7"), head))
         self.assertEqual(tool.model_token("Opus 5.5"), tool.model_token("claude-opus-5.5"))
         self.assertEqual(tool.model_token("Grok 4.7"), tool.model_token("grok-4.7-high-fast"))
         self.assertIsNone(tool.model_token("chatgpt"))

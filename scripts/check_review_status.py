@@ -612,7 +612,10 @@ def evidence_problems(body, head):
     if not tool or not model:
         problems.append("author")
         tokens = set()
-    elif tool == "사람" and model == "없음":
+    elif tool == "사람" and model != "없음":
+        problems.append("author-model")
+        tokens = set()
+    elif tool == "사람":
         tokens = set()
     else:
         tokens = set()
