@@ -1,5 +1,11 @@
 # 변경 기록
 
+## 2026-11-05 — PR 본문 양식
+
+- `.github/pull_request_template.md`: Summary, Evidence, Merge Danger, `Author: <tool> / <model>`, 리뷰 근거 표를 둔다. 축은 Standards, Spec, 버그 찾기, Security다. tool은 Claude Code, Cursor, Cursor 클라우드 에이전트, 사람이다. `작성 도구`와 `작성 모델` 두 줄도 같은 기록이다. 검사기는 아직 이 양식을 강제하지 않는다.
+- `templates/repo-baseline.json`이 그 파일을 `.github/pull_request_template.md`로 복사한다.
+- 다시 적용할 프로젝트: Smallnext·BGLike·Runstir. `tools/apply_baseline.py`로 양식을 복사한다.
+
 ## 2026-11-05 — 이벤트 정책 glob과 승인 댓글 재실행
 
 - README의 이벤트 정책 판별은 `workflow_path` glob을 본다. `*`는 `/`를 넘지 않고 `**`는 넘는다. 그 파일에 맞는 glob이 `pull_request_target`만 허용하면 설치를 멈추고 POST하지 않는다. 패턴을 판별할 수 없어도 POST하지 않는다.
