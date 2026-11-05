@@ -232,6 +232,46 @@ class ConventionsTest(unittest.TestCase):
         self.assertEqual(1, blocked.returncode, blocked.stdout + blocked.stderr)
         self.assertIn("PR title", blocked.stdout)
 
+    def test_base_checker_reads_the_pull_request_tree(self):
+        source = Path(__file__).resolve().parents[1]
+        temporary = TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        work = Path(temporary.name)
+        base = work / "policy-base"
+        pull = work / "policy-head"
+        for name in ("workflow_policy.py", "pr_author.py"):
+            (base / "scripts").mkdir(parents=True, exist_ok=True)
+            (base / "scripts" / name).write_text((source / "scripts" / name).read_text(encoding="utf-8"), encoding="utf-8")
+        (base / "AGENTS.md").write_text("base copy\n", encoding="utf-8")
+        (base / "config").mkdir()
+        (base / "config" / "feature-flags.json").write_text('{"version": 1, "flags": []}\n', encoding="utf-8")
+        (pull / "scripts").mkdir(parents=True)
+        (pull / "scripts" / "workflow_policy.py").write_text("import sys\nsys.exit(0)\n", encoding="utf-8")
+        (pull / "config").mkdir()
+        (pull / "config" / "feature-flags.json").write_text('{"version": 1, "flags": [null]}\n', encoding="utf-8")
+        event = work / "event.json"
+        event.write_text(json.dumps({"pull_request": {
+            "title": "docs: 안내를 고친다",
+            "body": BODY,
+            "head": {"ref": "docs/notes"},
+            "user": {"login": "alice"},
+        }}), encoding="utf-8")
+        env = os.environ.copy()
+        env["GITHUB_EVENT_PATH"] = str(event)
+        command = [sys.executable, "policy-base/scripts/workflow_policy.py", "--pr", "--root", "policy-head"]
+        missing = subprocess.run(command, cwd=work, env=env, capture_output=True, text=True, timeout=30)
+        self.assertEqual(1, missing.returncode, missing.stdout + missing.stderr)
+        self.assertIn("AGENTS.md is required", missing.stdout)
+        self.assertIn("Feature flag", missing.stdout)
+        (pull / "AGENTS.md").write_text("pull copy\n", encoding="utf-8")
+        bad_flags = subprocess.run(command, cwd=work, env=env, capture_output=True, text=True, timeout=30)
+        self.assertEqual(1, bad_flags.returncode, bad_flags.stdout + bad_flags.stderr)
+        self.assertNotIn("AGENTS.md is required", bad_flags.stdout)
+        self.assertIn("Feature flag", bad_flags.stdout)
+        (pull / "config" / "feature-flags.json").write_text('{"version": 1, "flags": []}\n', encoding="utf-8")
+        ok = subprocess.run(command, cwd=work, env=env, capture_output=True, text=True, timeout=30)
+        self.assertEqual(0, ok.returncode, ok.stdout + ok.stderr)
+
 
 class FlagsTest(unittest.TestCase):
     def setUp(self):

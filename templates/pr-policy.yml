@@ -1,7 +1,8 @@
 # Copy to .github/workflows/pr-policy.yml. The project owns this copy so Dependabot can update the pin.
-# pull_request selects this file from the pull request. The job runs the script from the base commit when
-# that commit has it, so a later pull request cannot replace workflow_policy.py or pr_author.py.
-# The head copy runs only when the base commit has no script yet.
+# pull_request selects this file from the pull request. The job runs the script and reads
+# workflow-policy.json from the base commit when that commit has the script, so a later pull request
+# cannot replace them. The head copy runs only when the base commit has no script yet.
+# --root is the pull request tree. AGENTS.md, CLAUDE.md, and feature flags are read there and not executed.
 # pull_request_target is not used: the public repository allows that event only for review-status.yml.
 # ready_for_review reruns the job when a draft becomes ready, even if the body was not edited.
 # The body is read from the event JSON and parsed. It is not executed.
@@ -36,8 +37,8 @@ jobs:
       - name: Check PR title, branch, and body
         run: |
           if [ -f policy-base/scripts/workflow_policy.py ]; then
-            root=policy-base
+            checker=policy-base/scripts/workflow_policy.py
           else
-            root=policy-head
+            checker=policy-head/scripts/workflow_policy.py
           fi
-          python3 "$root/scripts/workflow_policy.py" --pr
+          python3 "$checker" --pr --root policy-head

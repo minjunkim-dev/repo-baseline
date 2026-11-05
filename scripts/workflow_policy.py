@@ -151,26 +151,38 @@ def load_config(root):
     return config
 
 
+def checked_tree(value):
+    """Files are read from this path. It is not imported or executed."""
+    if value is None:
+        return ROOT
+    path = Path(value)
+    if path.is_absolute() or not value or ".." in path.parts:
+        raise ValueError("root must be a relative path")
+    return path
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("--pr", action="store_true", help="Read PR metadata from GITHUB_EVENT_PATH")
+    parser.add_argument("--root", help="Tree to read. The script and workflow-policy.json stay next to this file.")
     args = parser.parse_args(argv)
     try:
         config = load_config(ROOT)
+        tree = checked_tree(args.root)
     except (OSError, json.JSONDecodeError, ValueError) as error:
         print(f"FAIL: workflow policy config: {error}")
         return 1
     errors = []
     if config["reject_claude_md"]:
-        claude = ROOT / "CLAUDE.md"
+        claude = tree / "CLAUDE.md"
         if claude.exists() or claude.is_symlink():
             errors.append("Use AGENTS.md only; remove CLAUDE.md")
-    if config["require_agents_md"] and not (ROOT / "AGENTS.md").is_file():
+    if config["require_agents_md"] and not (tree / "AGENTS.md").is_file():
         errors.append("AGENTS.md is required")
     flags = config["feature_flags"]
     if flags:
         try:
-            errors.extend(validate_flags(json.loads((ROOT / flags).read_text(encoding="utf-8"))))
+            errors.extend(validate_flags(json.loads((tree / flags).read_text(encoding="utf-8"))))
         except (OSError, json.JSONDecodeError) as error:
             errors.append(f"Feature flags: {error}")
     if args.pr:
