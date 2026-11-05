@@ -101,7 +101,8 @@ def validate_body(body, author=""):
     for name in HEADERS:
         if not any(line.strip() == f"## {name}" for line in text.split("\n")):
             errors.append(f"PR body: missing ## {name}")
-    if not any(line.startswith("Door:") and line[len("Door:"):].strip() in DOORS for line in text.split("\n")):
+    doors = [line[len("Door:"):].strip() for line in text.split("\n") if line.startswith("Door:")]
+    if len(doors) != 1 or doors[0] not in DOORS:
         errors.append("PR body: Door must be 양쪽 문 or 한쪽 문")
     _, _, author_errors = parse_author(text)
     errors.extend(author_errors)

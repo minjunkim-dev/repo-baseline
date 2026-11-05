@@ -128,6 +128,7 @@ class ConventionsTest(unittest.TestCase):
         self.assertEqual([], validate_body(BODY.replace("grok-4.7", "없음").replace("Cursor", "사람")))
         self.assertTrue(validate_body(BODY.replace("## Evidence\n", "")))
         self.assertTrue(validate_body(BODY.replace("Door: 양쪽 문", "Door: 양쪽 문 또는 한쪽 문")))
+        self.assertTrue(validate_body(BODY + "Door: 한쪽 문\n"))
         self.assertTrue(validate_body(BODY.replace("Cursor", "Codex")))
         self.assertTrue(validate_body(BODY.replace("사람", "Cursor").replace("grok-4.7", "없음").replace("Cursor / 없음", "사람 / grok-4.7")))
         self.assertTrue(any("disagree" in error for error in validate_body(BODY + "작성 도구: Claude Code\n작성 모델: opus-5.5\n")))

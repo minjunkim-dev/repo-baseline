@@ -538,6 +538,9 @@ class ReviewStatusTests(unittest.TestCase):
             "Author: Cursor / grok-4.7", "Author: Claude Code / Opus 5.5"), head))
         self.assertIn("same-family", tool.evidence_problems(table("cursor-grok-4.6", head), head))
         self.assertEqual([], tool.evidence_problems(table("Composer 2.5", head), head))
+        stale = table("Sonnet 5.5", other) + "\n" + table("Composer 2.5", head)
+        self.assertEqual([], tool.evidence_problems(stale, head))
+        self.assertIn("sha", tool.evidence_problems(table("Composer 2.5", head) + "\n" + table("Sonnet 5.5", other), head))
         self.assertIn("unknown-family", tool.evidence_problems(table("mystery-model", head), head))
         self.assertIn("author-model", tool.evidence_problems(table("Sonnet 5.5", head).replace(
             "Author: Cursor / grok-4.7", "Author: 사람 / grok-4.7"), head))

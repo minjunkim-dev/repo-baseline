@@ -591,28 +591,35 @@ def _not_applicable(model):
 
 
 def evidence_table(body):
-    """Rows of the first evidence table, or None when that table is not there. Parse only."""
+    """Rows of the last evidence table. An earlier table does not hide a later one. Parse only."""
     lines = body.split("\n")
-    for index, line in enumerate(lines):
-        cells = _cells(line)
-        if not cells:
-            continue
-        mapped = [COLUMN_NAMES.get(cell.lower()) for cell in cells]
+    chosen = None
+    index = 0
+    while index < len(lines):
+        cells = _cells(lines[index])
+        mapped = [COLUMN_NAMES.get(cell.lower()) for cell in cells] if cells else []
         named = [name for name in mapped if name]
-        if any(column not in named for column in TABLE_COLUMNS) or len(named) != len(set(named)):
+        if not cells or any(column not in named for column in TABLE_COLUMNS) or len(named) != len(set(named)):
+            index += 1
             continue
         rows = []
-        for raw in lines[index + 1:]:
-            row = _cells(raw)
+        broken = False
+        index += 1
+        while index < len(lines):
+            row = _cells(lines[index])
             if row is None:
                 break
             if _separator(row):
+                index += 1
                 continue
             if len(row) != len(cells):
-                return None
+                broken = True
+                break
             rows.append({mapped[i]: row[i] for i in range(len(cells)) if mapped[i]})
-        return rows
-    return None
+            index += 1
+        if not broken:
+            chosen = rows
+    return chosen
 
 
 def evidence_problems(body, head):
