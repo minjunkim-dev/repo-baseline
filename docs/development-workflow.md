@@ -181,3 +181,5 @@ Cursor 공식 문서(2026-11-04 읽음, 이 저장소 PR에서 실행하지 않�
 4. 옮기는 순서: 앱을 저장소에 설치한다. 시험 커밋은 어떤 PR의 커밋 목록에도 없는, 기본 브랜치 밖의 버린 브랜치 커밋으로 한다. 그 커밋에 `review/independent` success를 남겨 앱 이름으로 보이는지 확인하고, 같은 단계에서 바로 그 SHA에 `failure`를 덮는다. 그 다음에 1인 프로필의 기록 수단만 서버 앱으로 바꾼다. 남기는 주체는 소유자다. Mac의 `gh`로는 더 이상 이 status를 남기지 않는다.
 5. 되돌리기: 서버 앱으로 status를 남기는 일을 멈추고, 소유자가 Mac의 `gh`로 다시 남긴다. 앱 설치를 제거해도 이미 남은 status는 지워지지 않는다. 잘못된 status는 그 SHA에 같은 context로 새 상태를 덮어 고친다.
 6. 팀 프로필로 바꿀 때 같이 바꾼다. `AGENTS.md`에 `프로필: 팀` 한 줄을 넣는다. `templates/repository-settings.json`을 복사한 값에서 `required_approving_review_count` 1, `require_code_owner_reviews` true, `require_last_push_approval` true로 두고 `templates/CODEOWNERS`로 `.github/CODEOWNERS`를 둔다(`POLICY.md` §9). 이 설정 쓰기는 소유자 승인 뒤에 `tools/apply_github_settings.py`로 한다.
+
+<!-- canary-do-not-merge: required Review status probe -->
