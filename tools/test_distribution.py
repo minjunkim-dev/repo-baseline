@@ -111,6 +111,7 @@ class TrustBoundaryPathTests(unittest.TestCase):
         text = (ROOT / "templates/review-status.yml").read_text(encoding="utf-8")
         policy = (ROOT / "templates/review-status-policy.json").read_text(encoding="utf-8")
         self.assertIn("issue_comment:", text)
+        self.assertIn("types: [opened, synchronize, reopened, edited]", text)
         self.assertIn("types: [created, edited, deleted]", text)
         self.assertIn("ref: ${{ github.event.repository.default_branch }}", text)
         self.assertNotIn("github.event.pull_request.head.ref", text)
@@ -128,6 +129,11 @@ class TrustBoundaryPathTests(unittest.TestCase):
         self.assertNotIn("ref: ${{ github.event.pull_request.head.sha }}", text)
         self.assertIn('"issue_comment"', policy)
         self.assertIn('"pull_request_target"', policy)
+        conventions = (ROOT / "templates/pr-policy.yml").read_text(encoding="utf-8")
+        self.assertEqual(conventions, (ROOT / ".github/workflows/pr-policy.yml").read_text(encoding="utf-8"))
+        self.assertNotIn("\n  pull_request_target:", conventions)
+        self.assertIn("\n  pull_request:", conventions)
+        self.assertIn("types: [opened, edited, synchronize, reopened, ready_for_review]", conventions)
 
     def test_a_policy_that_excludes_review_status_is_not_a_parent_block(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")

@@ -1,0 +1,28 @@
+# Copy to .github/workflows/pr-policy.yml. The project owns this copy so Dependabot can update the pin.
+# pull_request runs the script from this pull request. pull_request_target is not used here: the public
+# repository allows that event only for review-status.yml, and this file must not change that policy.
+# The body is read from the event JSON and parsed. It is not executed.
+name: PR policy
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-policy-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  policy:
+    name: PR conventions
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check PR title, branch, and body
+        run: python3 scripts/workflow_policy.py --pr

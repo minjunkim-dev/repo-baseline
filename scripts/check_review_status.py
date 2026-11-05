@@ -5,7 +5,8 @@ head; a status from the same account cannot tell a person from an agent, so it i
 A base update creates a new head SHA. When the added and removed lines and binary blobs match a prior
 success, that status covers this head. Reuse is still only a process record.
 A 1-person pull request that changes a POLICY.md §10 gate path also needs the repository owner's
-approval comment on this head. That comment is not reused from an older head."""
+approval comment on this head. That comment is not reused from an older head.
+The pull request body is parsed for the review evidence table. It is never executed."""
 
 import base64
 import fnmatch
@@ -21,6 +22,8 @@ SECURITY = "review/security"
 # Not a commit status. The job fails with this name when the owner comment is missing.
 # A status posted under this name does not count: the same account can post one without the comment.
 OWNER = "review/owner-approval"
+# Not a commit status. The job fails with this name when the evidence table does not match this head.
+EVIDENCE = "review/evidence"
 DEPENDABOT = "dependabot[bot]"
 WEB_FLOW = "web-flow"
 TEAM_LINE = "프로필: 팀"
@@ -495,6 +498,183 @@ def carried_contexts(repo, number, head, base, contexts, read, read_diff, commit
     return carried
 
 
+# Longer tool names first. Tokens are the role-assignment names: one token per model.
+AUTHOR_TOOLS = ("Claude Code", "Cursor 클라우드 에이전트", "Cursor", "사람")
+MODEL_TOKENS = ("composer", "gemini", "sonnet", "opus", "grok", "gpt")
+COLUMN_NAMES = {
+    "axis": "axis", "축": "axis", "model": "model", "모델": "model", "effort": "effort",
+    "head sha": "sha", "p0": "p0", "p1": "p1", "p2": "p2", "result": "result", "결과": "result",
+}
+TABLE_COLUMNS = ("axis", "model", "effort", "sha", "p0", "p1", "p2")
+AXIS_KEYS = {
+    "standards": "standards", "spec": "spec", "security": "security",
+    "버그 찾기": "bug", "bug-finding": "bug", "bug finding": "bug",
+}
+BODY_LIMIT = 200000
+
+
+def _tool_name(value):
+    for name in AUTHOR_TOOLS:
+        if value == name:
+            return name
+    return None
+
+
+def model_token(name):
+    """One family token, or None when the name is empty, mixed, or not a review model."""
+    if not isinstance(name, str):
+        return None
+    text = name.strip().lower()
+    if not text or "chatgpt" in text or re.search(r"(?<![a-z0-9])codex(?![a-z0-9])", text):
+        return None
+    found = [token for token in MODEL_TOKENS if re.search(rf"(?<![a-z0-9]){token}(?![a-z0-9])", text)]
+    if len(found) != 1:
+        return None
+    return found[0]
+
+
+def _author_fields(body):
+    """Tool, model, and previous models. None tool means the author line is missing or disagrees."""
+    author_tool = author_model = None
+    tool_line = model_line = None
+    previous = []
+    for line in body.split("\n"):
+        if line.startswith("Author:") and author_tool is None and "/" in line:
+            tool_text, model_text = line[len("Author:"):].split("/", 1)
+            found = _tool_name(tool_text.strip())
+            if found and model_text.strip():
+                author_tool, author_model = found, model_text.strip()
+        elif line.startswith("작성 도구:") and tool_line is None:
+            tool_line = _tool_name(line[len("작성 도구:"):].strip())
+        elif line.startswith("작성 모델:") and model_line is None:
+            value = line[len("작성 모델:"):].strip()
+            if value:
+                model_line = value
+        elif line.startswith("이전 작성 모델:") and not previous:
+            previous = [part.strip() for part in line[len("이전 작성 모델:"):].split(",") if part.strip()]
+    if author_tool and tool_line and (author_tool != tool_line or author_model != model_line):
+        return None, None, previous
+    return author_tool or tool_line, author_model or model_line, previous
+
+
+def _cells(line):
+    stripped = line.strip()
+    if len(stripped) < 2 or not stripped.startswith("|") or not stripped.endswith("|"):
+        return None
+    return [cell.strip() for cell in stripped[1:-1].split("|")]
+
+
+def _separator(cells):
+    return bool(cells) and all(re.fullmatch(r":?-{3,}:?", cell) for cell in cells)
+
+
+def _integer(value):
+    return re.fullmatch(r"0|[1-9][0-9]*", value.strip()) is not None
+
+
+def _not_applicable(model):
+    text = model.strip()
+    return text.startswith("해당 없음:") and text.split(":", 1)[1].strip() != ""
+
+
+def evidence_table(body):
+    """Rows of the first evidence table, or None when that table is not there. Parse only."""
+    lines = body.split("\n")
+    for index, line in enumerate(lines):
+        cells = _cells(line)
+        if not cells:
+            continue
+        mapped = [COLUMN_NAMES.get(cell.lower()) for cell in cells]
+        named = [name for name in mapped if name]
+        if any(column not in named for column in TABLE_COLUMNS) or len(named) != len(set(named)):
+            continue
+        rows = []
+        for raw in lines[index + 1:]:
+            row = _cells(raw)
+            if row is None:
+                break
+            if _separator(row):
+                continue
+            if len(row) != len(cells):
+                return None
+            rows.append({mapped[i]: row[i] for i in range(len(cells)) if mapped[i]})
+        return rows
+    return None
+
+
+def evidence_problems(body, head):
+    """Why the evidence table does not cover this head. Empty means it does. The body is not executed."""
+    if not isinstance(body, str):
+        return ["body"]
+    text = body.replace("\r\n", "\n").replace("\r", "\n")[:BODY_LIMIT]
+    problems = []
+    tool, model, previous = _author_fields(text)
+    if not tool or not model:
+        problems.append("author")
+        tokens = set()
+    elif tool == "사람" and model == "없음":
+        tokens = set()
+    else:
+        tokens = set()
+        author = model_token(model)
+        if author is None:
+            problems.append("author-model")
+        else:
+            tokens.add(author)
+    for name in previous:
+        token = model_token(name)
+        if token is None:
+            problems.append("previous-model")
+        else:
+            tokens.add(token)
+    rows = evidence_table(text)
+    if rows is None:
+        problems.append("table")
+        return problems
+    seen = {}
+    for row in rows:
+        key = AXIS_KEYS.get(row.get("axis", "").strip().lower())
+        if key is None:
+            problems.append("axis-name")
+            continue
+        if key in seen:
+            problems.append("duplicate")
+        seen[key] = row
+    wanted = (head or "").lower()
+    for key in ("standards", "spec", "bug", "security"):
+        row = seen.get(key)
+        if row is None:
+            problems.append("axis-" + key)
+            continue
+        reviewer = row.get("model", "")
+        if _not_applicable(reviewer):
+            if key in ("standards", "spec"):
+                problems.append("not-applicable")
+            if row.get("p0", "").strip() != "0" or row.get("p1", "").strip() != "0":
+                problems.append("p0")
+        elif reviewer.strip() == "" or reviewer.strip() == "미실행":
+            problems.append("model")
+        else:
+            token = model_token(reviewer)
+            if token is None:
+                problems.append("model-token")
+            elif token in tokens:
+                problems.append("same-model")
+            if not _integer(row.get("p0", "")):
+                problems.append("p0")
+            if not _integer(row.get("p1", "")):
+                problems.append("p1")
+        sha = row.get("sha", "").strip()
+        if not re.fullmatch(r"[0-9a-fA-F]{40}", sha) or sha.lower() != wanted:
+            problems.append("sha")
+    return problems
+
+
+def _dependabot_author(pull):
+    user = pull.get("user") if isinstance(pull, dict) else None
+    return isinstance(user, dict) and user.get("login") == DEPENDABOT
+
+
 def missing(repo, number, head, base, read=read_api, read_diff=None):
     pull = read(f"repos/{repo}/pulls/{number}")
     # The open pull request's file and commit lists follow its current head, which can move
@@ -545,6 +725,12 @@ def missing(repo, number, head, base, read=read_api, read_diff=None):
                         and not major_change(pinned))
     if needs_owner and not version_only and not team_profile(repo, base, read) and not owner_approved(repo, number, head, read):
         result.append(OWNER)
+    # The body is the current pull request text. This run's head is the event SHA, not a later push.
+    if isinstance(pull, dict) and not _dependabot_author(pull):
+        found = evidence_problems(pull.get("body"), head)
+        if found:
+            print("review evidence: " + ", ".join(found))
+            result.append(EVIDENCE)
     return result
 
 

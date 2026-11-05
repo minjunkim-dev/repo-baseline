@@ -11,6 +11,13 @@
 - CI는 패밀리가 같으면 실패한다. 그 검사는 #25가 넣는다. 관리자(Grok Bot)는 모델 이름, 지적 수, P1 기각 이유가 사실인지를 본다.
 - `POLICY.md` §5·§10과 셋업 프롬프트 §5의 모델 문장은 이 규칙을 가리킨다. Claude 리뷰를 필수로 두던 문장은 뺐다. 게이트 파일과 CI workflow는 안 바꿨다.
 
+## 2026-11-05 — PR 본문과 리뷰 근거 표를 검사
+
+- `scripts/workflow_policy.py`: smallnext의 PR 제목·브랜치·이슈 링크 검사를 이 저장소의 원본으로 둔다. `feat`/`fix`/`refactor`/`perf`/`test`/`revert`는 `Refs`/`Closes`/`Fixes`/`Resolves #N`이 필요하다. 설명은 소문자 라틴 또는 한글로 시작한다. 본문에 `## Summary`, `## Evidence`, `## Merge Danger`, `Door:`(`양쪽 문` 또는 `한쪽 문`), 작성 기록(`Author: <tool> / <model>` 또는 `작성 도구`/`작성 모델`)이 있어야 한다. tool은 `Claude Code`, `Cursor`, `Cursor 클라우드 에이전트`, `사람`이다. Dependabot은 본문 절 검사만 면제한다. `AGENTS.md`와 feature flag 검사는 기본으로 켜 두고 `.github/workflow-policy.json`으로 끈다. 설정 파일이 없으면 smallnext와 같다. 이 저장소는 그 둘을 끄고 `cursor` 브랜치를 허용한다. 본문은 파싱만 한다.
+- `templates/pr-policy.yml`: `pull_request`의 opened, edited, synchronize, reopened, ready_for_review에서 그 스크립트를 돌린다. `pull_request_target`은 쓰지 않는다. 공개 저장소에서 그 이벤트를 허용하는 정책은 `review-status.yml`만 대상으로 하고, 이 변경은 그 정책을 바꾸지 않는다.
+- `scripts/check_review_status.py`: 리뷰 근거 표에 Standards, Spec, 버그 찾기, Security가 있고, 모델이 비어 있지 않으며, head SHA가 그 실행의 head 전체 40자와 같고, P0·P1이 정수인지 본다. 리뷰 모델의 토큰이 작성 모델 또는 이전 작성 모델과 같으면 실패다. 토큰은 `opus`, `sonnet`, `composer`, `grok`, `gemini`, `gpt`다. 버그 찾기와 Security의 `해당 없음: <이유>`는 P0·P1이 0일 때 통과한다. `미실행`은 실패다. 실패 이름은 `review/evidence`다. commit status가 아니다. Dependabot 작성자는 뺀다. 본문을 고치면 이미 있는 `edited`로 다시 돈다. #21의 댓글 재실행은 그대로다. 댓글 본문은 읽지 않고, PR 본문도 실행하지 않는다.
+- 다시 적용할 프로젝트: Smallnext·BGLike·Runstir. `scripts/workflow_policy.py`, `scripts/test_workflow_policy.py`, `scripts/check_review_status.py`, `scripts/test_review_status.py`를 `tools/apply_baseline.py`로 복사한다. 양식과 `templates/pr-policy.yml`도 다시 복사한다. smallnext는 설정 파일을 두지 않으면 `AGENTS.md`와 feature flag 검사가 유지된다. 본문 절 검사는 새로 실패할 수 있다.
+
 ## 2026-11-05 — PR 본문 양식
 
 - `.github/pull_request_template.md`: Summary, Evidence, Merge Danger, `Author: <tool> / <model>`, 리뷰 근거 표를 둔다. 축은 Standards, Spec, 버그 찾기, Security다. tool은 Claude Code, Cursor, Cursor 클라우드 에이전트, 사람이다. `작성 도구`와 `작성 모델` 두 줄도 같은 기록이다. 검사기는 아직 이 양식을 강제하지 않는다.
