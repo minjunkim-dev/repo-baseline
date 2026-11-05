@@ -6,7 +6,9 @@ A base update creates a new head SHA. When the added and removed lines and binar
 success, that status covers this head. Reuse is still only a process record.
 A 1-person pull request that changes a POLICY.md §10 gate path also needs the repository owner's
 approval comment on this head. That comment is not reused from an older head.
-The pull request body is parsed for the review evidence table. It is never executed."""
+The pull request body is parsed for the review evidence table. It is never executed.
+The pull request base ref must be the repository default branch. Another pull request with the
+same head and a different base is not evidence and cannot pass this check."""
 
 import base64
 import fnmatch
@@ -26,6 +28,9 @@ SECURITY = "review/security"
 OWNER = "review/owner-approval"
 # Not a commit status. The job fails with this name when the evidence table does not match this head.
 EVIDENCE = "review/evidence"
+# Not a commit status. The job fails with this name when this pull request does not target the
+# repository default branch. A status posted under this name does not count.
+BASE_REF = "review/base-branch"
 DEPENDABOT = "dependabot[bot]"
 WEB_FLOW = "web-flow"
 TEAM_LINE = "프로필: 팀"
@@ -382,6 +387,22 @@ def touches_agents(files):
                for entry in files)
 
 
+def default_base(repo, pull, read):
+    """True when this pull request targets the repository default branch.
+    A different base is not evidence. The same head opened against a side branch must not pass.
+    Raises when the base ref or the default branch cannot be read."""
+    info = read(f"repos/{repo}")
+    default = info.get("default_branch") if isinstance(info, dict) else None
+    base = pull.get("base") if isinstance(pull, dict) else None
+    ref = base.get("ref") if isinstance(base, dict) else None
+    if not isinstance(default, str) or default == "" or not isinstance(ref, str) or ref == "":
+        raise ValueError("default branch")
+    if ref != default:
+        print(f"review status: base {ref} is not the default branch {default}")
+        return False
+    return True
+
+
 def owner_approved(repo, number, head, read):
     """True when the repository owner has an issue comment for this exact head. Edits are the current body."""
     info = read(f"repos/{repo}")
@@ -677,6 +698,10 @@ def _dependabot_author(pull):
 
 def missing(repo, number, head, base, read=read_api, read_diff=None):
     pull = read(f"repos/{repo}/pulls/{number}")
+    # This pull request only. Do not search other pull requests for the same head: a side base
+    # can hide a gate path that the default-branch pull request still has.
+    if not default_base(repo, pull, read):
+        return [BASE_REF]
     # The open pull request's file and commit lists follow its current head, which can move
     # after this event. review/independent and review/security follow compare(base, head).
     patterns = COMMON_PATHS + DEPENDENCY_FILES + project_paths(repo, base, read)
@@ -751,8 +776,11 @@ def main(env=os.environ, read=read_api, read_diff=None):
         print(f"review status UNVERIFIED: {error}", file=sys.stderr)
         return 2
     if absent:
-        print(f"review status MISSING on {head}: " + ", ".join(absent)
-              + "; run the review, set the status on this head, then re-run this job")
+        if BASE_REF in absent:
+            print(f"review status FAIL on {head}: base is not the repository default branch")
+        else:
+            print(f"review status MISSING on {head}: " + ", ".join(absent)
+                  + "; run the review, set the status on this head, then re-run this job")
         return 1
     print(f"review status PASS on {head}")
     return 0

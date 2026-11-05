@@ -1,6 +1,14 @@
 # 변경 기록
 
-리뷰 모델의 현행은 맨 위 「리뷰는 패밀리가 다르면 된다」만이다. 그보다 아래 절은 그 커밋 당시의 기록이다.
+리뷰 모델의 현행은 「리뷰는 패밀리가 다르면 된다」만이다. 그 아래의 리뷰 모델 절은 그 커밋 당시의 기록이다.
+
+## 2026-11-05 — 기본 브랜치가 아닌 base로 리뷰 게이트를 통과하지 못한다
+
+- `templates/review-status.yml`: `pull_request_target`은 `branches: [main]`만 본다. 다른 base에서는 Review status가 돌지 않는다. 검사기 코드는 계속 기본 브랜치 것이고 PR 코드는 실행하지 않는다.
+- `scripts/check_review_status.py`: 이 PR의 `base.ref`가 저장소 `default_branch`와 다르면 실패한다. 둘 중 하나를 읽지 못하면 확인되지 않은 것으로 실패한다. 실패 이름은 `review/base-branch`다. commit status가 아니다. 같은 head의 사이드 base diff로 소유자 승인이나 리뷰 status를 통과시키지 않는다. `missing()`은 그 PR 번호만 보고 다른 PR을 찾지 않는다.
+- `templates/pr-policy.yml`: `pull_request`도 `branches: [main]`만 본다. base에 스크립트가 없는 사이드 브랜치에서 head 사본으로 PR conventions를 통과하지 못한다.
+- `scripts/test_workflow_policy.py`: `--root`의 절대 경로와 상위(`..`) 경로 거부를 다시 검사한다. `scripts/workflow_policy.py`의 거부 동작은 그대로다.
+- 다시 적용할 프로젝트: smallnext, BGLike, mobile-runtime. `templates/review-status.yml`을 `.github/workflows/review-status.yml`로, `templates/pr-policy.yml`을 `.github/workflows/pr-policy.yml`로 복사한다. `scripts/check_review_status.py`, `scripts/test_review_status.py`, `scripts/test_workflow_policy.py`는 `tools/apply_baseline.py`로 다시 복사한다. workflow 파일은 manifest 해시 대상이 아니다. 스크립트 해시는 적용할 때 `.github/repo-baseline.json`에 다시 기록된다.
 
 ## 2026-11-05 — 리뷰는 패밀리가 다르면 된다
 

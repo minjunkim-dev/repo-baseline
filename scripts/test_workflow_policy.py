@@ -1,6 +1,7 @@
 """PR conventions, and the optional AGENTS.md and feature-flag checks."""
 
 from datetime import date
+from io import StringIO
 import json
 import os
 from pathlib import Path
@@ -191,6 +192,33 @@ class ConventionsTest(unittest.TestCase):
         event.write_text(json.dumps(broken))
         with patch.object(workflow_policy, "ROOT", root), patch.dict(os.environ, {"GITHUB_EVENT_PATH": str(event)}):
             self.assertEqual(1, workflow_policy.main(["--pr"]))
+
+    def test_root_rejects_absolute_and_parent_paths(self):
+        temporary = TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        rejected = ("/etc", "/var/tmp", "../outside", "policy-head/../../etc", "foo/../../../tmp")
+        for value in rejected:
+            with self.subTest(value=value):
+                buf = StringIO()
+                with patch.object(workflow_policy, "ROOT", root), patch("sys.stdout", buf):
+                    code = workflow_policy.main(["--root", value])
+                self.assertEqual(1, code)
+                self.assertIn("root must be a relative path", buf.getvalue())
+        nested = root / "nested"
+        (nested / "config").mkdir(parents=True)
+        (nested / "AGENTS.md").write_text("nested\n", encoding="utf-8")
+        (nested / "config" / "feature-flags.json").write_text('{"version": 1, "flags": []}\n', encoding="utf-8")
+        previous = Path.cwd()
+        try:
+            os.chdir(root)
+            buf = StringIO()
+            with patch.object(workflow_policy, "ROOT", root), patch("sys.stdout", buf):
+                code = workflow_policy.main(["--root", "nested"])
+            self.assertEqual(0, code, buf.getvalue())
+            self.assertIn("PASS", buf.getvalue())
+        finally:
+            os.chdir(previous)
 
     def test_template_has_the_sections_and_axes(self):
         text = (ROOT / ".github/pull_request_template.md").read_text(encoding="utf-8")

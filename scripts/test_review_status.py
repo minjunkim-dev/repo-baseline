@@ -1,6 +1,8 @@
 """Which review statuses a pull request head needs, from its changed paths."""
 
 import base64
+from contextlib import redirect_stdout
+from io import StringIO
 from pathlib import Path
 import subprocess
 import sys
@@ -27,29 +29,36 @@ def passing_body(head):
 def api(files, statuses=(), author="alice", commits=("alice",), project=None, changed=None, verified=True,
         committer=tool.WEB_FLOW, commit_shas=None, extra_status=None, force_pushes=None, commit_count=None,
         owner="owner", comments=(), agents=None, head=HEAD, compare_files=None, compare_commits=None,
-        head_agents=None, force_push_times=None, body=None):
+        head_agents=None, force_push_times=None, body=None, number="1", base_ref="main", base_sha="BASE",
+        default_branch="main"):
+    base = {"sha": base_sha}
+    if base_ref is not None:
+        base["ref"] = base_ref
     pull = {"user": {"login": author}, "changed_files": len(files) if changed is None else changed,
-            "head": {"sha": head}, "base": {"sha": "BASE"},
+            "head": {"sha": head}, "base": base,
             "body": passing_body(head) if body is None else body}
     commit_rows = [{
         "author": {"login": name}, "committer": {"login": committer},
         "commit": {"verification": {"verified": verified},
                    "committer": {"date": f"2020-01-{(index + 1):02d}T00:00:00Z"}},
     } for index, name in enumerate(commits)]
+    repo = {"owner": {"login": owner}}
+    if default_branch is not None:
+        repo["default_branch"] = default_branch
     routes = {
-        "repos/o/n/pulls/1": pull,
-        "repos/o/n/pulls/1/files?per_page=100": [files],
-        "repos/o/n/pulls/1/commits?per_page=100": [commit_rows],
+        f"repos/o/n/pulls/{number}": pull,
+        f"repos/o/n/pulls/{number}/files?per_page=100": [files],
+        f"repos/o/n/pulls/{number}/commits?per_page=100": [commit_rows],
         f"repos/o/n/commits/{head}/status?per_page=100": [{
             "statuses": [{"context": context, "state": state} for context, state in statuses]}],
-        "repos/o/n": {"owner": {"login": owner}},
-        "repos/o/n/issues/1/comments?per_page=100": [list(comments)],
+        "repos/o/n": repo,
+        f"repos/o/n/issues/{number}/comments?per_page=100": [list(comments)],
     }
     if project is not None:
-        routes[f"repos/o/n/contents/{tool.PROJECT_PATHS}?ref=BASE"] = {
+        routes[f"repos/o/n/contents/{tool.PROJECT_PATHS}?ref={base_sha}"] = {
             "content": base64.b64encode(project.encode()).decode()}
     if agents is not None:
-        routes["repos/o/n/contents/AGENTS.md?ref=BASE"] = {
+        routes[f"repos/o/n/contents/AGENTS.md?ref={base_sha}"] = {
             "content": base64.b64encode(agents.encode()).decode()}
     if commit_count is not None:
         pull["commits"] = commit_count
@@ -65,9 +74,9 @@ def api(files, statuses=(), author="alice", commits=("alice",), project=None, ch
             "commit": {"verification": {"verified": verified},
                        "committer": {"date": f"2020-01-{(index + 1):02d}T00:00:00Z"}},
         } for index, sha in enumerate(commit_shas)]
-        routes["repos/o/n/pulls/1/commits?per_page=100"] = [commit_rows]
+        routes[f"repos/o/n/pulls/{number}/commits?per_page=100"] = [commit_rows]
     pinned = list(files if compare_files is None else compare_files)
-    routes[f"repos/o/n/compare/BASE...{head}"] = {
+    routes[f"repos/o/n/compare/{base_sha}...{head}"] = {
         "files": pinned, "commits": commit_rows if compare_commits is None else compare_commits}
     if head_agents is not None:
         routes[f"repos/o/n/contents/AGENTS.md?ref={head}"] = {
@@ -82,7 +91,7 @@ def api(files, statuses=(), author="alice", commits=("alice",), project=None, ch
             when = (force_push_times[index] if force_push_times is not None
                     else f"2030-01-{(28 - index):02d}T00:00:00Z")
             events.append({"oid": sha, "createdAt": when})
-        routes[tool.FORCE_PUSHES + "o/n/1"] = events
+        routes[tool.FORCE_PUSHES + f"o/n/{number}"] = events
 
     def read(endpoint):
         if endpoint not in routes:
@@ -587,6 +596,53 @@ class ReviewStatusTests(unittest.TestCase):
         self.assertIn("same-family", tool.evidence_problems(
             table("Sonnet 5.5", head).replace("Author: Cursor / grok-4.7",
                                               "작성 도구: Cursor\n작성 모델: grok-4.7\n이전 작성 모델: Sonnet 5.5"), head))
+
+    def test_a_side_base_fails_and_a_main_base_still_passes(self):
+        files = [{"filename": "src/app.py"}]
+        output = StringIO()
+        with redirect_stdout(output):
+            side = run(api(files, [OK], base_ref="feature"))
+        self.assertEqual(side, [tool.BASE_REF])
+        text = output.getvalue()
+        self.assertIn("base feature is not the default branch main", text)
+        self.assertEqual(run(api(files, [OK], base_ref="main")), [])
+        env = {"REPO": "o/n", "PR_NUMBER": "1", "HEAD_SHA": HEAD, "BASE_SHA": "BASE"}
+        cli = StringIO()
+        with redirect_stdout(cli):
+            code = tool.main(env, api(files, [OK], base_ref="feature"))
+        self.assertEqual(code, 1)
+        self.assertIn("review status FAIL", cli.getvalue())
+        self.assertIn("base is not the repository default branch", cli.getvalue())
+        for kwargs in ({"base_ref": None}, {"default_branch": None}, {"base_ref": ""}, {"default_branch": ""}):
+            with self.subTest(**kwargs):
+                self.assertEqual(tool.main(env, api(files, [OK], **kwargs)), 2)
+
+    def test_same_head_side_pull_request_is_not_evidence_for_main(self):
+        head = "c" * 40
+        gate = [{"filename": ".github/workflows/ci.yml"}]
+        passed = [OK, (tool.SECURITY, "success")]
+        main_read = api(gate, passed, head=head, number="4", base_ref="main", base_sha="MAIN")
+        # An empty diff against the side base would pass the owner check. It must not.
+        side_read = api([], passed, head=head, number="5", base_ref="wip", base_sha="SIDE")
+
+        def both(endpoint):
+            if "pulls?" in endpoint or "head=" in endpoint:
+                raise AssertionError(endpoint)
+            error = None
+            for read in (main_read, side_read):
+                try:
+                    return read(endpoint)
+                except subprocess.CalledProcessError as found:
+                    error = found
+            raise error
+
+        self.assertEqual(tool.missing("o/n", "4", head, "MAIN", both), [tool.OWNER])
+        output = StringIO()
+        with redirect_stdout(output):
+            side = tool.missing("o/n", "5", head, "SIDE", both)
+        self.assertEqual(side, [tool.BASE_REF])
+        self.assertIn("base wip is not the default branch main", output.getvalue())
+        self.assertNotIn(tool.OWNER, side)
 
     def test_cli_exit_codes(self):
         env = {"REPO": "o/n", "PR_NUMBER": "1", "HEAD_SHA": HEAD, "BASE_SHA": "BASE"}
