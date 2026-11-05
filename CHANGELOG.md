@@ -1,6 +1,16 @@
 # 변경 기록
 
-리뷰 모델의 현행은 맨 위 「리뷰는 패밀리가 다르면 된다」만이다. 그보다 아래 절은 그 커밋 당시의 기록이다.
+리뷰 모델의 현행은 「리뷰는 패밀리가 다르면 된다」만이다. 그 아래의 리뷰 모델 절은 그 커밋 당시의 기록이다.
+
+## 2026-11-05 — 기본 브랜치가 아닌 base로 리뷰 게이트를 통과하지 못한다
+
+- `templates/review-status.yml`: `pull_request_target`은 `branches: [main]`만 본다. 다른 base에서는 Review status가 돌지 않는다. 검사기 코드는 계속 기본 브랜치 것이고 PR 코드는 실행하지 않는다.
+- `scripts/check_review_status.py`: 이 PR의 `base.ref`가 저장소 `default_branch`와 다르면 실패한다. 이벤트 `BASE_SHA`는 `compare(BASE_SHA...default_branch)`의 status가 `ahead` 또는 `identical`일 때만 그 브랜치 위에 있다고 본다. 재실행은 옛 payload를 남기므로, 사이드 base로 통과했던 run을 main으로 옮긴 뒤 재실행해도 통과하지 않는다. 둘 중 하나를 읽지 못하면 확인되지 않은 것으로 실패한다. 실패 이름은 `review/base-branch`다. commit status가 아니다. 다른 base의 PR은 통과 근거가 아니다. `missing()`은 그 PR 번호만 본다.
+- `scripts/rerun_review_status.py`: `issue_comment`에는 브랜치 필터가 없다. PR base가 기본 브랜치가 아니면 체크를 게시하지 않고 끝난다. 같은 head의 main PR을 거짓 실패로 만들지 않는다.
+- `templates/pr-policy.yml`: `pull_request`도 `branches: [main]`만 본다. `pull_request`는 PR의 workflow를 쓰므로 필터를 지운 PR은 이 검사를 다시 돌릴 수 있다. PR conventions만으로는 게이트가 아니다. workflow 변경은 필수 체크가 된 Review status가 막는다.
+- `branches: [main]`은 리터럴이다. repo-baseline, smallnext, BGLike, mobile-runtime의 기본 브랜치는 `main`이다. 기본 브랜치가 `main`이 아니면 workflow의 `branches`를 그 이름으로 맞춘다.
+- `scripts/test_workflow_policy.py`: `--root`의 빈 경로, 절대 경로, 상위(`..`) 경로 거부를 다시 검사한다. `scripts/workflow_policy.py`의 거부 동작은 그대로다.
+- 다시 적용할 프로젝트: smallnext, BGLike, mobile-runtime. `templates/review-status.yml`을 `.github/workflows/review-status.yml`로, `templates/pr-policy.yml`을 `.github/workflows/pr-policy.yml`로 복사한다. `scripts/check_review_status.py`, `scripts/test_review_status.py`, `scripts/rerun_review_status.py`, `scripts/test_workflow_policy.py`는 `tools/apply_baseline.py`로 다시 복사한다. workflow 파일은 manifest 해시 대상이 아니다. 스크립트 해시는 적용할 때 `.github/repo-baseline.json`에 다시 기록된다.
 
 ## 2026-11-05 — 리뷰는 패밀리가 다르면 된다
 
