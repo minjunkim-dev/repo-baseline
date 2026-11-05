@@ -777,39 +777,88 @@ jobs:
                                           diffs({"OLD": old_diff, HEAD: new_diff})),
                              [tool.INDEPENDENT, tool.SECURITY])
 
+    def test_an_embedded_b_slash_splits_in_the_middle_and_rfind_does_not(self):
+        def old_split(line):
+            rest = line[len("diff --git a/"):]
+            return rest[rest.rfind(" b/") + 3:]
+
+        same = "diff --git a/svc b/package.json b/svc b/package.json"
+        root = "diff --git a/package.json b/package.json"
+        self.assertEqual(old_split(same), "package.json")
+        self.assertEqual(tool.git_header_path(same), ("path", "svc b/package.json"))
+        self.assertNotEqual(tool.git_header_path(same)[1], old_split(same))
+        self.assertEqual(tool.git_header_path(root), ("path", "package.json"))
+        body = "\n@@ -1 +1 @@\n-a\n+b\n"
+        full = same + body
+        self.assertIsNotNone(tool.diff_identity(full, {"svc b/package.json": BLOB}))
+        self.assertIsNone(tool.diff_identity(full, {"package.json": BLOB}))
+        self.assertIsNotNone(tool.diff_identity(root + body, {"package.json": BLOB}))
+        renamed = ("diff --git a/svc b/old.json b/svc b/new.json\n"
+                   "rename from svc b/old.json\nrename to svc b/new.json\n")
+        copied = renamed.replace("rename from", "copy from").replace("rename to", "copy to")
+        for diff in (renamed, copied):
+            self.assertIsNotNone(tool.diff_identity(diff, {"svc b/new.json": BLOB}))
+            self.assertIsNone(tool.diff_identity(diff, {"new.json": BLOB}))
+        self.assertIsNone(tool.diff_identity("diff --git a/svc b/old.json b/svc b/new.json\n"))
+        self.assertIsNone(tool.diff_identity("diff --git a/left b/right\n@@ -1 +1 @@\n-a\n+b\n"))
+
     def test_tree_reads_follow_changed_paths_and_ignore_other_gitlinks(self):
-        def tree_calls(path, extra=None):
+        prior = "1" * 40
+        current = "2" * 40
+        base_sha = "3" * 40
+
+        def tree_calls(path, siblings):
             mapping = {path: BLOB, "vendor": ("commit", "d" * 40)}
-            for index in range(30):
+            for index in range(siblings):
                 mapping[f"side{index}/file.txt"] = BLOB
-            if extra:
-                mapping.update(extra)
-            base = api([{"filename": path}], commit_shas=["OLD", HEAD], extra_status={"OLD": [OK]},
-                       force_pushes=[], blobs={"OLD": mapping, "HEAD": mapping})
+            base = api([{"filename": path}], head=current, base_sha=base_sha, commit_shas=[prior, current],
+                       extra_status={prior: [OK]}, force_pushes=[],
+                       blobs={prior: mapping, current: mapping})
             seen = []
 
             def read(endpoint):
                 seen.append(endpoint)
                 return base(endpoint)
             diff = ADDED.replace("src/app.py", path)
-            self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", read, diffs({"OLD": diff, HEAD: diff})), [])
-            return sum("/git/trees/" in item for item in seen)
+            self.assertEqual(tool.missing("o/n", "1", current, base_sha, read, diffs({prior: diff, current: diff})), [])
+            self.assertIn(f"repos/o/n/commits/{prior}", seen)
+            self.assertIn(f"repos/o/n/commits/{current}", seen)
+            self.assertFalse(any(endpoint.endswith("/commits/HEAD") or endpoint.endswith("/commits/OLD") for endpoint in seen))
+            trees = sum("/git/trees/" in item for item in seen)
+            root_sha = read(f"repos/o/n/commits/{current}")["commit"]["tree"]["sha"]
+            listing = {item["path"]: item for item in read(f"repos/o/n/git/trees/{root_sha}")["tree"]}
+            self.assertEqual(listing["vendor"]["type"], "commit")
+            self.assertEqual(tool.path_oids("o/n", current, [path], read)[path], BLOB)
+            if siblings:
+                self.assertIn("side0", listing)
+                self.assertFalse(any(listing["side0"]["sha"] in endpoint for endpoint in seen))
+            return trees
 
-        shallow = tree_calls("pkg.json")
-        deep = tree_calls("a/b/c/d.txt")
-        self.assertEqual(shallow, 2)
+        self.assertEqual(tree_calls("pkg.json", 30), tree_calls("pkg.json", 0))
+        self.assertEqual(tree_calls("pkg.json", 30), 2)
+        deep = tree_calls("a/b/c/d.txt", 30)
+        self.assertEqual(deep, tree_calls("a/b/c/d.txt", 0))
         self.assertEqual(deep, 8)
         self.assertEqual(deep // 2, len("a/b/c/d.txt".split("/")))
         link = ("diff --git a/vendor b/vendor\nindex 1111111..2222222 160000\n--- a/vendor\n+++ b/vendor\n"
                 "@@ -1 +1 @@\n-Subproject commit " + ("a" * 40) + "\n+Subproject commit " + ("a" * 40) + "\n")
-        same = api([{"filename": "vendor"}], commit_shas=["OLD", HEAD], extra_status={"OLD": [OK]}, force_pushes=[],
-                   blobs={"OLD": {"vendor": ("commit", "e" * 40), "other": ("commit", "d" * 40)},
-                          HEAD: {"vendor": ("commit", "e" * 40), "other": ("commit", "d" * 40)}})
-        self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", same, diffs({"OLD": link, HEAD: link})), [])
-        moved = api([{"filename": "vendor"}], commit_shas=["OLD", HEAD], extra_status={"OLD": [OK]}, force_pushes=[],
-                    blobs={"OLD": {"vendor": ("commit", "e" * 40)}, "HEAD": {"vendor": ("commit", "f" * 40)}})
-        self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", moved, diffs({"OLD": link, HEAD: link})),
+        held = "e" * 40
+        other = "d" * 40
+        same = api([{"filename": "vendor"}], head=current, base_sha=base_sha, commit_shas=[prior, current],
+                   extra_status={prior: [OK]}, force_pushes=[],
+                   blobs={prior: {"vendor": ("commit", held), "other": ("commit", other)},
+                          current: {"vendor": ("commit", held), "other": ("commit", other)}})
+        self.assertEqual(tool.missing("o/n", "1", current, base_sha, same, diffs({prior: link, current: link})), [])
+        self.assertEqual(tool.path_oids("o/n", current, ["vendor"], same)["vendor"], held)
+        self.assertNotEqual(tool.diff_identity(link, {"vendor": held}),
+                            tool.diff_identity(link, {"vendor": "f" * 40}))
+        moved = api([{"filename": "vendor"}], head=current, base_sha=base_sha, commit_shas=[prior, current],
+                    extra_status={prior: [OK]}, force_pushes=[],
+                    blobs={prior: {"vendor": ("commit", held), "other": ("commit", other)},
+                           current: {"vendor": ("commit", "f" * 40), "other": ("commit", other)}})
+        self.assertEqual(tool.missing("o/n", "1", current, base_sha, moved, diffs({prior: link, current: link})),
                          [tool.INDEPENDENT])
+        self.assertEqual(tool.path_oids("o/n", current, ["vendor"], moved)["vendor"], "f" * 40)
 
     def test_moving_a_line_into_another_function_does_not_carry(self):
         files = [{"filename": "src/app.py"}]
