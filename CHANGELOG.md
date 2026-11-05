@@ -6,9 +6,9 @@
 
 - `.github/repository-settings.json`: `protection.required_status_checks.checks`에 `{"context": "Review status", "app_id": 15368}`을 더했다. `strict`는 true다. 기존 `Baseline checks (Python 3.11)`, `Baseline checks (Python 3.13)`는 그대로다. context는 `templates/review-status.yml`과 `.github/workflows/review-status.yml`의 job 이름 `Review status`와 같다. PR #31의 체크 이름도 `Review status`다. 이슈 #32.
 - 이 파일은 기대값이다. 이 변경은 branch protection을 쓰지 않는다. 병합 뒤 소유자가 Mac에서 `tools/apply_github_settings.py`로 적용한다.
-- 적용되면 Dependabot 버전 전용 PR을 뺀 모든 PR(되돌리기 쉬움 포함)에 `review/independent`가 필요하다. 1인 프로필에서 그 status는 소유자만 남기므로 에이전트 단독 병합은 되지 않는다.
+- 적용되면 Dependabot 버전 전용 PR을 뺀 모든 PR(되돌리기 쉬움 포함)에 `review/independent`가 필요하다. 1인 프로필에서 status는 소유자만 올린다는 규칙이다. 에이전트가 status를 올리는 것은 금지지만 GitHub가 기술적으로 막지는 않는다. 검사기는 status 작성자를 아직 확인하지 않고, 그 확인은 후속 검사기 PR에서 고친다.
 - `POLICY.md` §5·§9·§10, README, `docs/development-workflow.md`, `docs/github-settings-profile.md`, 셋업 프롬프트와 재적용 절차는 위 사실을 적는다. `templates/repository-settings.json`의 자리표시자는 그대로다.
-- 다시 적용할 프로젝트: smallnext, BGLike, mobile-runtime. `apply_baseline.py`는 `.github/repository-settings.json`을 복사하지 않는다. 이 기록이 `main`에 병합된 뒤 각 저장소가 별도 PR로 같은 체크를 적는다. 그 PR도 branch protection을 쓰지 않는다. 적용은 각 저장소에서 소유자가 Mac으로 한다.
+- 다시 적용할 프로젝트: smallnext, BGLike, mobile-runtime. `apply_baseline.py`는 `.github/repository-settings.json`을 복사하지 않는다. repo-baseline에 보호 규칙을 적용하고, 카나리 시험(같은 이름 체크 위장, 이전 실패 run이 남은 head의 병합 가능 여부, Dependabot 예외)을 통과하고, status 작성자·편집된 승인 댓글 검사기 수정이 병합·재적용된 뒤에 각 저장소가 별도 PR로 같은 체크를 적는다. 그 세 저장소도 기본 브랜치에 workflow가 있고 job이 한 번 성공한 뒤에 적는다. 그 PR도 branch protection을 쓰지 않는다. 적용은 각 저장소에서 소유자가 Mac으로 한다.
 
 ## 2026-11-05 — 결정 분류 이름을 되돌리기 어려움·되돌리기 쉬움으로 바꾼다
 
