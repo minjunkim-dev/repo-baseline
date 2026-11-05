@@ -197,7 +197,7 @@ class ConventionsTest(unittest.TestCase):
         temporary = TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         root = Path(temporary.name)
-        rejected = ("/etc", "/var/tmp", "../outside", "policy-head/../../etc", "foo/../../../tmp")
+        rejected = ("", "/etc", "/var/tmp", "../outside", "policy-head/../../etc", "foo/../../../tmp")
         for value in rejected:
             with self.subTest(value=value):
                 buf = StringIO()

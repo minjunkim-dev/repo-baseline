@@ -65,7 +65,7 @@
 
    목록이나 상세 조회가 실패하면 멈춘다. 실패를 정책이 없는 것으로 보고 POST하지 않는다.
 
-   재조회에서 그 허용이 보이기 전에는 workflow를 병합하지 않는다. 그다음 `templates/review-status.yml`을 별도 파일 `.github/workflows/review-status.yml`로 둔다. 다른 workflow와 합치거나 이 두 이벤트 외의 이벤트를 더하지 않는다(`POLICY.md` §9). `templates/pr-policy.yml`도 `.github/workflows/pr-policy.yml`로 둔다. `apply_baseline`은 이 workflow를 복사하지 않는다. Dependabot이 pin을 올리기 때문이다.
+   재조회에서 그 허용이 보이기 전에는 workflow를 병합하지 않는다. 그다음 `templates/review-status.yml`을 별도 파일 `.github/workflows/review-status.yml`로 둔다. 다른 workflow와 합치거나 이 두 이벤트 외의 이벤트를 더하지 않는다(`POLICY.md` §9). `templates/pr-policy.yml`도 `.github/workflows/pr-policy.yml`로 둔다. `apply_baseline`은 이 workflow를 복사하지 않는다. Dependabot이 pin을 올리기 때문이다. 두 workflow의 `branches`는 `main`이다. repo-baseline, smallnext, BGLike, mobile-runtime의 기본 브랜치는 `main`이다. 기본 브랜치가 `main`이 아니면 그 필터를 기본 브랜치 이름으로 맞춘다.
 3. `.github/dependabot.yml` 항목의 `ecosystems`에 GitHub Actions 외의 실제 생태계를 적는다. 예: `{"package-ecosystem": "cargo", "directory": "/services/api"}`.
 4. 테스트를 다른 폴더에서 실행하면 `files`의 대상 경로를 바꾼다. 예: `"scripts/source-only/test_github_settings.py": {"source": "scripts/test_github_settings.py"}`.
 5. 이 저장소에서 다음을 실행한다.

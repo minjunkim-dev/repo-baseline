@@ -80,15 +80,22 @@ class PolicyTests(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
 
 
+def pull_body(sha, ref="main", default="main"):
+    return json.dumps({
+        "head": {"sha": sha},
+        "base": {"ref": ref, "sha": "BASE", "repo": {"default_branch": default}},
+    })
+
+
 class RerunCommandTests(unittest.TestCase):
-    def run_main(self, number, sha, pages):
+    def run_main(self, number, sha, pages, ref="main", default="main"):
         calls = []
 
         def execute(command, input=None):
             calls.append((list(command), input))
 
             class Result:
-                stdout = sha + "\n"
+                stdout = pull_body(sha, ref, default) + "\n"
 
             return Result()
 
@@ -136,7 +143,7 @@ class RerunCommandTests(unittest.TestCase):
                 raise subprocess.CalledProcessError(1, command)
 
             class Result:
-                stdout = sha + "\n"
+                stdout = pull_body(sha) + "\n"
 
             return Result()
 
@@ -156,6 +163,33 @@ class RerunCommandTests(unittest.TestCase):
         self.assertEqual(body["conclusion"], "failure")
         self.assertNotIn("review/independent", posted[1])
         self.assertNotIn("review/security", posted[1])
+
+    def test_a_side_base_comment_posts_nothing(self):
+        sha = "a" * 40
+        missing = self.run_main(1, sha, [], ref="wip")
+        self.assertEqual(missing[0], 0)
+        self.assertEqual(len(missing[1]), 1)
+        self.assertNotIn("check-runs", " ".join(missing[1][0][0]))
+        pages = [[{"id": 5, "status": "completed", "head_sha": sha, "pull_requests": []}]]
+        finished = self.run_main(1, sha, pages, ref="wip")
+        self.assertEqual(finished[0], 0)
+        self.assertEqual(len(finished[1]), 1)
+        self.assertFalse(rerun.targets_default({"base": {"ref": "wip", "repo": {"default_branch": "main"}}}))
+        self.assertTrue(rerun.targets_default({"base": {"ref": "main", "repo": {"default_branch": "main"}}}))
+
+        calls = []
+
+        def execute(command, input=None):
+            calls.append(list(command))
+
+            class Result:
+                stdout = "not-json\n"
+
+            return Result()
+
+        code = rerun.main({"PR_NUMBER": "1", "REPO": "owner/repo"}, execute, pages=[])
+        self.assertEqual(code, 1)
+        self.assertEqual(len(calls), 1)
 
 
 class RerunTests(unittest.TestCase):

@@ -30,7 +30,7 @@ def api(files, statuses=(), author="alice", commits=("alice",), project=None, ch
         committer=tool.WEB_FLOW, commit_shas=None, extra_status=None, force_pushes=None, commit_count=None,
         owner="owner", comments=(), agents=None, head=HEAD, compare_files=None, compare_commits=None,
         head_agents=None, force_push_times=None, body=None, number="1", base_ref="main", base_sha="BASE",
-        default_branch="main"):
+        default_branch="main", base_status="identical"):
     base = {"sha": base_sha}
     if base_ref is not None:
         base["ref"] = base_ref
@@ -78,6 +78,8 @@ def api(files, statuses=(), author="alice", commits=("alice",), project=None, ch
     pinned = list(files if compare_files is None else compare_files)
     routes[f"repos/o/n/compare/{base_sha}...{head}"] = {
         "files": pinned, "commits": commit_rows if compare_commits is None else compare_commits}
+    if default_branch and base_status is not None and f"{base_sha}...{default_branch}" != f"{base_sha}...{head}":
+        routes[f"repos/o/n/compare/{base_sha}...{default_branch}"] = {"status": base_status}
     if head_agents is not None:
         routes[f"repos/o/n/contents/AGENTS.md?ref={head}"] = {
             "content": base64.b64encode(head_agents.encode()).decode()}
@@ -444,7 +446,8 @@ class ReviewStatusTests(unittest.TestCase):
         base = api([{"filename": "src/app.py"}], [OK])
 
         def too_big(endpoint):
-            if "/compare/" in endpoint:
+            # The ancestry compare must stay readable. Only the pull-request diff is too large.
+            if "/compare/" in endpoint and not endpoint.endswith("...main"):
                 raise subprocess.CalledProcessError(1, "gh", stderr="HTTP 406")
             return base(endpoint)
         self.assertEqual(run(too_big), [tool.SECURITY, tool.OWNER])
@@ -643,6 +646,28 @@ class ReviewStatusTests(unittest.TestCase):
         self.assertEqual(side, [tool.BASE_REF])
         self.assertIn("base wip is not the default branch main", output.getvalue())
         self.assertNotIn(tool.OWNER, side)
+
+    def test_a_retargeted_run_does_not_pass_on_the_old_side_base_sha(self):
+        head = "c" * 40
+        passed = [OK, (tool.SECURITY, "success")]
+        # The live pull request targets main. A rerun of the old run still sends BASE_SHA=SIDE.
+        both = api([], passed, head=head, number="4", base_ref="main", base_sha="SIDE", base_status="behind")
+        output = StringIO()
+        with redirect_stdout(output):
+            self.assertEqual(tool.missing("o/n", "4", head, "SIDE", both), [tool.BASE_REF])
+        self.assertIn("event base SIDE is not on the default branch main (behind)", output.getvalue())
+        diverged = api([], passed, head=head, number="4", base_ref="main", base_sha="SIDE", base_status="diverged")
+        self.assertEqual(tool.missing("o/n", "4", head, "SIDE", diverged), [tool.BASE_REF])
+        ahead = api([{"filename": "src/app.py"}], [OK], head=head, base_sha="OLD", base_status="ahead")
+        self.assertEqual(tool.missing("o/n", "1", head, "OLD", ahead), [])
+        gate = api([{"filename": ".github/workflows/ci.yml"}], [OK, (tool.SECURITY, "success")],
+                   head=head, base_sha="OLD", base_status="identical")
+        self.assertEqual(tool.missing("o/n", "1", head, "OLD", gate), [tool.OWNER])
+        env = {"REPO": "o/n", "PR_NUMBER": "4", "HEAD_SHA": head, "BASE_SHA": "SIDE"}
+        unreadable = api([], passed, head=head, number="4", base_ref="main", base_sha="SIDE", base_status=None)
+        self.assertEqual(tool.main(env, unreadable), 2)
+        unknown = api([], passed, head=head, number="4", base_ref="main", base_sha="SIDE", base_status="unknown")
+        self.assertEqual(tool.main(env, unknown), 2)
 
     def test_cli_exit_codes(self):
         env = {"REPO": "o/n", "PR_NUMBER": "1", "HEAD_SHA": HEAD, "BASE_SHA": "BASE"}

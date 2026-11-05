@@ -7,8 +7,8 @@ success, that status covers this head. Reuse is still only a process record.
 A 1-person pull request that changes a POLICY.md §10 gate path also needs the repository owner's
 approval comment on this head. That comment is not reused from an older head.
 The pull request body is parsed for the review evidence table. It is never executed.
-The pull request base ref must be the repository default branch. Another pull request with the
-same head and a different base is not evidence and cannot pass this check."""
+The pull request base ref must be the repository default branch, and the event base SHA must be
+that branch or an ancestor of it. A pull request with a different base is not evidence."""
 
 import base64
 import fnmatch
@@ -388,9 +388,8 @@ def touches_agents(files):
 
 
 def default_base(repo, pull, read):
-    """True when this pull request targets the repository default branch.
-    A different base is not evidence. The same head opened against a side branch must not pass.
-    Raises when the base ref or the default branch cannot be read."""
+    """Default branch name when this pull request targets it. None for another base.
+    A pull request with a different base is not evidence. Raises when either name cannot be read."""
     info = read(f"repos/{repo}")
     default = info.get("default_branch") if isinstance(info, dict) else None
     base = pull.get("base") if isinstance(pull, dict) else None
@@ -399,8 +398,25 @@ def default_base(repo, pull, read):
         raise ValueError("default branch")
     if ref != default:
         print(f"review status: base {ref} is not the default branch {default}")
+        return None
+    return default
+
+
+def event_base_on_default(repo, base, default, read):
+    """True when the event base SHA is the default branch tip or an ancestor of it.
+    compare(base...default) is ahead when that branch has moved past this SHA, and identical
+    at the tip. behind or diverged means the SHA is not on the branch. A rerun keeps the
+    original BASE_SHA, so retargeting onto the default branch must not pass the old SHA."""
+    found = read(f"repos/{repo}/compare/{base}...{default}")
+    if not isinstance(found, dict):
+        raise ValueError("base branch")
+    status = found.get("status")
+    if status in ("ahead", "identical"):
+        return True
+    if status in ("behind", "diverged"):
+        print(f"review status: event base {base} is not on the default branch {default} ({status})")
         return False
-    return True
+    raise ValueError("base branch")
 
 
 def owner_approved(repo, number, head, read):
@@ -698,9 +714,10 @@ def _dependabot_author(pull):
 
 def missing(repo, number, head, base, read=read_api, read_diff=None):
     pull = read(f"repos/{repo}/pulls/{number}")
-    # This pull request only. Do not search other pull requests for the same head: a side base
-    # can hide a gate path that the default-branch pull request still has.
-    if not default_base(repo, pull, read):
+    # This pull request's base ref only. A different base is not evidence. The event base SHA
+    # is then checked against the default branch, because a rerun keeps the old BASE_SHA.
+    default = default_base(repo, pull, read)
+    if default is None or not event_base_on_default(repo, base, default, read):
         return [BASE_REF]
     # The open pull request's file and commit lists follow its current head, which can move
     # after this event. review/independent and review/security follow compare(base, head).
