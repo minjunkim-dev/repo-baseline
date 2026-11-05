@@ -58,7 +58,7 @@
 | 리뷰 | 도구 | 언제 |
 | --- | --- | --- |
 | Standards·Spec | `/matt-code-review`만(저장소에 커밋한 사본, §7). 모델 패밀리는 `docs/development-workflow.md` 역할 분담 | 모든 PR |
-| 버그 찾기 | 작성 패밀리와 다른 모델(`docs/development-workflow.md` 역할 분담). 양쪽 문은 Standards·Spec과 같은 모델 하나로 된다. 한쪽 문은 지금 쓸 수 있는 가장 강한 다른 패밀리 | 모든 PR. 한쪽 문의 강도와 한도 대체는 역할 분담 |
+| 버그 찾기 | 작성 패밀리와 다른 모델(`docs/development-workflow.md` 역할 분담). 양쪽 문은 Standards·Spec과 같은 모델 하나로 된다. 한쪽 문은 그 절의 강한 모델 순서에서 작성 패밀리를 뺀 뒤 지금 쓸 수 있는 첫 모델. Opus를 쓸 수 있으면 Sonnet은 그 첫 모델이 아니다 | 모든 PR. 한쪽 문의 강도와 한도 대체는 역할 분담 |
 | Security | 작성 패밀리와 다른 모델. 한쪽 문은 버그 찾기와 같은 강도. Semgrep CLI가 있으면 함께 실행 | 신뢰 경계 변경. 열린 지적은 고치거나, 오탐으로 기각하거나, 소유자가 한계로 수용하기 전에는 병합하지 않는다 |
 | 외부 | 공개 저장소는 CodeRabbit, 비공개 저장소는 다른 모델 | 아래 외부 리뷰 대상 |
 | 정기 Security 감사 | Cloudflare `security-audit` | 릴리스 전, 인증·외부 입력·결제 같은 새 공격면이 생길 때, 분기마다 한 번 이상 |
