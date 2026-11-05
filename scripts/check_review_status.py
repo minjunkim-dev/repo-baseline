@@ -17,6 +17,8 @@ import re
 import subprocess
 import sys
 
+from pr_author import parse_author
+
 INDEPENDENT = "review/independent"
 SECURITY = "review/security"
 # Not a commit status. The job fails with this name when the owner comment is missing.
@@ -498,8 +500,6 @@ def carried_contexts(repo, number, head, base, contexts, read, read_diff, commit
     return carried
 
 
-# Longer tool names first. A review model must be a different family from the author.
-AUTHOR_TOOLS = ("Claude Code", "Cursor 클라우드 에이전트", "Cursor", "사람")
 # Alias, then family. Opus and Sonnet are both Claude. Two families in one name is unknown.
 FAMILY_ALIASES = (
     ("composer", "composer"),
@@ -523,13 +523,6 @@ AXIS_KEYS = {
 BODY_LIMIT = 200000
 
 
-def _tool_name(value):
-    for name in AUTHOR_TOOLS:
-        if value == name:
-            return name
-    return None
-
-
 def model_family(name):
     """Family of a model name, or None when it is empty, mixed, or not in the alias table."""
     if not isinstance(name, str):
@@ -544,30 +537,6 @@ def model_family(name):
     if len(found) != 1:
         return None
     return found.pop()
-
-
-def _author_fields(body):
-    """Tool, model, and previous models. None tool means the author line is missing or disagrees."""
-    author_tool = author_model = None
-    tool_line = model_line = None
-    previous = []
-    for line in body.split("\n"):
-        if line.startswith("Author:") and author_tool is None and "/" in line:
-            tool_text, model_text = line[len("Author:"):].split("/", 1)
-            found = _tool_name(tool_text.strip())
-            if found and model_text.strip():
-                author_tool, author_model = found, model_text.strip()
-        elif line.startswith("작성 도구:") and tool_line is None:
-            tool_line = _tool_name(line[len("작성 도구:"):].strip())
-        elif line.startswith("작성 모델:") and model_line is None:
-            value = line[len("작성 모델:"):].strip()
-            if value:
-                model_line = value
-        elif line.startswith("이전 작성 모델:") and not previous:
-            previous = [part.strip() for part in line[len("이전 작성 모델:"):].split(",") if part.strip()]
-    if author_tool and tool_line and (author_tool != tool_line or author_model != model_line):
-        return None, None, previous
-    return author_tool or tool_line, author_model or model_line, previous
 
 
 def _cells(line):
@@ -628,16 +597,20 @@ def evidence_problems(body, head):
         return ["body"]
     text = body.replace("\r\n", "\n").replace("\r", "\n")[:BODY_LIMIT]
     problems = []
-    tool, model, previous = _author_fields(text)
-    if not tool or not model:
-        problems.append("author")
-        families = set()
-    elif tool == "사람" and model != "없음":
+    record, previous, author_errors = parse_author(text)
+    if any("person author" in error for error in author_errors):
         problems.append("author-model")
         families = set()
-    elif tool == "사람":
+        tool = model = None
+    elif record is None or any("disagree" in error for error in author_errors):
+        problems.append("author")
         families = set()
+        tool = model = None
     else:
+        tool, model = record
+    if tool == "사람" and model == "없음":
+        families = set()
+    elif tool:
         families = set()
         author = model_family(model)
         if author is None:

@@ -16,6 +16,8 @@ import re
 import sys
 from zoneinfo import ZoneInfo
 
+from pr_author import parse_author, text_of
+
 ROOT = Path(__file__).resolve().parents[1]
 TYPES = "feat|fix|refactor|perf|test|docs|build|ci|chore|revert"
 TITLE = re.compile(rf"^({TYPES})(\([a-z0-9]+(?:[-_][a-z0-9]+)*\))?!?: (?:[a-z]|[가-힣])[^\r\n]*$")
@@ -24,56 +26,11 @@ LETTER_SLUG = r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*"
 BRANCH = re.compile(rf"^(?:({TYPES})/[1-9][0-9]*-{SLUG}|(?:docs|build|ci|chore)/{LETTER_SLUG})$")
 ISSUE_REF = re.compile(r"\b(?:Closes|Fixes|Resolves|Refs)\s+#[1-9][0-9]*\b", re.IGNORECASE)
 ISSUE_TYPES = {"feat", "fix", "refactor", "perf", "test", "revert"}
-# Longer names first so "Cursor" does not swallow "Cursor 클라우드 에이전트".
-TOOLS = ("Claude Code", "Cursor 클라우드 에이전트", "Cursor", "사람")
 HEADERS = ("Summary", "Evidence", "Merge Danger")
 DOORS = {"양쪽 문", "한쪽 문"}
 DEFAULT_BOT_PREFIXES = ("claude", "codex", "dependabot")
 CONFIG_NAME = ".github/workflow-policy.json"
 DEPENDABOT = "dependabot[bot]"
-
-
-def text_of(body):
-    return (body or "").replace("\r\n", "\n").replace("\r", "\n")
-
-
-def tool_name(value):
-    for name in TOOLS:
-        if value == name:
-            return name
-    return None
-
-
-def parse_author(body):
-    """(tool, model) or None, previous model names, and errors. The body is not executed."""
-    author_tool = author_model = None
-    tool_line = model_line = None
-    previous = []
-    for line in text_of(body).split("\n"):
-        if line.startswith("Author:") and author_tool is None and "/" in line:
-            tool_text, model_text = line[len("Author:"):].split("/", 1)
-            found = tool_name(tool_text.strip())
-            if found and model_text.strip():
-                author_tool, author_model = found, model_text.strip()
-        elif line.startswith("작성 도구:") and tool_line is None:
-            tool_line = tool_name(line[len("작성 도구:"):].strip())
-        elif line.startswith("작성 모델:") and model_line is None:
-            value = line[len("작성 모델:"):].strip()
-            if value:
-                model_line = value
-        elif line.startswith("이전 작성 모델:") and not previous:
-            previous = [part.strip() for part in line[len("이전 작성 모델:"):].split(",") if part.strip()]
-    errors = []
-    if author_tool and tool_line and (author_tool != tool_line or author_model != model_line):
-        errors.append("PR body: Author line and 작성 도구/작성 모델 disagree")
-    tool = author_tool or tool_line
-    model = author_model or model_line
-    if not tool or not model:
-        errors.append("PR body: Author line must be 'Author: <tool> / <model>' or 작성 도구 and 작성 모델")
-        return None, previous, errors
-    if tool == "사람" and model != "없음":
-        errors.append("PR body: a person author uses model 없음")
-    return (tool, model), previous, errors
 
 
 def validate_pr(title, branch, body="", author="", bot_prefixes=None):

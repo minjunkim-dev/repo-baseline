@@ -134,6 +134,14 @@ class ConventionsTest(unittest.TestCase):
         self.assertTrue(any("disagree" in error for error in validate_body(BODY + "작성 도구: Claude Code\n작성 모델: opus-5.5\n")))
         self.assertEqual(parse_author("Author: Claude Code / Opus 5.5\n이전 작성 모델: grok-4.7, composer-2.5\n")[1], ["grok-4.7", "composer-2.5"])
 
+    def test_both_checks_use_the_one_author_parser(self):
+        import check_review_status as review
+        import pr_author
+        self.assertIs(workflow_policy.parse_author, pr_author.parse_author)
+        self.assertIs(review.parse_author, pr_author.parse_author)
+        disagreed = "Author: Claude Code / Opus 5.5\n작성 도구: Cursor\n작성 모델: grok-4.7\n"
+        self.assertTrue(any("disagree" in error for error in parse_author(disagreed)[2]))
+
     def test_dependabot_skips_body_rules_and_shell_text_is_not_run(self):
         marker = "/tmp/workflow-policy-body-was-executed"
         if os.path.exists(marker):
