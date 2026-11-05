@@ -82,7 +82,7 @@
       - `repository`: `owner/name`. `repository_id`: `gh api repos/OWNER/NAME --jq .id`의 값.
       - `default_branch`와 `expected.repository.default_branch`: 실제 기본 브랜치. 둘이 같아야 한다.
       - `visibility`: `public` 또는 `private`.
-      - `checks`: 실제 PR에서 성공한 필수 job 이름. GitHub Actions면 `app_id`는 15368이다. `POLICY.md` §9의 `Review status` job도 같다.
+      - `checks`: 실제 PR에서 성공한 필수 job 이름. GitHub Actions면 `app_id`는 15368이다. `Review status`의 context는 job 이름 `Review status`이고 `app_id`는 15368이다. 이 저장소의 `.github/repository-settings.json`은 `strict: true`로 `Baseline checks (Python 3.11)`, `Baseline checks (Python 3.13)`, `Review status`를 이미 기록한다. 그 기록의 PR은 branch protection을 쓰지 않는다. 병합 뒤 소유자가 Mac에서 `tools/apply_github_settings.py`로 적용한다. 적용되면 Dependabot 버전 전용 PR을 뺀 모든 PR(되돌리기 쉬움 포함)에 `review/independent`가 필요하다. 1인 프로필에서 그 status는 소유자만 남기므로 에이전트 단독 병합은 되지 않는다. smallnext, BGLike, mobile-runtime은 이 기록이 병합된 뒤 각자 별도 PR로 같은 체크를 자기 기준선에 적고, 적용은 그 저장소에서 소유자가 Mac으로 한다. 새 프로젝트는 `Review status` job이 한 번 성공한 뒤에 그 체크를 적는다.
       - 팀 프로필이면 리뷰 설정 네 값을 `POLICY.md` §9의 표대로 바꾸고 `templates/CODEOWNERS`를 `.github/CODEOWNERS`로 둔다.
       - `patterns_allowed`: workflow의 `uses:` 중 GitHub 소유가 아닌 action(`owner/repo@*`). 없으면 빈 목록.
       - CodeQL을 workflow 파일(advanced setup)로 돌리면 `codeql.state`를 `not-configured`로 바꾸고 `codeql_workflow`·`codeql_main_source`를 넣는다(`POLICY.md` §3).
@@ -127,6 +127,7 @@
 
 3. 다른 파일이 프로젝트의 의도된 변경이면 이 저장소로 옮긴다. 의도하지 않은 drift면 다시 적용한다.
 4. 적용한 결과를 PR로 올리고 프로젝트의 리뷰·CI·병합 기준을 따른다. `review-status.yml`을 처음 두는 공개 저장소는 그 파일을 기본 브랜치에 병합하기 전에 위 "새 프로젝트에 적용" 2단계의 이벤트 정책을 만든다.
+5. `Review status` 필수 체크 기록은 `apply_baseline.py`가 복사하지 않는다. 이 저장소의 기록이 병합된 뒤 smallnext, BGLike, mobile-runtime이 각자 별도 PR로 `.github/repository-settings.json`에 `{"context": "Review status", "app_id": 15368}`을 더한다. 기존 필수 체크와 `strict: true`는 유지한다. 그 PR은 branch protection을 쓰지 않는다. 병합 뒤 소유자가 Mac에서 적용한다. 적용되면 Dependabot 버전 전용 PR을 뺀 모든 PR(되돌리기 쉬움 포함)에 `review/independent`가 필요하고, status는 소유자만 남기므로 에이전트 단독 병합은 되지 않는다.
 
 ## 일상 개발 시작
 
@@ -162,7 +163,7 @@
 
    원본 단위 테스트는 합성 fixture를 사용한다. 도구 테스트는 깨끗한 임시 Git 원본을 만들고 default·advanced·미지원 설정의 프로젝트에 실제 복사한 뒤 테스트·출처 SHA·해시 drift·재적용·CodeQL pin 실패를 검사한다. 개인 프로젝트·GitHub 인증·네트워크는 필요 없다. 자체 CI는 같은 명령을 Python 3.11·3.13에서 실행한다. 실제 서버 감사·지원 여부·스킬 실행은 이 테스트의 검증 범위 밖이다.
 
-2. 변경을 PR로 올려 `main`에 병합한 뒤, 최신 `main`을 받아 각 프로젝트에 다시 적용하고 프로젝트별 PR을 올린다. `apply_baseline.py`는 commit하지 않은 변경이 있으면 멈춘다. 병합 전 브랜치에서 적용하면 squash 병합 뒤 `main`에 없는 커밋이 출처로 기록된다.
+2. 변경을 PR로 올려 `main`에 병합한 뒤, 최신 `main`을 받아 각 프로젝트에 다시 적용하고 프로젝트별 PR을 올린다. `apply_baseline.py`는 commit하지 않은 변경이 있으면 멈춘다. 병합 전 브랜치에서 적용하면 squash 병합 뒤 `main`에 없는 커밋이 출처로 기록된다. `.github/repository-settings.json`의 `Review status` 기록은 복사 대상이 아니다. smallnext, BGLike, mobile-runtime은 이 저장소의 기록이 병합된 뒤 각자 별도 PR로 같은 체크를 적는다.
 3. `CHANGELOG.md`에 바뀐 점과 다시 적용할 프로젝트를 적는다.
 
 이 저장소 자신의 GitHub 설정 기준선은 `.github/repository-settings.json`이다. `python3 tools/apply_github_settings.py .`로 차이를 확인한다.

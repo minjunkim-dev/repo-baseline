@@ -2,6 +2,14 @@
 
 리뷰 모델의 현행은 「리뷰는 패밀리가 다르면 된다」만이다. 그 아래의 리뷰 모델 절은 그 커밋 당시의 기록이다.
 
+## 2026-11-05 — Review status를 필수 체크로 기록한다
+
+- `.github/repository-settings.json`: `protection.required_status_checks.checks`에 `{"context": "Review status", "app_id": 15368}`을 더했다. `strict`는 true다. 기존 `Baseline checks (Python 3.11)`, `Baseline checks (Python 3.13)`는 그대로다. context는 `templates/review-status.yml`과 `.github/workflows/review-status.yml`의 job 이름 `Review status`와 같다. PR #31의 체크 이름도 `Review status`다. 이슈 #32.
+- 이 파일은 기대값이다. 이 변경은 branch protection을 쓰지 않는다. 병합 뒤 소유자가 Mac에서 `tools/apply_github_settings.py`로 적용한다.
+- 적용되면 Dependabot 버전 전용 PR을 뺀 모든 PR(되돌리기 쉬움 포함)에 `review/independent`가 필요하다. 1인 프로필에서 그 status는 소유자만 남기므로 에이전트 단독 병합은 되지 않는다.
+- `POLICY.md` §5·§9·§10, README, `docs/development-workflow.md`, `docs/github-settings-profile.md`, 셋업 프롬프트와 재적용 절차는 위 사실을 적는다. `templates/repository-settings.json`의 자리표시자는 그대로다.
+- 다시 적용할 프로젝트: smallnext, BGLike, mobile-runtime. `apply_baseline.py`는 `.github/repository-settings.json`을 복사하지 않는다. 이 기록이 `main`에 병합된 뒤 각 저장소가 별도 PR로 같은 체크를 적는다. 그 PR도 branch protection을 쓰지 않는다. 적용은 각 저장소에서 소유자가 Mac으로 한다.
+
 ## 2026-11-05 — 결정 분류 이름을 되돌리기 어려움·되돌리기 쉬움으로 바꾼다
 
 - 한쪽 문(one-way door: 되돌리기 어려운 결정)은 되돌리기 어려움, 양쪽 문(two-way door: 되돌리기 쉬운 결정)은 되돌리기 쉬움이다. 필드 이름은 `Door:`로 둔다. 절 이름 `문 판정`은 그대로다. (#29)
