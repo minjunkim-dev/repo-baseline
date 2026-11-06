@@ -8,7 +8,7 @@ Dependabot 현행은 「2026-11-06 — Dependabot PR은 다른 PR과 같다」�
 
 - 합의(2026-11-06, Dependabot=normal): 2026-11-04의 pin 전용 Dependabot 면제를 거둔다. `scripts/check_review_status.py`는 버전·해시 줄 비교, `uses:` pin 모양, web-flow 커밋터, 주 버전 판정으로 `review/independent`·`review/security`·근거 표·승인 댓글을 빼지 않는다. Dependabot PR도 그 넷을 다른 PR과 같이 요구한다. 경로에 걸리면 `review/security`가 필요하고, 게이트 경로면 사람 승인 댓글이 필요하다. `tools/post_review_gate.py`는 그 diff만으로 success를 올리지 않는다. 자동 성공 경로는 없다.
 - `scripts/workflow_policy.py`가 Dependabot의 본문 절과 72자를 넘는 제목을 건너뛰는 것은 그대로다. 그 건너뜀은 근거 표와 하드도어 승인 댓글을 대신하지 않는다.
-- `POLICY.md`, README, `docs/review-gate-app.md`, `docs/development-workflow.md`, `docs/github-settings-profile.md`, `prompts/pr-ci-setup.md`, `prompts/github-repository-settings.md`, `prompts/weekly-check.md`는 이 규칙으로 고쳤다.
+- `POLICY.md`, README, `docs/review-gate-app.md`, `docs/development-workflow.md`, `docs/github-settings-profile.md`, `prompts/pr-ci-setup.md`, `prompts/github-repository-settings.md`, `prompts/weekly-check.md`는 이 규칙으로 고쳤다. §5 승인 댓글 문단의 `review/security`·`review/independent` 면제 문장도 뺐다. 작성자로 그 status를 빼지 않고, Action 주 버전이나 `uses:` pin 모양으로도 빼지 않는다.
 - `.github/repository-settings.json`의 필수 체크는 바꾸지 않는다. `strict`와 `review/gate` `app_id` 5641238은 그대로다. 이 변경은 branch protection을 쓰지 않고 status를 올리지 않는다. 카나리 E는 다시 열지 않는다.
 - 다시 적용할 프로젝트: smallnext, BGLike, mobile-runtime. `scripts/check_review_status.py`와 `scripts/test_review_status.py`를 `tools/apply_baseline.py`로 다시 복사한다. `tools/post_review_gate.py`는 복사하지 않는다. 소유자가 repo-baseline에서 `--repo`로 실행한다.
 
@@ -72,14 +72,14 @@ Dependabot 현행은 「2026-11-06 — Dependabot PR은 다른 PR과 같다」�
 
 ## 2026-11-06 — 이름 변경은 버전 전용이 아니고 게이트는 봉인 사본으로 실행한다
 
-- `only_versions`는 `previous_filename`이 있거나 `status`가 `modified`가 아니면 거절한다. 워크플로 밖으로 pin만 바꿔 이름을 옮겨도 Dependabot 면제가 아니다.
+- 과거 동작. 2026-11-06 「Dependabot PR은 다른 PR과 같다」로 대체되었다. 그때 `only_versions`는 `previous_filename`이 있거나 `status`가 `modified`가 아니면 거절했다. 워크플로 밖으로 pin만 바꿔 이름을 옮겨도 Dependabot 면제가 아니었다.
 - 게이트 실행은 체크아웃이 아니다. 봉인 트리는 `tools/post_review_gate.py`, `scripts/check_review_status.py`, `scripts/pr_author.py`이고 `python3 -I`로 돌린다. `GH_TOKEN`은 게이트 계정의 읽기 전용 토큰이다(`docs/review-gate-app.md`).
 
 ## 2026-11-06 — review/gate 앱 ID와 봇 근거, 버전 전용 diff
 
 - `review/gate`의 `app_id`는 0보다 큰 정수이고 15368이 아니어야 한다. `scripts/check_github_settings.py`와 `tools/apply_github_settings.py`가 같은 조건으로 거절한다. 0, -1, 15368은 통과하지 않는다.
 - `[bot]`으로 끝나는 로그인의 `review/independent`와 `review/security`는 1인·팀 모두 실패다. 승인 댓글의 `[bot]` 작성자는 승인이 아니다. 팀 프로필은 그 댓글을 요구하지 않으므로, 그 댓글이 팀 검사를 실패로 만들지는 않는다. 팀 프로필이 사람 작성자를 보지 않는 것은 그대로다.
-- 버전 전용 판정은 `\n`으로만 줄을 나눈다. `\r`, 다른 제어 문자, U+2028, U+2029가 있으면 버전 전용이 아니다. 신뢰 경계의 workflow는 `uses:`의 40자 SHA 또는 `v` 태그 pin만 버전 전용이다. Dependabot처럼 보이는 커밋을 REST나 web-flow로 만드는 쪽은 카나리 전이다(`docs/review-gate-app.md`).
+- 과거 동작. 2026-11-06 「Dependabot PR은 다른 PR과 같다」로 대체되었다. 그때 버전 전용 판정은 `\n`으로만 줄을 나눴다. `\r`, 다른 제어 문자, U+2028, U+2029가 있으면 버전 전용이 아니었다. 신뢰 경계의 workflow는 `uses:`의 40자 SHA 또는 `v` 태그 pin만 버전 전용이었다. Dependabot처럼 보이는 커밋을 REST나 web-flow로 만드는 쪽은 카나리 전이었다(`docs/review-gate-app.md`).
 - `tools/apply_github_settings.py`와 `docs/review-gate-app.md`를 공통 경로와 게이트 경로에 넣었다.
 
 ## 2026-11-06 — review/gate는 전용 GitHub App만 충족한다
@@ -87,7 +87,7 @@ Dependabot 현행은 「2026-11-06 — Dependabot PR은 다른 PR과 같다」�
 과거 동작. 이 절의 `scripts/rerun_review_status.py` 복사는 2026-11-06 「승인 댓글 편집 감지와 댓글 재실행을 줄인다」로 대체되었다.
 
 - 카나리 E(PR #39)는 필수 체크 `Review status`(`app_id` 15368)를 workflow 토큰의 같은 이름 체크 run으로 위조할 수 있음을 보였다. 승인 경계는 commit status `review/gate`다. 전용 앱은 Commit statuses 쓰기와 Metadata 읽기만 가지고, 키는 `reviewgate` 홈의 0600 일반 파일이거나, 같은 UID Keychain에서 그 실행만 꺼낸 임시 파일이다. 개발 홈의 서 있는 pem이 아니다. `Review status` job은 증거 검사로 남고 `review/gate`를 쓰지 않는다. `strict`는 true다.
-- `tools/post_review_gate.py`가 그 SHA의 근거를 확인하고 앱 설치 토큰으로 `review/gate`만 올린다. `--dry-run`은 POST하지 않는다. `GITHUB_ACTIONS`에서는 거부한다. Dependabot 버전 전용 예외는 검사기와 같다. 테스트는 모의 HTTP다.
+- `tools/post_review_gate.py`가 그 SHA의 근거를 확인하고 앱 설치 토큰으로 `review/gate`만 올린다. `--dry-run`은 POST하지 않는다. `GITHUB_ACTIONS`에서는 거부한다. Dependabot 버전 전용 예외는 그때 검사기와 같았다. 그 예외는 과거 동작이고, 2026-11-06 「Dependabot PR은 다른 PR과 같다」로 대체되었다. 테스트는 모의 HTTP다.
 - repo-baseline의 `.github/repository-settings.json`은 `review/gate`의 `app_id`를 **5641238**로 기록한다(#44). 다른 프로젝트나 채우기 전에는 `REPLACE:<APP_ID>`가 남을 수 있고, 그동안 적용 도구는 조회 전에 멈춘다. 이 변경은 branch protection을 쓰지 않는다. 저장소별 적용 전후와 앱 등록·키 교체·E 재시험은 `docs/review-gate-app.md`다.
 - 다시 적용할 프로젝트: smallnext, BGLike, mobile-runtime. 그때 `scripts/check_review_status.py`와 `scripts/rerun_review_status.py`를 `tools/apply_baseline.py`로 다시 복사했다. `scripts/rerun_review_status.py` 복사는 과거 동작이고, 2026-11-06 「승인 댓글 편집 감지와 댓글 재실행을 줄인다」로 대체되었다. `templates/review-status.yml`의 주석도 `.github/workflows/review-status.yml`로 다시 복사했다. `tools/post_review_gate.py`는 복사하지 않았다. 소유자가 repo-baseline에서 `--repo`로 실행했다. `.github/repository-settings.json`의 `review/gate` 한 줄은 각 저장소 PR에서 기존 체크와 `strict: true`를 유지한 채 더했다. E 재시험 기록이 Issue #32에 있기 전에는 그 셋을 적용하지 않았다.
 
@@ -110,9 +110,9 @@ Dependabot 현행은 「2026-11-06 — Dependabot PR은 다른 PR과 같다」�
 
 - `.github/repository-settings.json`: `protection.required_status_checks.checks`에 `{"context": "Review status", "app_id": 15368}`을 더했다. `strict`는 true다. 기존 `Baseline checks (Python 3.11)`, `Baseline checks (Python 3.13)`는 그대로다. context는 `templates/review-status.yml`과 `.github/workflows/review-status.yml`의 job 이름 `Review status`와 같다. PR #31의 체크 이름도 `Review status`다. 이슈 #32.
 - 이 파일은 기대값이다. 이 변경은 branch protection을 쓰지 않는다. 병합 뒤 소유자가 Mac에서 `tools/apply_github_settings.py`로 적용한다.
-- 적용되면 Dependabot 버전 전용 PR을 뺀 모든 PR(되돌리기 쉬움 포함)에 `review/independent`가 필요하다. 1인 프로필에서 status는 소유자만 올린다는 규칙이다. 에이전트가 status를 올리는 것은 금지지만 GitHub가 기술적으로 막지는 않는다. 그 시점의 검사기는 status 작성자를 확인하지 않았고, 확인은 #34에서 고친다.
+- 과거 동작. 2026-11-06 「Dependabot PR은 다른 PR과 같다」로 대체되었다. 그때 적용되면 Dependabot 버전 전용 PR을 뺀 모든 PR(되돌리기 쉬움 포함)에 `review/independent`가 필요했다. 1인 프로필에서 status는 소유자만 올린다는 규칙이다. 에이전트가 status를 올리는 것은 금지지만 GitHub가 기술적으로 막지는 않는다. 그 시점의 검사기는 status 작성자를 확인하지 않았고, 확인은 #34에서 고친다.
 - `POLICY.md` §5·§9·§10, README, `docs/development-workflow.md`, `docs/github-settings-profile.md`, 셋업 프롬프트와 재적용 절차는 위 사실을 적는다. `templates/repository-settings.json`의 자리표시자는 그대로다.
-- 다시 적용할 프로젝트: smallnext, BGLike, mobile-runtime. `apply_baseline.py`는 `.github/repository-settings.json`을 복사하지 않는다. repo-baseline에 보호 규칙을 적용하고, 카나리 시험(같은 이름 체크 위장, 이전 실패 run이 남은 head의 병합 가능 여부, Dependabot 예외)을 통과하고, status 작성자·편집된 승인 댓글 검사기 수정이 병합·재적용된 뒤에 각 저장소가 별도 PR로 같은 체크를 적는다. 카나리 결과는 Issue #32 댓글 하나에 적는다. 그 기록이 없으면 멈춘다. 그 세 저장소도 기본 브랜치에 workflow가 있고 job이 한 번 성공한 뒤에 적는다. 그 PR도 branch protection을 쓰지 않는다. 적용은 각 저장소에서 소유자가 Mac으로 한다.
+- 다시 적용할 프로젝트: smallnext, BGLike, mobile-runtime. `apply_baseline.py`는 `.github/repository-settings.json`을 복사하지 않는다. repo-baseline에 보호 규칙을 적용하고, 카나리 시험(같은 이름 체크 위장, 이전 실패 run이 남은 head의 병합 가능 여부)을 통과하고, status 작성자·편집된 승인 댓글 검사기 수정이 병합·재적용된 뒤에 각 저장소가 별도 PR로 같은 체크를 적는다. 카나리 결과는 Issue #32 댓글 하나에 적는다. 그 기록이 없으면 멈춘다. 그 세 저장소도 기본 브랜치에 workflow가 있고 job이 한 번 성공한 뒤에 적는다. 그 PR도 branch protection을 쓰지 않는다. 적용은 각 저장소에서 소유자가 Mac으로 한다. Dependabot 예외 카나리는 과거 동작이고, 2026-11-06 「Dependabot PR은 다른 PR과 같다」로 대체되었다.
 
 ## 2026-11-05 — 결정 분류 이름을 되돌리기 어려움·되돌리기 쉬움으로 바꾼다
 
@@ -150,7 +150,7 @@ Dependabot 현행은 「2026-11-06 — Dependabot PR은 다른 PR과 같다」�
 - `scripts/workflow_policy.py`: smallnext의 PR 제목·브랜치·이슈 링크 검사를 이 저장소의 원본으로 둔다. `feat`/`fix`/`refactor`/`perf`/`test`/`revert`는 `Refs`/`Closes`/`Fixes`/`Resolves #N`이 필요하다. 설명은 소문자 라틴 또는 한글로 시작한다. 본문에 `## Summary`, `## Evidence`, `## Merge Danger`, `Door:`(`되돌리기 쉬움` 또는 `되돌리기 어려움`), 작성 기록(`Author: <tool> / <model>` 또는 `작성 도구`/`작성 모델`)이 있어야 한다. tool은 `Claude Code`, `Cursor`, `Cursor 클라우드 에이전트`, `사람`이다. Dependabot은 본문 절 검사만 면제한다. `AGENTS.md`와 feature flag 검사는 기본으로 켜 두고 `.github/workflow-policy.json`으로 끈다. 설정 파일이 없으면 smallnext와 같다. 이 저장소는 그 둘을 끄고 `cursor` 브랜치를 허용한다. 본문은 파싱만 한다.
 - `templates/pr-policy.yml`: `pull_request`의 opened, edited, synchronize, reopened, ready_for_review에서 돈다. 스크립트와 `.github/workflow-policy.json`은 base에 파일이 있으면 base에서 읽고, 없을 때만 PR 쪽을 실행한다. 그 예외는 검사기를 처음 넣는 PR뿐이다. base의 검사기가 `--root`를 모르면 job은 실패한다. 그 검사기는 PR 트리를 보지 못한다. `AGENTS.md`, `CLAUDE.md`, feature flag는 `--root`로 PR 트리를 읽고 실행하지 않는다. `pull_request_target`은 쓰지 않는다. `Review status`도 `ready_for_review`에 다시 돈다. 그 두 스크립트와 `.github/workflow-policy.json`은 공통 경로이자 되돌리기 어려움이다.
 - `scripts/pr_author.py`: 작성 기록 파서는 이 파일 하나다. `workflow_policy.py`와 `check_review_status.py`가 가져온다. 둘 다 `scripts/`로 복사된다.
-- `scripts/check_review_status.py`: 리뷰 근거 표에 Standards, Spec, 버그 찾기, Security가 있고, 모델이 비어 있지 않으며, head SHA가 그 실행의 head 전체 40자와 같고, P0·P1이 정수인지 본다. 리뷰 모델과 작성 모델의 패밀리가 같으면 실패다. Opus와 Sonnet은 Claude다. Grok, Composer, Gemini, GPT는 각각 한 패밀리다. 플랫폼은 보지 않는다. 표에 없는 이름은 실패다. 근거 표가 여러 개면 마지막 표를 본다. 버그 찾기와 Security의 `해당 없음: <이유>`는 P0·P1·P2가 0일 때 통과한다. `미실행`은 실패다. 실패 이름은 `review/evidence`다. commit status가 아니다. Dependabot 작성자는 뺀다. 본문을 고치면 이미 있는 `edited`로 다시 돈다. #21의 댓글 재실행은 그때 그대로였다. 그 재실행은 과거 동작이고, 2026-11-06 「승인 댓글 편집 감지와 댓글 재실행을 줄인다」로 대체되었다. 댓글 본문은 읽지 않았고, PR 본문도 실행하지 않는다.
+- `scripts/check_review_status.py`: 리뷰 근거 표에 Standards, Spec, 버그 찾기, Security가 있고, 모델이 비어 있지 않으며, head SHA가 그 실행의 head 전체 40자와 같고, P0·P1이 정수인지 본다. 리뷰 모델과 작성 모델의 패밀리가 같으면 실패다. Opus와 Sonnet은 Claude다. Grok, Composer, Gemini, GPT는 각각 한 패밀리다. 플랫폼은 보지 않는다. 표에 없는 이름은 실패다. 근거 표가 여러 개면 마지막 표를 본다. 버그 찾기와 Security의 `해당 없음: <이유>`는 P0·P1·P2가 0일 때 통과한다. `미실행`은 실패다. 실패 이름은 `review/evidence`다. commit status가 아니다. Dependabot 작성자는 그때 이 표 검사에서 뺐다. 그 면제는 과거 동작이고, 2026-11-06 「Dependabot PR은 다른 PR과 같다」로 대체되었다. 본문을 고치면 이미 있는 `edited`로 다시 돌았다. #21의 댓글 재실행은 그때 그대로였다. 그 재실행은 과거 동작이고, 2026-11-06 「승인 댓글 편집 감지와 댓글 재실행을 줄인다」로 대체되었다. 댓글 본문은 읽지 않았고, PR 본문도 실행하지 않는다.
 - 다시 적용할 프로젝트: Smallnext·BGLike·Runstir. `scripts/workflow_policy.py`, `scripts/pr_author.py`, `scripts/test_workflow_policy.py`, `scripts/check_review_status.py`, `scripts/test_review_status.py`를 `tools/apply_baseline.py`로 복사한다. 양식과 `templates/pr-policy.yml`도 다시 복사한다. smallnext는 설정 파일을 두지 않으면 `AGENTS.md`와 feature flag 검사가 유지된다. 본문 절 검사는 새로 실패할 수 있다.
 
 ## 2026-11-05 — PR 본문 양식
@@ -188,13 +188,12 @@ Dependabot 현행은 「2026-11-06 — Dependabot PR은 다른 PR과 같다」�
 
 과거 동작. `issue_comment`로 Review status를 다시 돌리던 절차는 2026-11-06 「승인 댓글 편집 감지와 댓글 재실행을 줄인다」로 대체되었다. SHA가 박힌 승인 댓글 요구는 남았다.
 
-- `scripts/check_review_status.py`: 1인 프로필에서 §10 표의 게이트 경로를 바꾼 PR은 저장소 소유자의 이슈 댓글 `되돌리기 어려움 승인: <현재 head의 전체 SHA>`가 있어야 `Review status`가 통과한다. 실패 이름은 `review/owner-approval`이다. commit status로 올리지 않는다. 그 이름의 status가 있어도 댓글을 대신하지 않는다. 다른 SHA, 다른 작성자, 댓글 없음은 실패다. 새 head는 이전 댓글을 잇지 않는다. 되돌리기 쉬움과 Dependabot 버전 전용 예외는 통과한다. 파일 목록이 잘리면 댓글을 요구한다. 기준 브랜치 `AGENTS.md`의 한 줄이 `프로필: 팀`이면 팀 프로필이라 이 댓글을 요구하지 않는다. 그 줄을 더하거나 빼는 diff는 기준 브랜치가 아직 1인이면 댓글을 요구한다. 판정은 그 head의 `compare`로 하고, 열린 PR의 최신 파일 목록으로 하지 않는다. 주 버전과 표 밖의 되돌리기 어려움은 판정하지 않는다.
+- `scripts/check_review_status.py`: 1인 프로필에서 §10 표의 게이트 경로를 바꾼 PR은 저장소 소유자의 이슈 댓글 `되돌리기 어려움 승인: <현재 head의 전체 SHA>`가 있어야 `Review status`가 통과한다. 실패 이름은 `review/owner-approval`이다. commit status로 올리지 않는다. 그 이름의 status가 있어도 댓글을 대신하지 않는다. 다른 SHA, 다른 작성자, 댓글 없음은 실패다. 새 head는 이전 댓글을 잇지 않는다. 되돌리기 쉬움은 통과했다. Dependabot 버전 전용 예외도 그때는 통과했다. 그 예외는 과거 동작이고, 2026-11-06 「Dependabot PR은 다른 PR과 같다」로 대체되었다. 파일 목록이 잘리면 댓글을 요구한다. 기준 브랜치 `AGENTS.md`의 한 줄이 `프로필: 팀`이면 팀 프로필이라 이 댓글을 요구하지 않는다. 그 줄을 더하거나 빼는 diff는 기준 브랜치가 아직 1인이면 댓글을 요구한다. 판정은 그 head의 `compare`로 하고, 열린 PR의 최신 파일 목록으로 하지 않는다. 주 버전과 표 밖의 되돌리기 어려움은 판정하지 않는다.
 - `templates/review-status.yml`(과거 동작. 2026-11-06 「승인 댓글 편집 감지와 댓글 재실행을 줄인다」로 대체되었다): 그때 `issue_comment`의 생성·수정·삭제가 열린 PR의 댓글이고 작성자가 저장소 소유자이면, PR 코드를 checkout하지 않고 댓글 본문을 실행하지 않은 채 그 head의 `pull_request_target` 실행을 다시 돌렸다. 다른 사람의 댓글은 다시 돌리지 않았다. 같은 PR의 이전 재실행은 취소했다. `issue_comment` 실행은 PR 체크가 아니었다. 평가하는 job의 권한은 읽기였다. 재실행 job만 `actions: write`였다.
 - 승인 댓글의 첫 줄은 CRLF여도 SHA를 읽는다.
-- 게이트 경로의 Action 주 버전 변경과, `# vN`·`@vN`이 없어 주 번호를 모르는 `uses:`는 승인 댓글 예외가 아니다. 리뷰 status 면제는 그대로다.
+- 과거 동작. 2026-11-06 「Dependabot PR은 다른 PR과 같다」로 대체되었다. 그때 게이트 경로의 Action 주 버전 변경과, `# vN`·`@vN`이 없어 주 번호를 모르는 `uses:`는 승인 댓글 예외가 아니었다. 리뷰 status 면제는 그때 그대로였다.
 - 댓글 재실행은 `pull_request_target` 실행을 head SHA로 찾지 않았다. 그 이벤트는 실행을 base 커밋에 적었다. 실행의 `pull_requests`에서 PR 번호와 head SHA가 같은 것만 다시 돌렸다. 그 재실행은 과거 동작이고, 2026-11-06 「승인 댓글 편집 감지와 댓글 재실행을 줄인다」로 대체되었다.
-- 1인 승인 댓글의 작성자는 저장소 `owner.login`이다. 재실행도 그때는 그 로그인만 보았다. 그 재실행은 과거 동작이고, 2026-11-06 「승인 댓글 편집 감지와 댓글 재실행을 줄인다」로 대체되었다. 조직 소유 저장소는 그 로그인이 조직 이름이라 1인 프로필을 쓰지 않고 팀 프로필을 쓴다.
-- 이벤트 정책 분류는 `workflow_path.exclude`에 `review-status.yml`이 있으면 그 정책을 대상으로 보지 않는다.
+- 1인 승인 댓글의 작성자는 저장소 `owner.login`이다. 재실행도 그때는 그 로그인만 보았다. 그 재실행은 과거 동작이고, 2026-11-06 「승인 댓글 편집 감지와 댓글 재실행을 줄인다」로 대체되었다. 조직 소유 저장소는 그 로그인이 조직 이름이라 1인 프로필을 쓰지 않고 팀 프로필을 쓴다.- 이벤트 정책 분류는 `workflow_path.exclude`에 `review-status.yml`이 있으면 그 정책을 대상으로 보지 않는다.
 - `templates/review-status-policy.json`: 허용 이벤트는 `issue_comment`와 `pull_request_target`뿐이다.
 - `POLICY.md` §9: 이 저장소도 `Review status`를 둔다. 예전 게이트 예외 문장은 뺐다. 순서는 이벤트 정책, workflow 파일, 그 다음 필수 체크 `Review status`다. 검사기를 바꾸는 PR은 정책·workflow 설치·필수 체크 등록을 하지 않는다.
 - `POLICY.md` §10: 1인 승인 댓글은 필수 체크 `Review status`가 검사한다.
@@ -203,14 +202,14 @@ Dependabot 현행은 「2026-11-06 — Dependabot PR은 다른 PR과 같다」�
 ## 2026-11-04 — Issue #13 후속
 
 - 주간 점검: 되돌리기 어려움 승인 댓글의 `updated_at`이 병합 시각보다 늦으면 병합 뒤에 고친 것으로 보고 승인으로 세지 않는다.
-- `scripts/check_review_status.py`: Dependabot 버전 전용 면제는 받은 커밋 수가 PR의 `commits`와 같을 때만 준다. 250개 상한으로 목록이 잘리면 면제하지 않는다.
+- 과거 동작. 2026-11-06 「Dependabot PR은 다른 PR과 같다」로 대체되었다. 그때 Dependabot 버전 전용 면제는 받은 커밋 수가 PR의 `commits`와 같을 때만 주었다. 250개 상한으로 목록이 잘리면 면제하지 않았다.
 - 이어받기 테스트 가운데 상태·diff를 보려는 경우는 `force_pushes=[]`로 이력을 읽은 뒤 그 경로까지 간다.
 - `POLICY.md` §5: 한 라운드는 작성자의 수정 push 한 번이고, 그 push의 CodeRabbit 증분 리뷰는 같은 라운드다. check가 SKIPPED이거나 `Review paused`이면 외부 리뷰는 끝나지 않아 `@coderabbitai full review`를 요청한다. 이미 리뷰된 PR들의 충돌만 main에서 푼 head는 소유자가 재리뷰 없이 승인할 수 있다. 상한에 닿으면 남은 CodeRabbit 지적은 답하고 해결한 뒤 후속 Issue에 적고, 병합 뒤 후속 PR에서 고친다. 상한을 넘는 라운드는 소유자만 승인한다.
 - 다시 적용할 프로젝트: Smallnext·BGLike·Runstir. `scripts/check_review_status.py`와 `scripts/test_review_status.py`를 `tools/apply_baseline.py`로 다시 복사한다.
 
 ## 2026-11-04 — 문 판정, 이벤트 정책 절차, 리뷰 호출
 
-- `POLICY.md` §10(새 절): 문 판정의 단일 기준. 판정 질문은 "망가지면 사용자가 무엇을 잃나"다. Matt `/pr`의 되돌리기 비용 문장은 원문 그대로 두고(vendor에는 `matt-code-review`만 있다) Door 값만 이 절을 따른다. CI workflow와 리뷰 게이트 파일(`.github/workflows/**`, `templates/review-status.yml`, `scripts/check_review_status.py`, `templates/review-status-policy.json`, repository-settings)은 되돌리기 어려움이다. Security 리뷰만으로 병합하지 않는다. Dependabot의 버전·해시·Action SHA만 바꾼 PR은 그 경로여도 사람 되돌리기 어려움 승인에서 뺀다(§5와 같은 버전 전용 조건). 주 버전 변경(버전 주석·태그의 첫 숫자, 모르면 되돌리기 어려움)과 `scripts/check_review_status.py` 변경(작성자 무관)은 빼지 않는다. 1인 프로필의 되돌리기 어려움 승인은 저장소 소유자의 PR 댓글 `되돌리기 어려움 승인: <head sha>`로 남긴 뒤에만 `--match-head-commit`으로 병합한다. auto-merge는 §9 ②를 마친 프로젝트의 되돌리기 쉬움 가운데 외부 리뷰 대상이 아닌 PR만 예약한다.
+- `POLICY.md` §10(새 절): 문 판정의 단일 기준. 판정 질문은 "망가지면 사용자가 무엇을 잃나"다. Matt `/pr`의 되돌리기 비용 문장은 원문 그대로 두고(vendor에는 `matt-code-review`만 있다) Door 값만 이 절을 따른다. CI workflow와 리뷰 게이트 파일(`.github/workflows/**`, `templates/review-status.yml`, `scripts/check_review_status.py`, `templates/review-status-policy.json`, repository-settings)은 되돌리기 어려움이다. Security 리뷰만으로 병합하지 않는다. Dependabot의 버전·해시·Action SHA만 바꾼 PR은 그때 그 경로여도 사람 되돌리기 어려움 승인에서 뺐다(§5와 같은 버전 전용 조건). 주 버전 변경(버전 주석·태그의 첫 숫자, 모르면 되돌리기 어려움)과 `scripts/check_review_status.py` 변경(작성자 무관)은 그때 그 승인에서 빼지 않았다. 그 면제는 과거 동작이고, 2026-11-06 「Dependabot PR은 다른 PR과 같다」로 대체되었다. 1인 프로필의 되돌리기 어려움 승인은 저장소 소유자의 PR 댓글 `되돌리기 어려움 승인: <head sha>`로 남긴 뒤에만 `--match-head-commit`으로 병합한다. auto-merge는 §9 ②를 마친 프로젝트의 되돌리기 쉬움 가운데 외부 리뷰 대상이 아닌 PR만 예약한다.
 - `POLICY.md` §5: 병합 전에 달린 CodeRabbit 스레드는 PR 종류와 관계없이 답하고 해결한다. 병합 뒤에 달린 지적은 후속 PR로 처리한다. 외부 리뷰 대상 PR은 auto-merge를 예약하지 않는다. `interrogate` 같은 추가 의견은 외부 리뷰로 세지 않는다. Standards·Spec은 `/matt-code-review`만 부르고, `/implement` 안의 `code-review`는 `review/independent`로 세지 않는다.
 - `POLICY.md` §9: 이 저장소는 `Review status` 게이트의 예외다. 검사기 원본을 바꾸는 PR은 §10의 되돌리기 어려움으로 사람이 최종 head를 승인한다. 소비 프로젝트의 ①②는 그대로다.
 - README 새 프로젝트 절차: 공개 저장소는 `review-status.yml`을 병합하기 전에 `templates/review-status-policy.json`으로 Actions 이벤트 정책을 만든다. 정책 조회가 실패하면 만들지 않는다. 주간 점검의 1인 되돌리기 어려움 승인 댓글은 모든 페이지를 보고, 팀 프로필의 리뷰도 모든 페이지를 본다. 병합 시각보다 늦은 승인 댓글·리뷰는 세지 않는다.
@@ -221,7 +220,7 @@ Dependabot 현행은 「2026-11-06 — Dependabot PR은 다른 PR과 같다」�
 ## 2026-11-04 — 같은 diff의 리뷰 status 이어받기
 
 - `scripts/check_review_status.py`: 새 head에 그 context가 없고 diff identity가 이미 `success`인 status와 같으면 `Review status`가 그 status로 통과한다. 기준 브랜치 갱신만이 아니다. 커밋 목록이나 force-push 이력을 읽지 못하면 이어받지 않는다. 받은 커밋 수가 PR의 `commits`보다 적거나, force-push 이전 SHA가 없으면 이어받지 않는다. identity는 경로, 파일 모드, rename·copy, 추가·삭제한 줄, 바이너리 blob SHA다. 줄 번호는 보지 않는다. hunk의 주변 줄은 #34에서부터 해시에 넣는다. 그 줄이 달라지면 이어받지 않는다. 공백이 다르거나 diff를 읽지 못하면 이어받지 않는다. 이 head에 `failure`가 있으면 이전 성공으로 덮지 않는다. rebase로 커밋 목록에서 빠진 SHA는 pull request의 force-push 이전 head에서 찾는다. `git patch-id`는 공백을 지워서 쓰지 않았다. 이어받기는 절차 기록이고 보안 경계가 아니다. 이 검사기는 주 버전과 문 유형을 판정하지 않는다.
-- Dependabot이 버전·해시·Action SHA만 바꾼 PR은 `review/independent`도 면제한다. 조건은 기존 `review/security` 예외와 같다. 이 면제는 리뷰 status(`review/security`, `review/independent`)와 외부 리뷰를 뺀다. 그 head에 리뷰 status가 있으면 `success`여야 한다. 사람 되돌리기 어려움 승인은 빼지 않는다. 주 버전 변경과 `scripts/check_review_status.py` 변경은 그 승인에서 빼지 않는다.
+- 과거 동작. 2026-11-06 「Dependabot PR은 다른 PR과 같다」로 대체되었다. 그때 Dependabot이 버전·해시·Action SHA만 바꾼 PR은 `review/independent`도 면제했다. 조건은 기존 `review/security` 예외와 같았다. 이 면제는 리뷰 status(`review/security`, `review/independent`)와 외부 리뷰를 뺐다. 그 head에 리뷰 status가 있으면 `success`여야 했다. 사람 되돌리기 어려움 승인은 빼지 않았다. 주 버전 변경과 `scripts/check_review_status.py` 변경은 그 승인에서 빼지 않았다.
 - `POLICY.md` §8·`prompts/weekly-check.md`: 공개 저장소에 `review-status.yml`이 있으면 Actions 이벤트 정책이 그 파일의 `pull_request_target`만 허용하는지 본다.
 - 다시 적용할 프로젝트: Smallnext·BGLike·Runstir. `tools/apply_baseline.py`로 `scripts/check_review_status.py`와 `scripts/test_review_status.py`를 다시 복사한다. 각 프로젝트의 ②(필수 체크) 전에는 이 검사기가 기본 브랜치에 있어야 이어받기가 동작한다.
 
@@ -229,7 +228,7 @@ Dependabot 현행은 「2026-11-06 — Dependabot PR은 다른 PR과 같다」�
 
 - `POLICY.md` §9(새 절): 1인(기본)과 팀(2~6명) 프로필. 팀 프로필은 GitHub 필수 승인 1명·코드 소유자 리뷰·마지막 push 승인을 켜고 `templates/CODEOWNERS`로 신뢰 경계 경로의 소유자를 둔다. PR 책임자(에이전트를 시킨 사람 포함)와 에이전트·봇의 승인은 세지 않는다. 에이전트는 PR을 승인하지 않는다. 가벼운 승인 경로는 두지 않는다. 되돌리기 쉬움은 승인·CI·리뷰 뒤 에이전트가, 되돌리기 어려움은 승인한 사람이나 PR 책임자가 병합한다. 조직 소유 저장소의 ruleset(조직 ruleset은 Team·Enterprise)·merge queue·우회 목록 지원 범위와 비공개 팀 저장소의 CodeRabbit 비용을 공식 문서로 확인해 적었다. 프로젝트는 `AGENTS.md`에 프로필을 한 줄로 적는다.
 - `POLICY.md` §5: 리뷰 표에 "언제"·외부 리뷰·정기 Security 감사(Cloudflare `security-audit`)·회고를 넣었다. 버그 찾기는 코드가 바뀐 PR에만 한다. 문서·신뢰 경계가 아닌 설정만 바꾸는 되돌리기 쉬움은 Standards·Spec 하나만 받는다(가벼운 경로). 역할마다 결정적 검사와 LLM 리뷰를 하나씩만 둔다. 공통 신뢰 경계 경로에 `.github/actions/**`, `.github/dependabot.yml`, `.github/dependabot.yaml`, `.github/CODEOWNERS`, `.github/repo-baseline.json`, `.github/trust-boundary-paths`, `scripts/check_*.py`, `.claude/settings.json`, `.claude/hooks/**`, `.claude/agents/**`, `.claude/commands/**`, `.agents/skills/**`, `.claude/skills/**`, `.mcp.json`을 더했다. `tools/test_distribution.py`가 POLICY·CODEOWNERS·검사기의 목록이 같은지 본다. 앞으로 baseline을 다시 적용하는 PR은 Security 리뷰 대상이다.
-- 리뷰 기록(두 프로필): 리뷰를 마치면 리뷰한 head SHA에 commit status(`review/independent`, Security를 실행했으면 `review/security`)를 남긴다. 새 `Review status` CI job(`scripts/check_review_status.py`, `templates/review-status.yml`)이 바뀐 파일 경로로 필요한 status를 정하고 그 head에 없으면 실패한다. `pull_request_target`으로 기본 브랜치의 코드만 실행하므로(PR 대상이 다른 브랜치여도 같다) PR이 이 job의 코드를 고칠 수 없다. 같은 이름의 job을 더하는 경우는 Security 리뷰에서 본다. 내용 기준은 리뷰어 판단으로 남긴다. Dependabot 예외는 `POLICY.md` §5대로 적용한다. 이름에 붙은 숫자는 버전으로 보지 않아, 패키지 이름을 바꾸는 줄과 npm·yarn lockfile의 `resolved` URL은 Security 리뷰를 받는다. 두 단계로 도입한다. ① job을 두고 에이전트가 status를 남기기 시작하고 ② 프로젝트마다 승인받아 필수 체크로 등록한다. **1인 프로필의 기본값이 바뀐다**: ② 이후 필수 체크가 하나(`Review status`) 더 생긴다. 같은 계정의 status는 사람과 에이전트를 구분하지 못하는 절차 기록이다. CodeRabbit은 외부 리뷰 대상 PR에서만 기다린다.
+- 리뷰 기록(두 프로필): 리뷰를 마치면 리뷰한 head SHA에 commit status(`review/independent`, Security를 실행했으면 `review/security`)를 남긴다. 새 `Review status` CI job(`scripts/check_review_status.py`, `templates/review-status.yml`)이 바뀐 파일 경로로 필요한 status를 정하고 그 head에 없으면 실패한다. `pull_request_target`으로 기본 브랜치의 코드만 실행하므로(PR 대상이 다른 브랜치여도 같다) PR이 이 job의 코드를 고칠 수 없다. 같은 이름의 job을 더하는 경우는 Security 리뷰에서 본다. 내용 기준은 리뷰어 판단으로 남긴다. Dependabot 예외는 그때 `POLICY.md` §5대로 적용했다. 이름에 붙은 숫자는 버전으로 보지 않아, 패키지 이름을 바꾸는 줄과 npm·yarn lockfile의 `resolved` URL은 Security 리뷰를 받았다. 그 예외는 과거 동작이고, 2026-11-06 「Dependabot PR은 다른 PR과 같다」로 대체되었다. 두 단계로 도입한다. ① job을 두고 에이전트가 status를 남기기 시작하고 ② 프로젝트마다 승인받아 필수 체크로 등록한다. **1인 프로필의 기본값이 바뀐다**: ② 이후 필수 체크가 하나(`Review status`) 더 생긴다. 같은 계정의 status는 사람과 에이전트를 구분하지 못하는 절차 기록이다. CodeRabbit은 외부 리뷰 대상 PR에서만 기다린다.
 - GitHub auto-merge: ②를 마친 프로젝트의 되돌리기 쉬움에만 쓴다. revert 없는 기간은 조건으로 두지 않는다. 주간 점검의 hotfix 비율은 참고용이다.
 - 셋업 프롬프트 §5: 마지막으로 리뷰한 head SHA가 그대로면 최종 전체 diff 리뷰를 다시 하지 않는다. 기준 브랜치 갱신만으로 head가 바뀌면 그 뒤 바뀐 diff만 재리뷰하고 새 SHA에 status를 남긴다.
 - 도구 층(`POLICY.md` §7, `docs/development-workflow.md`): 저장소·계정·로컬 층으로 나눴다. 리뷰 관문 스킬은 저장소에 커밋한다. `vendor/mattpocock-skills/matt-code-review`(Matt Pocock `code-review` v1.3.2, MIT, 이름만 `matt-code-review`로 바꿈. 내장 `/code-review`와 겹치지 않게)를 manifest대로 `.agents/skills/`와 `.claude/skills/`에 복사한다. `@AGENTS.md` 한 줄만 있는 `CLAUDE.md`를 허용한다(내용 복제는 계속 금지).
@@ -250,7 +249,7 @@ Dependabot 현행은 「2026-11-06 — Dependabot PR은 다른 PR과 같다」�
 - 셋업 프롬프트 §6: 리뷰 근거는 `file:line`, 보고는 지적 개수로 시작한다. 리뷰 문서에 영역별 실패 정의·P2 상한·건너뛸 경로·사용자가 승인한 "배운 규칙"을 둔다.
 - 셋업 프롬프트 §10·§5, `POLICY.md` §5, README 요청문: 위험 등급은 변경 내용으로 정하고 판정 질문("망가지면 사용자가 무엇을 잃나")을 적었다. 위험 변경에도 외부 리뷰를 받는다. 같은 모델의 별도 컨텍스트 리뷰는 외부 리뷰로 세지 않는다.
 - `POLICY.md` §5·셋업 프롬프트 §5: 리뷰는 Standards·Spec·버그 찾기를 실행하고 신뢰 경계 변경에 Security를 더한다. 도구는 POLICY §5 표에 둔다. Standards·Spec은 Matt Pocock `code-review`, 버그 찾기는 내장 `/code-review`(되돌리기 쉬움 `low`, 되돌리기 어려움·위험 변경 `high`), Security는 내장 `/security-review`(열린 지적이 있으면 병합하지 않음).
-- `POLICY.md` §5: 신뢰 경계 변경을 한 곳에 정의했다. 작성자 판단이 아니라 diff의 공통 경로·프로젝트 경로·내용 기준으로 정하고, 애매하면 신뢰 경계로 본다. POLICY와 셋업 프롬프트에서 서로 달랐던 목록을 이 정의로 바꿨다. PR 본문 Merge Danger에 걸린 기준을 적는다. Dependabot이 버전·해시·Action SHA만 바꾼 PR은 경로 기준의 유일한 예외로 신뢰 경계로 보지 않는다(다른 줄이 바뀌거나 다른 사람이 커밋을 더하면 예외가 아님). 신뢰 경계 변경은 Security 리뷰 대상일 뿐이고, 사람 승인이 필요한 위험 변경은 셋업 프롬프트 §10으로 따로 판정한다(§10의 "신뢰 경계"는 "권한을 넓히는 변경"으로 좁혔다).
+- `POLICY.md` §5: 신뢰 경계 변경을 한 곳에 정의했다. 작성자 판단이 아니라 diff의 공통 경로·프로젝트 경로·내용 기준으로 정하고, 애매하면 신뢰 경계로 본다. POLICY와 셋업 프롬프트에서 서로 달랐던 목록을 이 정의로 바꿨다. PR 본문 Merge Danger에 걸린 기준을 적는다. Dependabot이 버전·해시·Action SHA만 바꾼 PR은 그때 경로 기준의 유일한 예외로 신뢰 경계로 보지 않았다(다른 줄이 바뀌거나 다른 사람이 커밋을 더하면 예외가 아니었다). 그 예외는 과거 동작이고, 2026-11-06 「Dependabot PR은 다른 PR과 같다」로 대체되었다. 신뢰 경계 변경은 Security 리뷰 대상일 뿐이고, 사람 승인이 필요한 위험 변경은 셋업 프롬프트 §10으로 따로 판정한다(§10의 "신뢰 경계"는 "권한을 넓히는 변경"으로 좁혔다).
 - 문서만 바뀌어 소비 프로젝트 재적용은 필요 없다.
 
 ## 2026-11-03 — 개선 반영 순서와 pstack 배치
