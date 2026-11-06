@@ -2,7 +2,8 @@
 """Fail when a pull request head lacks the review statuses its changed paths need (POLICY.md §5).
 Paths only: content signals stay a reviewer judgement. On a 1-person profile, review/independent
 and review/security count only when creator.login is the repository owner or a login in
-STATUS_ACTORS (empty until the server app exists). Another creator is failure, not a missing
+STATUS_ACTORS (empty). The review-gate app is not listed: it posts review/gate only.
+Another creator is failure, not a missing
 context, so an older success is not carried over it. The same account still cannot tell a person
 from an agent. A team profile does not look at the creator.
 A base update creates a new head SHA. Carry hashes the diff and the full post-change blob id of
@@ -51,7 +52,7 @@ DEPENDABOT = "dependabot[bot]"
 WEB_FLOW = "web-flow"
 TEAM_LINE = "프로필: 팀"
 # Solo-profile logins that may post review/independent and review/security, besides the
-# repository owner. Empty until the server app exists. This file runs from the default
+# repository owner. The review-gate app is not added here. This file runs from the default
 # branch, so a pull request cannot add a login. A team profile does not read this tuple.
 STATUS_ACTORS = ()
 # Exact first-line prefixes. The second is deprecated and means the same approval.
@@ -67,6 +68,7 @@ COMMON_PATHS = (
     ".github/dependabot.yaml", ".github/CODEOWNERS", ".github/repo-baseline.json", ".github/workflow-policy.json",
     PROJECT_PATHS, "scripts/check_*.py",
     "scripts/workflow_policy.py", "scripts/pr_author.py", "scripts/rerun_review_status.py",
+    "tools/post_review_gate.py", "tools/apply_github_settings.py", "docs/review-gate-app.md",
     ".claude/settings.json", ".claude/hooks/**", ".claude/agents/**", ".claude/commands/**", ".agents/skills/**",
     ".claude/skills/**", ".mcp.json", "Dockerfile", ".env*",
 )
@@ -75,7 +77,8 @@ COMMON_PATHS = (
 ONE_WAY_PATHS = (
     ".github/workflows/**", "templates/review-status.yml", "templates/pr-policy.yml",
     "scripts/check_review_status.py", "scripts/workflow_policy.py", "scripts/pr_author.py",
-    "scripts/rerun_review_status.py", ".github/workflow-policy.json",
+    "scripts/rerun_review_status.py", "tools/post_review_gate.py", "tools/apply_github_settings.py",
+    "docs/review-gate-app.md", ".github/workflow-policy.json",
     "templates/review-status-policy.json", ".github/repository-settings.json", "templates/repository-settings.json",
 )
 # Dependency manifests and lockfiles; a project adds other ecosystems to PROJECT_PATHS.
@@ -436,17 +439,68 @@ def project_paths(repo, base, read):
                  if line.strip() and not line.startswith("#"))
 
 
+# splitlines() also breaks on \v, \f, \x1c-\x1e, \x85, U+2028 and U+2029, so a tail
+# after one of those would not be part of the uses: line. \n is the only break we accept.
+# \t may appear in a normal diff line. \r and every other control is rejected.
+_HIDDEN_BREAK = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f\u2028\u2029]")
+# A workflow pin is a full 40-hex SHA or a v-tag. A shorter hex run is not a pin:
+# [0-9a-f]{7,} would turn an unrelated token into V and hide the rest of the line.
+_USES_PIN = re.compile(
+    r"^(?P<prefix>\s*(?:-\s+)?)uses:\s+(?P<action>[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)@"
+    r"(?P<pin>[0-9a-fA-F]{40}|v\d+(?:\.\d+)*)"
+    r"(?:\s+#\s*v\d+(?:\.\d+)*)?\s*$")
+
+
+def diff_lines(patch):
+    """Diff lines split on \\n. None when a hidden break or other control is present."""
+    if not isinstance(patch, str) or _HIDDEN_BREAK.search(patch):
+        return None
+    return patch.split("\n")
+
+
+def _on_trust_boundary(name):
+    return bool(name) and (matches(name, COMMON_PATHS) or matches(name, ONE_WAY_PATHS))
+
+
+def _workflow_pin_only(changed):
+    """True when every changed line is one uses: pin and only that pin or its version comment differs.
+    A trust-boundary workflow is not version-only for any other shape."""
+    shapes = []
+    for line in changed:
+        found = _USES_PIN.fullmatch(line[1:])
+        if found is None:
+            return False
+        shapes.append((line[0], found.group("prefix"), found.group("action")))
+    removed = sorted(item[1:] for item in shapes if item[0] == "-")
+    added = sorted(item[1:] for item in shapes if item[0] == "+")
+    return bool(removed) and removed == added
+
+
 def only_versions(entry):
-    """True when a file's diff replaces lines with the same lines apart from version and hash values."""
-    is_workflow = entry["filename"].startswith(".github/workflows/")
-    if not is_workflow and not matches(entry["filename"], DEPENDENCY_FILES):
+    """True when a modified file's diff replaces lines with the same lines apart from version and hash values.
+    A rename (previous_filename) or any status other than modified is not version-only, even when the
+    patch is only a uses: pin. A trust-boundary file passes only as a workflow whose changed lines are uses: pins."""
+    if entry.get("previous_filename"):
         return False
-    lines = [line for line in entry.get("patch", "").splitlines() if line[:1] in ("-", "+")]
-    if not lines or (is_workflow and not all(re.match(r"[-+]\s*(-\s+)?uses:", line) for line in lines)):
+    if entry.get("status") != "modified":
         return False
-    normal = [VERSION.sub("V", line[1:]) for line in lines]
-    return (sorted(text for line, text in zip(lines, normal) if line[0] == "-")
-            == sorted(text for line, text in zip(lines, normal) if line[0] == "+"))
+    name = entry.get("filename") or ""
+    is_workflow = name.startswith(".github/workflows/")
+    if _on_trust_boundary(name) and not is_workflow:
+        return False
+    if not is_workflow and not matches(name, DEPENDENCY_FILES):
+        return False
+    lines = diff_lines(entry.get("patch") or "")
+    if lines is None:
+        return False
+    changed = [line for line in lines if line[:1] in ("-", "+")]
+    if not changed:
+        return False
+    if is_workflow:
+        return _workflow_pin_only(changed)
+    normal = [VERSION.sub("V", line[1:]) for line in changed]
+    return (sorted(text for line, text in zip(changed, normal) if line[0] == "-")
+            == sorted(text for line, text in zip(changed, normal) if line[0] == "+"))
 
 
 def is_hash(token):
@@ -486,7 +540,10 @@ def major_change(files):
             continue
         workflow = name.startswith(".github/workflows/") or previous.startswith(".github/workflows/")
         removed, added = [], []
-        for line in entry.get("patch", "").splitlines():
+        lines = diff_lines(entry.get("patch") or "")
+        if lines is None:
+            return True
+        for line in lines:
             if line[:1] not in "-+":
                 continue
             found = line_majors(line, workflow)
@@ -639,6 +696,11 @@ def status_actors(repo, read):
     return (repository_owner(repo, read), *extra)
 
 
+def bot_creator(login):
+    """True for a GitHub App or Actions login. Those accounts do not post review evidence."""
+    return isinstance(login, str) and login.casefold().endswith("[bot]")
+
+
 def status_actor(status):
     creator = status.get("creator") if isinstance(status, dict) else None
     login = creator.get("login") if isinstance(creator, dict) else None
@@ -650,13 +712,17 @@ def status_actor(status):
 def reviewed_state(status, allowed):
     """State that counts for one review context.
 
-    allowed is None on a team profile: the creator is not checked.
+    A [bot] login is failure on every profile, including a team profile where allowed is None.
+    allowed is None on a team profile: a human creator is not checked.
     On a 1-person profile, a creator outside allowed is failure. Combined status keeps
     the newest state per context, so dropping that status would look like a missing
     context and carry could reuse an older success over a newer rejection."""
+    actor = status_actor(status)
+    if bot_creator(actor):
+        print(f"review status untrusted {status.get('context')} from {actor} is not success")
+        return "failure"
     if allowed is None:
         return status["state"]
-    actor = status_actor(status)
     if any(same_login(actor, login) for login in allowed):
         return status["state"]
     print(f"review status untrusted {status.get('context')} from {actor or 'unknown'} is not success")
@@ -760,6 +826,8 @@ def owner_approved(repo, number, head, read):
                 continue
             user = comment.get("user")
             login = user.get("login") if isinstance(user, dict) else None
+            if bot_creator(login):
+                continue
             if (same_login(login, owner) and comment_unedited(comment)
                     and approval_sha(comment.get("body")) == wanted):
                 return True
@@ -1100,7 +1168,7 @@ def missing(repo, number, head, base, read=read_api, read_diff=None):
         context = status["context"]
         if context in newest:
             continue
-        if allowed is not None and context in (INDEPENDENT, SECURITY):
+        if context in (INDEPENDENT, SECURITY):
             newest[context] = reviewed_state(status, allowed)
         else:
             newest[context] = status["state"]

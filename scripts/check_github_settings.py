@@ -152,6 +152,15 @@ def validate_exceptions(profile):
     return exceptions
 
 
+ACTIONS_APP_ID = 15368
+GATE_CONTEXT = "review/gate"
+
+
+def review_gate_app_ok(app_id):
+    """True for the dedicated review-gate App. Actions (15368), 0, and negatives are not it."""
+    return type(app_id) is int and app_id > 0 and app_id != ACTIONS_APP_ID
+
+
 def validate_profile(profile):
     if not isinstance(profile, dict):
         raise ValueError("Baseline must be an object")
@@ -196,6 +205,10 @@ def validate_profile(profile):
             for check in checks
         )):
             raise ValueError("Required checks must include names and App IDs")
+        if checks is not None:
+            for check in checks:
+                if check.get("context") == GATE_CONTEXT and not review_gate_app_ok(check.get("app_id")):
+                    raise ValueError("review/gate App ID must be a positive integer other than 15368")
     if type(profile.get("repository_id")) is not int or profile["repository_id"] <= 0:
         raise ValueError("Invalid repository ID")
 

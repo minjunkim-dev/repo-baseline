@@ -80,6 +80,11 @@ def load(project):
     unfilled = placeholders(profile)
     if unfilled:
         raise ValueError("Fill in the template values first: " + ", ".join(unfilled))
+    protection = (profile.get("expected") or {}).get("protection") or {}
+    gate_checks = ((protection.get("required_status_checks") or {}).get("checks")) or []
+    for check in gate_checks:
+        if isinstance(check, dict) and check.get("context") == checker.GATE_CONTEXT and not checker.review_gate_app_ok(check.get("app_id")):
+            raise ValueError("review/gate App ID must be a positive integer other than 15368")
     checker.validate_profile(profile)
     checker.validate_target(profile)
     if profile["expected"]["repository"]["default_branch"] != profile["default_branch"]:
