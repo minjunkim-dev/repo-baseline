@@ -41,11 +41,20 @@ gh api "repos/${REPO}/statuses/${SHA}" -f state=success -f context=review/securi
 # 되돌리기 어려움만. 댓글을 고치지 말고 새로 단다.
 gh pr comment "$PR" --repo "$REPO" --body "되돌리기 어려움 승인: ${SHA}"
 
-python3 tools/post_review_gate.py --repo "$REPO" --pr "$PR" --sha "$SHA" --dry-run
-python3 tools/post_review_gate.py --repo "$REPO" --pr "$PR" --sha "$SHA"
+set +e
+dry=$(python3 tools/post_review_gate.py --repo "$REPO" --pr "$PR" --sha "$SHA" --dry-run)
+set -e
+printf '%s\n' "$dry"
+kind=$(printf '%s\n' "$dry" | python3 -c 'import json,sys; print(json.loads(sys.stdin.read().splitlines()[-1])["kind"])')
+if [ "$kind" = success ] || [ "$kind" = failure ]; then
+  python3 tools/post_review_gate.py --repo "$REPO" --pr "$PR" --sha "$SHA"
+else
+  echo "review gate not posted: $kind" >&2
+  exit 1
+fi
 ```
 
-`--dry-run`은 근거를 읽고 올릴 state를 출력한다. 토큰을 만들지 않고 POST하지 않는다. 표준 출력의 마지막 줄은 JSON이다. `kind`가 `success`일 때만 같은 인자로 dry-run 없이 실행한다. `skip`과 `unverified`는 POST하지 않는다. `failure`는 그 SHA에 failure를 올린다.
+`--dry-run`은 근거를 읽고 올릴 state를 출력한다. 토큰을 만들지 않고 POST하지 않는다. 표준 출력의 마지막 줄은 JSON이다. `kind`가 `success` 또는 `failure`이면 같은 인자로 dry-run 없이 실행한다. `failure`는 그 SHA에 failure를 올려 이 앱의 이전 success를 지운다. `set -e`만 두면 dry-run의 종료 코드 1이 그 갱신을 건너뛴다. `skip`과 `unverified`는 POST하지 않는다. 실실행이 끝나기 전에는 병합하지 않는다.
 
 스크립트는 저장소 밖 0600 파일만 키로 받는다. symlink, 저장소 안의 경로, 다른 모드는 거부한다. `GITHUB_ACTIONS`가 있으면 거부한다.
 
@@ -112,7 +121,7 @@ python3 tools/apply_github_settings.py .
 
 앱 ID는 키를 바꿔도 그대로다. 보호의 `app_id`는 키 교체만으로 바꾸지 않는다.
 
-교체: 앱 설정에서 새 private key를 만든다. 새 파일을 서버 또는 Mac의 0600 경로에 넣는다. 위 확인과 같이, 근거가 없는 열린 Draft PR의 현재 head에 `failure`를 올려 새 키가 동작하는지 본다. 그 다음 앱 설정에서 이전 키를 지우고, 디스크의 이전 pem을 지운다. 이전 키로 만든 installation token은 만료된다. 이미 올라가 있는 status는 지워지지 않는다.
+교체: 앱 설정에서 새 private key를 만든다. 새 파일을 0600으로 둔 뒤, 시험 전에 `REVIEW_GATE_APP_KEY`를 그 새 경로로 바꾼다. 옛 경로가 남아 있으면 시험은 옛 키를 본다. 위 확인과 같이, 근거가 없는 열린 Draft PR의 현재 head에 `failure`를 올려 새 키가 동작하는지 본다. 동작하면 그 경로를 남기고, 그 다음에 앱 설정에서 이전 키를 지우고 디스크의 이전 pem을 지운다. 이전 키로 만든 installation token은 만료된다. 이미 올라가 있는 status는 지워지지 않는다.
 
 폐기: 게이트를 올리는 일을 멈춘다. pem을 지운다. GitHub에서 키를 지우고, 필요하면 앱 설치를 제거한다. 설치를 빼면 새 `review/gate`를 올리지 못한다. 필수 체크로 남아 있으면 병합은 막힌다. 그것이 실패 닫힘이다. 보호에서 `review/gate`를 빼려면 기준선의 정수를 유지한 채 그 항목을 삭제한 별도 PR을 병합하고, 소유자가 계획을 본 뒤 적용한다. 15368이 `review/gate`를 충족하게 바꾸지 않는다.
 
