@@ -275,6 +275,11 @@ def _on_head(repo, head, base, pull, read):
         context = status["context"]
         if context in newest or context not in (review.INDEPENDENT, review.SECURITY):
             continue
+        # A [bot] login is not evidence on a team profile either. allowed is None there,
+        # and reviewed_state would otherwise keep that success.
+        if review.bot_creator(review.status_actor(status)):
+            newest[context] = "failure"
+            continue
         newest[context] = review.reviewed_state(status, allowed)
     gaps = []
     if newest.get(review.INDEPENDENT) != "success":

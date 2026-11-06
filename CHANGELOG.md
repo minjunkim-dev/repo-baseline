@@ -13,6 +13,13 @@
 - `POLICY.md`는 작성 주체를 이 절로 넘기고 있어 고치지 않았다. 게이트 파일과 CI workflow는 안 바꿨다.
 - 같은 도구가 모델을 바꿔 커밋해도 `이전 작성 모델`에 이름을 모두 적는다. 검사기는 그 줄만 패밀리에 넣는다. 사람이 이전 작성자이면 `이전 작성 모델`에 `없음`을 넣지 않는다. 사람은 어느 PR에든 Security를 더 요청할 수 있다. 첫 패스·델타·한도 대체는 최종 작성과 `이전 작성 모델`의 패밀리를 모두 뺀다. 이전에 Composer가 있고 마지막이 Claude이면 Composer는 건너뛰고 Grok이다. 델타 전에 고친 diff의 신뢰 경계를 다시 본다. 수정이 외부 입력이나 권한을 더하면 첫 패스가 `해당 없음`이어도 Security를 연다. Opus가 한도라 첫 모델이 Sonnet이면 델타는 그 다음 다른 패밀리다. Composer가 부족하면 델타는 Grok 한 번이다. 다른 패밀리를 우선한다. 한도로 다른 패밀리가 없으면 먼저 기다린다. 같은 패밀리의 다른 모델은 마지막 수단이고, 그 쌍은 Opus와 Sonnet뿐이다. 같은 모델이 그 축을 다시 보는 것은 금지다. 검사기는 그 마지막 수단도 거절하므로 병합은 다른 패밀리를 기다린다.
 
+## 2026-11-06 — review/gate 앱 ID와 봇 근거, 버전 전용 diff
+
+- `review/gate`의 `app_id`는 0보다 큰 정수이고 15368이 아니어야 한다. `scripts/check_github_settings.py`와 `tools/apply_github_settings.py`가 같은 조건으로 거절한다. 0, -1, 15368은 통과하지 않는다.
+- `[bot]`으로 끝나는 로그인의 `review/independent`·`review/security`와 승인 댓글은 1인·팀 모두 실패다. 팀 프로필이 사람 작성자를 보지 않는 것은 그대로다.
+- 버전 전용 판정은 `\n`으로만 줄을 나눈다. `\r`, 다른 제어 문자, U+2028, U+2029가 있으면 버전 전용이 아니다. 신뢰 경계의 workflow는 `uses:`의 40자 SHA 또는 `v` 태그 pin만 버전 전용이다. Dependabot처럼 보이는 커밋을 REST나 web-flow로 만드는 쪽은 카나리 전이다(`docs/review-gate-app.md`).
+- `tools/apply_github_settings.py`와 `docs/review-gate-app.md`를 공통 경로와 게이트 경로에 넣었다.
+
 ## 2026-11-06 — review/gate는 전용 GitHub App만 충족한다
 
 - 카나리 E(PR #39)는 필수 체크 `Review status`(`app_id` 15368)를 workflow 토큰의 같은 이름 체크 run으로 위조할 수 있음을 보였다. 승인 경계는 commit status `review/gate`다. 전용 앱은 Commit statuses 쓰기와 Metadata 읽기만 가지고, 키는 Mac의 0600 경로에만 둔다. `Review status` job은 증거 검사로 남고 `review/gate`를 쓰지 않는다. `strict`는 true다.

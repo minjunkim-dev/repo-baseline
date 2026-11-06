@@ -14,9 +14,9 @@
 
 `strict`는 true다. 새 head에는 `review/gate`가 없다. 인자 SHA가 열린 PR의 현재 head와 다르면 스크립트는 올리지 않는다. 조회 실패, 키가 0600 일반 파일이 아님, `GITHUB_ACTIONS`가 설정됨은 아무것도 올리지 않는다. 근거가 실패하면 그 SHA에 `failure`를 올려 이 앱이 이전에 올린 success를 지운다. 닫힌 PR, head 불일치, 기본 브랜치가 아닌 base에는 올리지 않는다.
 
-Dependabot 버전 전용 예외는 `scripts/check_review_status.py`와 같다. 브랜치 보호는 작성자별로 빼지 못하므로 `review/gate`는 그 PR에도 필요하다. 버전·해시·Action SHA만 바꾼 Dependabot PR이면 스크립트는 두 리뷰 status 없이 success를 올린다. 다른 줄이 있으면 올리지 않고 failure다. 면제를 켜는 별도 플래그는 없다.
+Dependabot 버전 전용 예외는 `scripts/check_review_status.py`와 같다. 브랜치 보호는 작성자별로 빼지 못하므로 `review/gate`는 그 PR에도 필요하다. 버전·해시·Action SHA만 바꾼 Dependabot PR이면 스크립트는 두 리뷰 status 없이 success를 올린다. 다른 줄이 있으면 올리지 않고 failure다. 면제를 켜는 별도 플래그는 없다. 신뢰 경계 파일은 `uses:`의 40자 SHA 또는 `v` 태그 pin만 버전 전용이다. 짧은 해시, `\r`, 그 밖의 제어 문자, U+2028, U+2029가 있으면 버전 전용이 아니다. 작성자 쪽(REST나 web-flow로 Dependabot처럼 만든 커밋)은 아직 증명되지 않았다. 그 면제를 쓰기 전에 카나리로 확인한다.
 
-근거 status의 이어받기는 이 게이트에 쓰지 않는다. `review/independent`와 `review/security`는 이 head에 success여야 한다. 1인 프로필에서 작성자는 저장소 소유자 또는 `STATUS_ACTORS`다. `STATUS_ACTORS`는 비어 있다. 이 앱의 로그인을 거기에 넣지 않는다. 앱은 `review/gate`만 올린다. `github-actions[bot]`이 올린 리뷰 status는 실패다.
+근거 status의 이어받기는 이 게이트에 쓰지 않는다. `review/independent`와 `review/security`는 이 head에 success여야 한다. 1인 프로필에서 작성자는 저장소 소유자 또는 `STATUS_ACTORS`다. `STATUS_ACTORS`는 비어 있다. 이 앱의 로그인을 거기에 넣지 않는다. 앱은 `review/gate`만 올린다. 로그인이 `[bot]`으로 끝나면 1인·팀 모두 그 status를 받지 않는다. `github-actions[bot]`이 올린 리뷰 status는 실패다. 승인 댓글의 작성자가 `[bot]`이면 그 댓글도 승인이 아니다.
 
 ## 승인 때 Mac에서 하는 일
 
@@ -81,6 +81,13 @@ fi
 
 다른 저장소, 조직 전체, 계정의 모든 저장소에는 설치하지 않는다. 새 저장소를 더할 때는 이 표를 먼저 고친다.
 
+## 첫 키를 넣기 전에
+
+아래 둘은 첫 비밀키를 설치하기 전의 조건이다. 이 PR은 스크립트를 다시 설계하지 않는다.
+
+- `0600` 파일은 같은 UID의 로컬 프로세스가 읽는다. 키는 Keychain에 두거나, 개발 계정과 다른 macOS 계정에 둔다. 근거를 읽는 `GH_TOKEN`은 그 계정의 읽기 전용 토큰이다.
+- `tools/post_review_gate.py`는 저장소 체크아웃에서 실행하지 않는다. 저장소 밖에 둔 고정 사본을 쓰고, 그 파일의 sha256을 맞춰 둔 뒤 `python3 -I`로 실행한다. 사본의 해시를 런북에 적기 전에는 키를 연결하지 않는다.
+
 ## 키를 Mac에 두기
 
 ```bash
@@ -98,7 +105,7 @@ ls -l "$HOME/.config/repo-baseline/review-gate.pem"
 
 `.github/repository-settings.json`의 `review/gate` `app_id`는 지금 문자열 `REPLACE:<APP_ID>`다. 이것은 자리표시자다. 앱을 만든 뒤 그 문자열 전체를 앱 설정의 App ID 정수로 바꾼다. 따옴표 없는 숫자다. 15368을 넣지 않는다. 0을 넣지 않는다.
 
-`tools/apply_github_settings.py`는 값이 `REPLACE`로 시작하면 조회 전에 멈춘다. `scripts/check_github_settings.py`도 그 문자열인 동안 `validate_profile`이 실패해 UNVERIFIED로 끝난다. 0이나 15368 같은 가짜 정수로 그 실패를 넘기지 않는다. 정수가 된 뒤에만 계획을 본다.
+`tools/apply_github_settings.py`는 값이 `REPLACE`로 시작하면 조회 전에 멈춘다. `scripts/check_github_settings.py`도 그 문자열인 동안 `validate_profile`이 실패해 UNVERIFIED로 끝난다. 0, -1, 15368은 `review/gate`의 `app_id`로 통과하지 않는다. 적용 도구와 `validate_profile`이 둘 다 거절한다. 정수가 된 뒤에만 계획을 본다.
 
 ```bash
 python3 tools/apply_github_settings.py .

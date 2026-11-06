@@ -72,6 +72,19 @@ class GitHubSettingsTests(unittest.TestCase):
         self.assertEqual(differences(expected, list(reversed(expected)), "checks"), [])
         self.assertEqual(differences(expected, expected + [expected[0]], "checks"), ["checks"])
 
+    def test_review_gate_app_id_rejects_actions_zero_and_negative(self):
+        for app_id in (15368, 0, -1):
+            profile = copy.deepcopy(BASELINE)
+            profile["expected"]["protection"]["required_status_checks"]["checks"].append(
+                {"context": "review/gate", "app_id": app_id})
+            with self.subTest(app_id=app_id):
+                with self.assertRaisesRegex(ValueError, "review/gate"):
+                    settings.validate_profile(profile)
+        accepted = copy.deepcopy(BASELINE)
+        accepted["expected"]["protection"]["required_status_checks"]["checks"].append(
+            {"context": "review/gate", "app_id": 424242})
+        settings.validate_profile(accepted)
+
     def test_wrong_check_app_and_boolean_types_are_not_accepted(self):
         self.assertEqual(differences([{"context": "CI", "app_id": 15368}],
                                      [{"context": "CI", "app_id": 1}], "checks"), ["checks"])

@@ -71,6 +71,7 @@ class Scripted:
         self.statuses = statuses
         self.comments = comments or []
         self.commits = commits or [{"sha": HEAD, "commit": {"committer": {"date": "2026-11-06T00:00:00Z"}}}]
+        self.agents = None
         self.diffs = []
 
     def read(self, endpoint):
@@ -81,6 +82,8 @@ class Scripted:
         if endpoint == f"repos/{REPO}/compare/{BASE}...main":
             return {"status": "identical"}
         if endpoint.startswith(f"repos/{REPO}/contents/"):
+            if self.agents is not None and "AGENTS.md" in endpoint:
+                return {"content": base64.b64encode(self.agents.encode()).decode(), "encoding": "base64"}
             raise subprocess.CalledProcessError(1, endpoint, stderr="HTTP 404")
         if endpoint == f"repos/{REPO}/compare/{BASE}...{self.pull['head']['sha']}":
             return {"files": self.files, "commits": self.commits}
@@ -138,6 +141,17 @@ class DecideTests(unittest.TestCase):
         closed = decide(Scripted(pull(state="closed"), files, [status(review.INDEPENDENT)]))
         self.assertEqual(closed.kind, "skip")
         self.assertEqual(closed.detail, "closed")
+
+    def test_a_team_profile_does_not_accept_a_bot_review_status(self):
+        files = [{"filename": "README.md", "patch": "@@\n-a\n+b\n"}]
+        scripted = Scripted(pull(), files, [status(review.INDEPENDENT, login="github-actions[bot]")])
+        scripted.agents = "프로필: 팀\n"
+        found = decide(scripted)
+        self.assertEqual(found.kind, "failure")
+        self.assertIn(review.INDEPENDENT, found.detail)
+        human = Scripted(pull(), files, [status(review.INDEPENDENT, login="alice")])
+        human.agents = "프로필: 팀\n"
+        self.assertEqual(decide(human).kind, "success")
 
     def test_same_family_and_actions_creator_fail_closed(self):
         files = [{"filename": "README.md", "patch": "@@\n-a\n+b\n"}]

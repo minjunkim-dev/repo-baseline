@@ -365,13 +365,21 @@ class ApplyGitHubSettingsTests(unittest.TestCase):
             tool.load(project)
         own = json.loads((ROOT / ".github/repository-settings.json").read_text(encoding="utf-8"))
         filled = copy.deepcopy(own)
-        gate_check = next(item for item in filled["expected"]["protection"]["required_status_checks"]["checks"]
-                          if item["context"] == "review/gate")
-        self.assertEqual(gate_check["app_id"], "REPLACE:<APP_ID>")
-        gate_check["app_id"] = 424242
+        for item in filled["expected"]["protection"]["required_status_checks"]["checks"]:
+            if item.get("context") == "review/gate" and not checker.review_gate_app_ok(item.get("app_id")):
+                item["app_id"] = 424242
         checker.validate_profile(filled)
+        placeholder = copy.deepcopy(BASELINE)
+        placeholder["expected"]["protection"]["required_status_checks"]["checks"].append(
+            {"context": "review/gate", "app_id": "REPLACE:<APP_ID>"})
         with self.assertRaisesRegex(ValueError, "template values"):
-            tool.load(Path(self.project(own)))
+            tool.load(Path(self.project(placeholder)))
+        for app_id in (15368, 0, -1):
+            rejected = copy.deepcopy(BASELINE)
+            rejected["expected"]["protection"]["required_status_checks"]["checks"].append(
+                {"context": "review/gate", "app_id": app_id})
+            with self.assertRaisesRegex(ValueError, "review/gate"):
+                tool.load(Path(self.project(rejected)))
         for profile in (template, own):  # identity, verified checks and third-party actions are per project
             del profile["expected"]["repository"]["visibility"]
             del profile["expected"]["protection"]["required_status_checks"]["checks"]

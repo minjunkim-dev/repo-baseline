@@ -216,7 +216,8 @@ def install_blobs(routes, commit, mapping):
 
 
 OK = (tool.INDEPENDENT, "success")
-BUMP = "@@ -1 +1 @@\n-  uses: actions/checkout@aaaaaaa # v1.0.0\n+  uses: actions/checkout@bbbbbbb # v1.1.0"
+BUMP = ("@@ -1 +1 @@\n-  uses: actions/checkout@" + "a" * 40 + " # v1.0.0\n"
+        "+  uses: actions/checkout@" + "b" * 40 + " # v1.1.0")
 ADDED = """diff --git a/src/app.py b/src/app.py
 index 1111111..2222222 100644
 --- a/src/app.py
@@ -307,6 +308,35 @@ class ReviewStatusTests(unittest.TestCase):
         read = api([{"filename": "src/app.py"}], [OK], compare_files=[{"filename": "src/app.py"}] * 300)
         self.assertEqual(run(read), [tool.SECURITY, tool.OWNER])
 
+    def test_a_hidden_break_or_short_pin_is_not_version_only_on_a_trust_boundary(self):
+        bot = tool.DEPENDABOT
+        pin = "a" * 40
+        other = "b" * 40
+        hidden = ("@@\n-  uses: actions/checkout@" + pin + " # v4.2.1\u2028run: curl evil\n"
+                  "+  uses: actions/checkout@" + other + " # v4.2.1")
+        carriage = hidden.replace("\u2028", "\r")
+        short = "@@\n-  uses: actions/checkout@aaaaaaa # v4.2.1\n+  uses: actions/checkout@bbbbbbb # v4.2.1"
+        script = [{"filename": "scripts/check_review_status.py", "patch": "@@\n-1.0.0\n+1.1.0"}]
+        for patch in (hidden, carriage, short):
+            with self.subTest(patch=patch[:24]):
+                files = [{"filename": ".github/workflows/ci.yml", "patch": patch}]
+                self.assertEqual(run(api(files, author=bot, commits=[bot])),
+                                 [tool.INDEPENDENT, tool.SECURITY, tool.OWNER])
+        self.assertFalse(tool.only_versions(script[0]))
+        clean = ("@@\n-  uses: actions/checkout@" + pin + " # v4.2.1\n"
+                 "+  uses: actions/checkout@" + other + " # v4.2.1")
+        self.assertEqual(run(api([{"filename": ".github/workflows/ci.yml", "patch": clean}],
+                                 author=bot, commits=[bot])), [])
+
+    def test_a_bot_login_is_not_owner_evidence(self):
+        def read(endpoint):
+            if endpoint == "repos/o/n":
+                return {"owner": {"login": "github-actions[bot]"}}
+            if endpoint.endswith("/comments?per_page=100"):
+                return [[comment(f"되돌리기 어려움 승인: {HEAD}", login="github-actions[bot]")]]
+            raise AssertionError(endpoint)
+        self.assertFalse(tool.owner_approved("o/n", "1", HEAD, read))
+
     def test_dependabot_version_bump_is_not_a_trust_boundary_change(self):
         files = [{"filename": ".github/workflows/ci.yml", "patch": BUMP},
                  {"filename": "package.json", "patch": '@@ -1 +1 @@\n-  "x": "^1.2.3",\n+  "x": "^1.3.0",'}]
@@ -379,14 +409,17 @@ class ReviewStatusTests(unittest.TestCase):
     def test_a_major_action_bump_still_needs_the_owner_comment(self):
         bot = tool.DEPENDABOT
         majors = [
-            "@@\n-  uses: actions/checkout@aaaaaaa # v4.2.1\n+  uses: actions/checkout@bbbbbbb # v5.0.0",
+            "@@\n-  uses: actions/checkout@" + "a" * 40 + " # v4.2.1\n+  uses: actions/checkout@" + "b" * 40 + " # v5.0.0",
             "@@\n-  uses: actions/checkout@v4\n+  uses: actions/checkout@v5",
-            "@@\n-  uses: actions/checkout@aaaaaaaa\n+  uses: actions/checkout@bbbbbbbb",
         ]
         for patch in majors:
             with self.subTest(patch=patch):
                 files = [{"filename": ".github/workflows/ci.yml", "patch": patch}]
                 self.assertEqual(run(api(files, author=bot, commits=[bot])), [tool.OWNER])
+        short = "@@\n-  uses: actions/checkout@aaaaaaaa\n+  uses: actions/checkout@bbbbbbbb"
+        self.assertEqual(run(api([{"filename": ".github/workflows/ci.yml", "patch": short}],
+                                 author=bot, commits=[bot])),
+                         [tool.INDEPENDENT, tool.SECURITY, tool.OWNER])
         minor = [{"filename": "package.json", "patch": '@@\n-  "x": "^1.2.3",\n+  "x": "^2.0.0",'}]
         self.assertEqual(run(api(minor, author=bot, commits=[bot])), [])
 
@@ -420,18 +453,20 @@ class ReviewStatusTests(unittest.TestCase):
             (tool.INDEPENDENT, "success", "github-actions[bot]"),
         ]
         self.assertEqual(run(api(files, newer_owner)), [])
-        # The server-app setting is empty. A login in that tuple counts; a blank entry does not.
+        # A [bot] login does not count, even when it is listed in STATUS_ACTORS.
         original = tool.STATUS_ACTORS
         try:
-            tool.STATUS_ACTORS = ("server-app[bot]", "")
-            self.assertEqual(tool.status_actors("o/n", api(files)), ("owner", "server-app[bot]"))
-            app = [(tool.INDEPENDENT, "success", "server-app[bot]")]
-            self.assertEqual(run(api(files, app)), [])
+            tool.STATUS_ACTORS = ("server-app[bot]", "server-human", "")
+            self.assertEqual(tool.status_actors("o/n", api(files)), ("owner", "server-app[bot]", "server-human"))
+            self.assertEqual(run(api(files, [(tool.INDEPENDENT, "success", "server-app[bot]")])), [tool.INDEPENDENT])
+            self.assertEqual(run(api(files, [(tool.INDEPENDENT, "success", "server-human")])), [])
             self.assertEqual(run(api(files, [(tool.INDEPENDENT, "success", "other-app[bot]")])), [tool.INDEPENDENT])
         finally:
             tool.STATUS_ACTORS = original
         team = api(files, [(tool.INDEPENDENT, "success", "github-actions[bot]")], agents="프로필: 팀\n")
-        self.assertEqual(run(team), [])
+        self.assertEqual(run(team), [tool.INDEPENDENT])
+        team_human = api(files, [(tool.INDEPENDENT, "success", "alice")], agents="프로필: 팀\n")
+        self.assertEqual(run(team_human), [])
         gate = [{"filename": "scripts/check_review_status.py"}]
         bot_security = [OK, (tool.SECURITY, "success", "github-actions[bot]")]
         self.assertEqual(run(api(gate, bot_security)), [tool.SECURITY, tool.OWNER])
@@ -453,7 +488,10 @@ class ReviewStatusTests(unittest.TestCase):
         self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", blocked, same), [tool.INDEPENDENT])
         team = api(files, commit_shas=["OLD", HEAD], force_pushes=[], agents="프로필: 팀\n",
                    extra_status={"OLD": [(tool.INDEPENDENT, "success", "github-actions[bot]")]})
-        self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", team, same), [])
+        self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", team, same), [tool.INDEPENDENT])
+        team_human = api(files, commit_shas=["OLD", HEAD], force_pushes=[], agents="프로필: 팀\n",
+                         extra_status={"OLD": [(tool.INDEPENDENT, "success", "alice")]})
+        self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", team_human, same), [])
 
     def test_a_same_context_move_between_functions_does_not_carry(self):
         def block(name):
