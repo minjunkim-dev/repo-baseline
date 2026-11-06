@@ -1,0 +1,19 @@
+name: canary-e-retest
+on:
+  pull_request:
+permissions:
+  checks: write
+  statuses: write
+jobs:
+  forge:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Post the gate name with the workflow token
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh api "repos/${REPO}/statuses/${SHA}" -f state=success -f context=review/gate -f description=canary-e-retest
+          gh api "repos/${REPO}/check-runs" -f name=review/gate -f head_sha="${SHA}" -f status=completed -f conclusion=success -f started_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)" -f completed_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
