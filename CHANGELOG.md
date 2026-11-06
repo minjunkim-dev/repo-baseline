@@ -2,6 +2,14 @@
 
 리뷰 모델의 현행은 「2026-11-06 — 역할 분담: 클라우드 기본, 활성 로스터」다. 그 아래의 리뷰 모델 절은 그 커밋 당시의 기록이다.
 
+## 2026-11-06 — 승인 댓글 편집 감지와 댓글 재실행을 줄인다
+
+- `scripts/check_review_status.py`: 승인 댓글은 REST `updated_at`이 `created_at`과 같은 문자열일 때만 인정한다. GraphQL `lastEditedAt`·`includesCreatedEdit`는 보지 않는다. REST 시각은 초 단위라 같은 초 편집은 구분하지 않는다. 하드 도어의 SHA 전체 댓글 요구는 그대로다. 댓글을 고치지 말고 새 댓글을 단다.
+- `templates/review-status.yml`과 `.github/workflows/review-status.yml`: `issue_comment` 트리거와 재실행 job을 뺐다. `scripts/rerun_review_status.py`는 삭제했다. 승인 댓글은 `Review status`와 `review/gate`를 자동으로 다시 돌리지 않는다. 새 댓글 뒤에 그 head의 `Review status`를 직접 다시 돌리거나 `tools/post_review_gate.py`로 게이트를 다시 올린다.
+- `tools/post_review_gate.py`: 승인 댓글은 REST GET으로 읽는다. `POST /graphql`은 쓰지 않는다.
+- 이벤트 정책 템플릿은 `issue_comment` 허용을 남겨 둔다. 그 허용은 구독이 아니다. 필수 체크와 `.github/repository-settings.json`은 바꾸지 않는다. 이 변경은 branch protection을 쓰지 않는다.
+- 다시 적용할 프로젝트: smallnext, BGLike, mobile-runtime. `scripts/check_review_status.py`, `scripts/test_review_status.py`를 `tools/apply_baseline.py`로 다시 복사한다. `templates/review-status.yml`을 `.github/workflows/review-status.yml`로 다시 복사한다. 소비 저장소의 `scripts/rerun_review_status.py`는 지운다. `tools/post_review_gate.py`는 복사하지 않는다. 카나리 E는 다시 열지 않는다. `.github/repository-settings.json`의 필수 체크는 그대로다.
+
 ## 2026-11-06 — 트렁크와 선택적 피처 플래그
 
 - `docs/development-workflow.md`: 트렁크를 적었다. 기준 브랜치는 `main` 하나다. 작업 브랜치는 짧다. 병합은 squash만이고 병합하면 브랜치를 지운다. GitFlow의 `develop` 브랜치와 `release` 브랜치는 두지 않는다. 끝나지 않은 작업은 꺼진 피처 플래그로 `main`에 둔다.
@@ -66,10 +74,12 @@
 
 ## 2026-11-06 — review/gate는 전용 GitHub App만 충족한다
 
+과거 동작. 이 절의 `scripts/rerun_review_status.py` 복사는 2026-11-06 「승인 댓글 편집 감지와 댓글 재실행을 줄인다」로 대체되었다.
+
 - 카나리 E(PR #39)는 필수 체크 `Review status`(`app_id` 15368)를 workflow 토큰의 같은 이름 체크 run으로 위조할 수 있음을 보였다. 승인 경계는 commit status `review/gate`다. 전용 앱은 Commit statuses 쓰기와 Metadata 읽기만 가지고, 키는 `reviewgate` 홈의 0600 일반 파일이거나, 같은 UID Keychain에서 그 실행만 꺼낸 임시 파일이다. 개발 홈의 서 있는 pem이 아니다. `Review status` job은 증거 검사로 남고 `review/gate`를 쓰지 않는다. `strict`는 true다.
 - `tools/post_review_gate.py`가 그 SHA의 근거를 확인하고 앱 설치 토큰으로 `review/gate`만 올린다. `--dry-run`은 POST하지 않는다. `GITHUB_ACTIONS`에서는 거부한다. Dependabot 버전 전용 예외는 검사기와 같다. 테스트는 모의 HTTP다.
 - repo-baseline의 `.github/repository-settings.json`은 `review/gate`의 `app_id`를 **5641238**로 기록한다(#44). 다른 프로젝트나 채우기 전에는 `REPLACE:<APP_ID>`가 남을 수 있고, 그동안 적용 도구는 조회 전에 멈춘다. 이 변경은 branch protection을 쓰지 않는다. 저장소별 적용 전후와 앱 등록·키 교체·E 재시험은 `docs/review-gate-app.md`다.
-- 다시 적용할 프로젝트: smallnext, BGLike, mobile-runtime. `scripts/check_review_status.py`와 `scripts/rerun_review_status.py`는 `tools/apply_baseline.py`로 다시 복사한다. `templates/review-status.yml`의 주석도 `.github/workflows/review-status.yml`로 다시 복사한다. `tools/post_review_gate.py`는 복사하지 않는다. 소유자가 repo-baseline에서 `--repo`로 실행한다. `.github/repository-settings.json`의 `review/gate` 한 줄은 각 저장소 PR에서 기존 체크와 `strict: true`를 유지한 채 더한다. E 재시험 기록이 Issue #32에 있기 전에는 그 셋을 적용하지 않는다.
+- 다시 적용할 프로젝트: smallnext, BGLike, mobile-runtime. 그때 `scripts/check_review_status.py`와 `scripts/rerun_review_status.py`를 `tools/apply_baseline.py`로 다시 복사했다. `scripts/rerun_review_status.py` 복사는 과거 동작이고, 2026-11-06 「승인 댓글 편집 감지와 댓글 재실행을 줄인다」로 대체되었다. `templates/review-status.yml`의 주석도 `.github/workflows/review-status.yml`로 다시 복사했다. `tools/post_review_gate.py`는 복사하지 않았다. 소유자가 repo-baseline에서 `--repo`로 실행했다. `.github/repository-settings.json`의 `review/gate` 한 줄은 각 저장소 PR에서 기존 체크와 `strict: true`를 유지한 채 더했다. E 재시험 기록이 Issue #32에 있기 전에는 그 셋을 적용하지 않았다.
 
 ## 2026-11-06 — feature flag 파일 오류는 FAIL로 보고한다
 
@@ -79,10 +89,12 @@
 
 ## 2026-11-05 — 1인 프로필은 다른 계정의 리뷰 status와 편집된 승인 댓글을 받지 않는다
 
+과거 동작. GraphQL `lastEditedAt` 편집 감지와 `issue_comment` 재실행은 2026-11-06 「승인 댓글 편집 감지와 댓글 재실행을 줄인다」로 대체되었다.
+
 - `scripts/check_review_status.py`: 1인 프로필에서 `review/independent`와 `review/security`는 `creator.login`이 저장소 소유자이거나 `STATUS_ACTORS`에 있을 때만 success다. `STATUS_ACTORS`는 `scripts/check_review_status.py`의 설정이고 지금은 비어 있다. 서버 앱의 로그인은 이 저장소에서 넣은 뒤 다시 복사한다. 소비 프로젝트의 복사본을 직접 고치지 않는다. 다른 작성자(`github-actions[bot]` 포함)의 status는 실패다. 없는 status로 보지 않는다. 목록은 `commits/{sha}/statuses`이고 최신순이다. context마다 첫 항목을 쓴다. combined status에는 `creator`가 없어 쓰지 않는다. 이어받기 해시는 diff와 바뀐 파일의 변경 후 blob id 전체다. `index` 줄의 축약 SHA는 쓰지 않는다. id는 바뀐 경로의 상위 디렉터리 tree만 읽는다. 다른 gitlink는 열지 않고, 바뀐 경로가 gitlink이면 그 커밋 id를 넣는다. 잘리거나 읽지 못하면 이어받지 않는다. 같은 경로의 `diff --git` 헤더는 가운데에서 자른다. `svc b/package.json`의 ` b/`를 구분자로 쓰지 않는다. 경로가 다르면 `rename to`·`copy to`를 읽고, 없으면 이어받지 않는다. 삭제·이름 변경·바이너리를 본다. `@@`의 함수 이름은 남긴다. 이름이 없는 파일은 그 헤더만으로 구분되지 않고, blob id가 그 이동을 가른다. 기준 브랜치가 다른 파일만 바꾸면 이어받는다. 같은 파일을 바꾸면 줄만 밀려도 다시 리뷰받는다. YAML, JSON, 같은 함수 안의 이동, CR을 넣은 줄도 이어받지 않는다. `prompts/pr-ci-setup.md`의 이어받기 문장도 같다. 이어받기의 이전 SHA도 같다. 팀 프로필은 작성자를 보지 않는다. (#34)
-- 승인 댓글은 `updated_at`이 `created_at`과 같은 문자열이고 GraphQL `lastEditedAt`이 null이며 `includesCreatedEdit`가 아닐 때만 인정한다. 편집한 댓글은 무효이고 새 댓글을 단다. REST 시각은 초 단위라 같은 초 편집은 두 문자열이 같다. 그 편집은 `lastEditedAt`으로 거절한다. `scripts/rerun_review_status.py`는 `created`·`edited`·`deleted`에서 검사기를 다시 돌린다. 실행 목록을 읽지 못하면 그 head에 실패하는 `Review status` 체크를 남긴다. 편집 이벤트의 `comment.user`는 처음 작성자라, 다른 계정이 소유자 댓글을 고쳐도 재실행되고 그 댓글은 승인이 아니게 된다.
+- 과거 동작. 2026-11-06 「승인 댓글 편집 감지와 댓글 재실행을 줄인다」로 대체되었다. 그때 승인 댓글은 `updated_at`이 `created_at`과 같은 문자열이고 GraphQL `lastEditedAt`이 null이며 `includesCreatedEdit`가 아닐 때만 인정했다. 편집한 댓글은 무효였고 새 댓글을 달았다. REST 시각은 초 단위라 같은 초 편집은 두 문자열이 같았다. 그 편집은 `lastEditedAt`으로 거절했다. `scripts/rerun_review_status.py`는 `created`·`edited`·`deleted`에서 검사기를 다시 돌렸다. 실행 목록을 읽지 못하면 그 head에 실패하는 `Review status` 체크를 남겼다. 편집 이벤트의 `comment.user`는 처음 작성자였고, 다른 계정이 소유자 댓글을 고쳐도 재실행되었으며 그 댓글은 승인이 아니었다.
 - `scripts/test_review_status.py`의 임시 git 저장소는 전역·시스템 git 설정을 읽지 않는다. `commit.gpgsign`과 `diff.noprefix`가 픽스처 커밋과 `diff --git a/` 헤더를 바꾸지 않는다.
-- 다시 적용할 프로젝트: smallnext, BGLike, mobile-runtime. `scripts/check_review_status.py`, `scripts/test_review_status.py`, `scripts/rerun_review_status.py`를 `tools/apply_baseline.py`로 다시 복사한다. `templates/review-status.yml`의 주석도 `.github/workflows/review-status.yml`로 다시 복사한다. workflow 파일은 manifest 해시 대상이 아니다. 스크립트 해시는 적용할 때 `.github/repo-baseline.json`에 다시 기록된다. 바뀐 복사 파일의 sha256은 이 변경의 PR 본문에 있다.
+- 다시 적용할 프로젝트: smallnext, BGLike, mobile-runtime. 그때 `scripts/check_review_status.py`, `scripts/test_review_status.py`, `scripts/rerun_review_status.py`를 `tools/apply_baseline.py`로 다시 복사했다. `scripts/rerun_review_status.py` 복사는 과거 동작이고, 2026-11-06 「승인 댓글 편집 감지와 댓글 재실행을 줄인다」로 대체되었다. `templates/review-status.yml`의 주석도 `.github/workflows/review-status.yml`로 다시 복사했다. workflow 파일은 manifest 해시 대상이 아니었다. 스크립트 해시는 적용할 때 `.github/repo-baseline.json`에 다시 기록되었다. 바뀐 복사 파일의 sha256은 이 변경의 PR 본문에 있었다.
 
 ## 2026-11-05 — Review status를 필수 체크로 기록한다
 
@@ -96,19 +108,21 @@
 
 - 한쪽 문(one-way door: 되돌리기 어려운 결정)은 되돌리기 어려움, 양쪽 문(two-way door: 되돌리기 쉬운 결정)은 되돌리기 쉬움이다. 필드 이름은 `Door:`로 둔다. 절 이름 `문 판정`은 그대로다. (#29)
 - PR 본문 값은 `Door: 되돌리기 쉬움` 또는 `Door: 되돌리기 어려움`이다. 1인 프로필 승인 댓글은 `되돌리기 어려움 승인: <head의 전체 SHA>`다. 댓글 첫 줄의 그 접두사와 40자 SHA만 인정한다.
-- 옛 `Door: 양쪽 문`·`Door: 한쪽 문`과 옛 댓글 `한쪽 문 승인: <sha>`는 deprecated다. `scripts/workflow_policy.py`와 `scripts/check_review_status.py`가 같은 의미로 받는다. 다른 철자, 다른 필드 이름, SHA가 다른 댓글은 통과하지 않는다. `scripts/rerun_review_status.py`는 댓글 본문을 읽지 않고 그 검사기를 다시 돌리므로 옛 접두사도 같은 경로로 통과한다. 제거는 #30이다.
+- 옛 `Door: 양쪽 문`·`Door: 한쪽 문`과 옛 댓글 `한쪽 문 승인: <sha>`는 deprecated다. `scripts/workflow_policy.py`와 `scripts/check_review_status.py`가 같은 의미로 받는다. 다른 철자, 다른 필드 이름, SHA가 다른 댓글은 통과하지 않는다. `scripts/rerun_review_status.py`는 댓글 본문을 읽지 않고 그 검사기를 다시 돌렸으므로 옛 접두사도 같은 경로로 통과했다. 그 재실행은 과거 동작이고, 2026-11-06 「승인 댓글 편집 감지와 댓글 재실행을 줄인다」로 대체되었다. 제거는 #30이다.
 - 아래 날짜의 기록에 나오던 옛 이름은 이 이름으로 바꿔 적었다. 그 날짜의 검사기가 받던 문자열은 위 옛 값이다.
 - 다시 적용할 프로젝트: smallnext, BGLike, mobile-runtime. 바뀐 복사 파일의 sha256은 이 변경의 PR 본문에 있다.
 
 ## 2026-11-05 — 기본 브랜치가 아닌 base로 리뷰 게이트를 통과하지 못한다
 
+과거 동작. 아래 `scripts/rerun_review_status.py`의 `issue_comment` 재실행은 2026-11-06 「승인 댓글 편집 감지와 댓글 재실행을 줄인다」로 대체되었다. base가 기본 브랜치가 아니면 통과하지 못하는 규칙은 그대로다.
+
 - `templates/review-status.yml`: `pull_request_target`은 `branches: [main]`만 본다. 다른 base에서는 Review status가 돌지 않는다. 검사기 코드는 계속 기본 브랜치 것이고 PR 코드는 실행하지 않는다.
 - `scripts/check_review_status.py`: 이 PR의 `base.ref`가 저장소 `default_branch`와 다르면 실패한다. 이벤트 `BASE_SHA`는 `compare(BASE_SHA...default_branch)`의 status가 `ahead` 또는 `identical`일 때만 그 브랜치 위에 있다고 본다. 재실행은 옛 payload를 남기므로, 사이드 base로 통과했던 run을 main으로 옮긴 뒤 재실행해도 통과하지 않는다. 둘 중 하나를 읽지 못하면 확인되지 않은 것으로 실패한다. 실패 이름은 `review/base-branch`다. commit status가 아니다. 다른 base의 PR은 통과 근거가 아니다. `missing()`은 그 PR 번호만 본다.
-- `scripts/rerun_review_status.py`: `issue_comment`에는 브랜치 필터가 없다. PR base가 기본 브랜치가 아니면 체크를 게시하지 않고 끝난다. 같은 head의 main PR을 거짓 실패로 만들지 않는다.
+- `scripts/rerun_review_status.py`(과거 동작. 2026-11-06 「승인 댓글 편집 감지와 댓글 재실행을 줄인다」로 대체되었다): 그때 `issue_comment`에는 브랜치 필터가 없었다. PR base가 기본 브랜치가 아니면 체크를 게시하지 않고 끝냈다. 같은 head의 main PR을 거짓 실패로 만들지 않았다.
 - `templates/pr-policy.yml`: `pull_request`도 `branches: [main]`만 본다. `pull_request`는 PR의 workflow를 쓰므로 필터를 지운 PR은 이 검사를 다시 돌릴 수 있다. PR conventions만으로는 게이트가 아니다. workflow 변경은 필수 체크가 된 Review status가 막는다.
 - `branches: [main]`은 리터럴이다. repo-baseline, smallnext, BGLike, mobile-runtime의 기본 브랜치는 `main`이다. 기본 브랜치가 `main`이 아니면 workflow의 `branches`를 그 이름으로 맞춘다.
 - `scripts/test_workflow_policy.py`: `--root`의 빈 경로, 절대 경로, 상위(`..`) 경로 거부를 다시 검사한다. `scripts/workflow_policy.py`의 거부 동작은 그대로다.
-- 다시 적용할 프로젝트: smallnext, BGLike, mobile-runtime. `templates/review-status.yml`을 `.github/workflows/review-status.yml`로, `templates/pr-policy.yml`을 `.github/workflows/pr-policy.yml`로 복사한다. `scripts/check_review_status.py`, `scripts/test_review_status.py`, `scripts/rerun_review_status.py`, `scripts/test_workflow_policy.py`는 `tools/apply_baseline.py`로 다시 복사한다. workflow 파일은 manifest 해시 대상이 아니다. 스크립트 해시는 적용할 때 `.github/repo-baseline.json`에 다시 기록된다.
+- 다시 적용할 프로젝트: smallnext, BGLike, mobile-runtime. 그때 `templates/review-status.yml`을 `.github/workflows/review-status.yml`로, `templates/pr-policy.yml`을 `.github/workflows/pr-policy.yml`로 복사했다. `scripts/check_review_status.py`, `scripts/test_review_status.py`, `scripts/rerun_review_status.py`, `scripts/test_workflow_policy.py`는 `tools/apply_baseline.py`로 다시 복사했다. `scripts/rerun_review_status.py` 복사는 과거 동작이고, 2026-11-06 「승인 댓글 편집 감지와 댓글 재실행을 줄인다」로 대체되었다. workflow 파일은 manifest 해시 대상이 아니었다. 스크립트 해시는 적용할 때 `.github/repo-baseline.json`에 다시 기록되었다.
 
 ## 2026-11-05 — 리뷰는 패밀리가 다르면 된다
 
@@ -121,10 +135,12 @@
 
 ## 2026-11-05 — PR 본문과 리뷰 근거 표를 검사
 
+과거 동작. 이 절의 「댓글 재실행은 그대로다」는 2026-11-06 「승인 댓글 편집 감지와 댓글 재실행을 줄인다」로 대체되었다.
+
 - `scripts/workflow_policy.py`: smallnext의 PR 제목·브랜치·이슈 링크 검사를 이 저장소의 원본으로 둔다. `feat`/`fix`/`refactor`/`perf`/`test`/`revert`는 `Refs`/`Closes`/`Fixes`/`Resolves #N`이 필요하다. 설명은 소문자 라틴 또는 한글로 시작한다. 본문에 `## Summary`, `## Evidence`, `## Merge Danger`, `Door:`(`되돌리기 쉬움` 또는 `되돌리기 어려움`), 작성 기록(`Author: <tool> / <model>` 또는 `작성 도구`/`작성 모델`)이 있어야 한다. tool은 `Claude Code`, `Cursor`, `Cursor 클라우드 에이전트`, `사람`이다. Dependabot은 본문 절 검사만 면제한다. `AGENTS.md`와 feature flag 검사는 기본으로 켜 두고 `.github/workflow-policy.json`으로 끈다. 설정 파일이 없으면 smallnext와 같다. 이 저장소는 그 둘을 끄고 `cursor` 브랜치를 허용한다. 본문은 파싱만 한다.
 - `templates/pr-policy.yml`: `pull_request`의 opened, edited, synchronize, reopened, ready_for_review에서 돈다. 스크립트와 `.github/workflow-policy.json`은 base에 파일이 있으면 base에서 읽고, 없을 때만 PR 쪽을 실행한다. 그 예외는 검사기를 처음 넣는 PR뿐이다. base의 검사기가 `--root`를 모르면 job은 실패한다. 그 검사기는 PR 트리를 보지 못한다. `AGENTS.md`, `CLAUDE.md`, feature flag는 `--root`로 PR 트리를 읽고 실행하지 않는다. `pull_request_target`은 쓰지 않는다. `Review status`도 `ready_for_review`에 다시 돈다. 그 두 스크립트와 `.github/workflow-policy.json`은 공통 경로이자 되돌리기 어려움이다.
 - `scripts/pr_author.py`: 작성 기록 파서는 이 파일 하나다. `workflow_policy.py`와 `check_review_status.py`가 가져온다. 둘 다 `scripts/`로 복사된다.
-- `scripts/check_review_status.py`: 리뷰 근거 표에 Standards, Spec, 버그 찾기, Security가 있고, 모델이 비어 있지 않으며, head SHA가 그 실행의 head 전체 40자와 같고, P0·P1이 정수인지 본다. 리뷰 모델과 작성 모델의 패밀리가 같으면 실패다. Opus와 Sonnet은 Claude다. Grok, Composer, Gemini, GPT는 각각 한 패밀리다. 플랫폼은 보지 않는다. 표에 없는 이름은 실패다. 근거 표가 여러 개면 마지막 표를 본다. 버그 찾기와 Security의 `해당 없음: <이유>`는 P0·P1·P2가 0일 때 통과한다. `미실행`은 실패다. 실패 이름은 `review/evidence`다. commit status가 아니다. Dependabot 작성자는 뺀다. 본문을 고치면 이미 있는 `edited`로 다시 돈다. #21의 댓글 재실행은 그대로다. 댓글 본문은 읽지 않고, PR 본문도 실행하지 않는다.
+- `scripts/check_review_status.py`: 리뷰 근거 표에 Standards, Spec, 버그 찾기, Security가 있고, 모델이 비어 있지 않으며, head SHA가 그 실행의 head 전체 40자와 같고, P0·P1이 정수인지 본다. 리뷰 모델과 작성 모델의 패밀리가 같으면 실패다. Opus와 Sonnet은 Claude다. Grok, Composer, Gemini, GPT는 각각 한 패밀리다. 플랫폼은 보지 않는다. 표에 없는 이름은 실패다. 근거 표가 여러 개면 마지막 표를 본다. 버그 찾기와 Security의 `해당 없음: <이유>`는 P0·P1·P2가 0일 때 통과한다. `미실행`은 실패다. 실패 이름은 `review/evidence`다. commit status가 아니다. Dependabot 작성자는 뺀다. 본문을 고치면 이미 있는 `edited`로 다시 돈다. #21의 댓글 재실행은 그때 그대로였다. 그 재실행은 과거 동작이고, 2026-11-06 「승인 댓글 편집 감지와 댓글 재실행을 줄인다」로 대체되었다. 댓글 본문은 읽지 않았고, PR 본문도 실행하지 않는다.
 - 다시 적용할 프로젝트: Smallnext·BGLike·Runstir. `scripts/workflow_policy.py`, `scripts/pr_author.py`, `scripts/test_workflow_policy.py`, `scripts/check_review_status.py`, `scripts/test_review_status.py`를 `tools/apply_baseline.py`로 복사한다. 양식과 `templates/pr-policy.yml`도 다시 복사한다. smallnext는 설정 파일을 두지 않으면 `AGENTS.md`와 feature flag 검사가 유지된다. 본문 절 검사는 새로 실패할 수 있다.
 
 ## 2026-11-05 — PR 본문 양식
@@ -142,11 +158,13 @@
 
 ## 2026-11-05 — 이벤트 정책 glob과 승인 댓글 재실행
 
+과거 동작. 승인 댓글 재실행은 2026-11-06 「승인 댓글 편집 감지와 댓글 재실행을 줄인다」로 대체되었다. 이벤트 정책 glob 분류는 그 절의 기록이다.
+
 - README의 이벤트 정책 판별은 `workflow_path` glob을 본다. `*`는 `/`를 넘지 않고 `**`는 넘는다. 그 파일에 맞는 glob이 `pull_request_target`만 허용하면 설치를 멈추고 POST하지 않는다. 패턴을 판별할 수 없어도 POST하지 않는다.
-- `templates/review-status.yml`: 소유자 승인 댓글이 생기거나, 수정되거나, 삭제되면 그 head의 `pull_request_target` 실행을 `head_sha`로 찾는다. 목록의 `pull_requests`는 비어 있을 수 있어 그 배열의 head만 보면 이전 실행을 고를 수 있다. 최근 50개로 끊지 않고 페이지당 100개, 최대 20페이지까지 찾는다. 실행을 끝까지 찾지 못하면 그 head에 실패하는 `Review status` 체크를 남겨 이전 성공이 최신 결과가 아니게 한다. `review/independent`와 `review/security`는 쓰지 않는다. 재실행 job은 기본 브랜치만 checkout하고 댓글 본문을 읽지 않는다. 권한에 `checks: write`가 더해진다.
+- `templates/review-status.yml`(과거 동작. 2026-11-06 「승인 댓글 편집 감지와 댓글 재실행을 줄인다」로 대체되었다): 그때 소유자 승인 댓글이 생기거나, 수정되거나, 삭제되면 그 head의 `pull_request_target` 실행을 `head_sha`로 찾았다. 목록의 `pull_requests`는 비어 있을 수 있어 그 배열의 head만 보면 이전 실행을 고를 수 있었다. 최근 50개로 끊지 않고 페이지당 100개, 최대 20페이지까지 찾았다. 실행을 끝까지 찾지 못하면 그 head에 실패하는 `Review status` 체크를 남겨 이전 성공이 최신 결과가 아니게 했다. `review/independent`와 `review/security`는 쓰지 않았다. 재실행 job은 기본 브랜치만 checkout하고 댓글 본문을 읽지 않았다. 권한에 `checks: write`가 더해졌다.
 - `scripts/check_review_status.py`: `review/independent`와 `review/security`는 열린 PR의 현재 파일·커밋 목록이 아니라 그 head의 `compare`로 정한다. 이전 head는 커밋 시각과 force-push 시각으로 정렬해, 더 최근 failure를 건너뛰고 이전 success를 잇지 않는다. 같은 head의 status 목록은 가장 최근 상태가 앞선다. `uses:` 줄의 주 버전은 `# vN`·`@vN`만 보고, 해시 안의 숫자는 주 버전이 아니다. 버전 표식이 없는 pin은 주 버전을 모르는 것으로 본다.
-- 댓글 재실행은 run의 `head_sha`만 고른다. `pull_requests[].head.sha`는 현재 head로 바뀔 수 있어 이전 실행을 다시 돌리지 않는다.
-- 다시 적용할 프로젝트: Smallnext·BGLike·Runstir. workflow 템플릿을 `.github/workflows/review-status.yml`로 다시 복사한다. `scripts/check_review_status.py`, `scripts/test_review_status.py`, `scripts/rerun_review_status.py`를 `tools/apply_baseline.py`로 다시 복사한다. 이벤트 정책 조회는 이 저장소 루트의 `tools/review_status_policy.py`를 쓴다.
+- 댓글 재실행은 run의 `head_sha`만 골랐다. `pull_requests[].head.sha`는 현재 head로 바뀔 수 있어 이전 실행을 다시 돌리지 않았다. 그 재실행은 과거 동작이고, 2026-11-06 「승인 댓글 편집 감지와 댓글 재실행을 줄인다」로 대체되었다.
+- 다시 적용할 프로젝트: Smallnext·BGLike·Runstir. 그때 workflow 템플릿을 `.github/workflows/review-status.yml`로 다시 복사했다. `scripts/check_review_status.py`, `scripts/test_review_status.py`, `scripts/rerun_review_status.py`를 `tools/apply_baseline.py`로 다시 복사했다. `scripts/rerun_review_status.py` 복사는 과거 동작이고, 2026-11-06 「승인 댓글 편집 감지와 댓글 재실행을 줄인다」로 대체되었다. 이벤트 정책 조회는 이 저장소 루트의 `tools/review_status_policy.py`를 썼다.
 
 ## 2026-11-04 — 동결 전 역할과 리뷰 기록
 
@@ -158,12 +176,14 @@
 
 ## 2026-11-04 — 되돌리기 어려움 승인 댓글을 검사기가 요구
 
+과거 동작. `issue_comment`로 Review status를 다시 돌리던 절차는 2026-11-06 「승인 댓글 편집 감지와 댓글 재실행을 줄인다」로 대체되었다. SHA가 박힌 승인 댓글 요구는 남았다.
+
 - `scripts/check_review_status.py`: 1인 프로필에서 §10 표의 게이트 경로를 바꾼 PR은 저장소 소유자의 이슈 댓글 `되돌리기 어려움 승인: <현재 head의 전체 SHA>`가 있어야 `Review status`가 통과한다. 실패 이름은 `review/owner-approval`이다. commit status로 올리지 않는다. 그 이름의 status가 있어도 댓글을 대신하지 않는다. 다른 SHA, 다른 작성자, 댓글 없음은 실패다. 새 head는 이전 댓글을 잇지 않는다. 되돌리기 쉬움과 Dependabot 버전 전용 예외는 통과한다. 파일 목록이 잘리면 댓글을 요구한다. 기준 브랜치 `AGENTS.md`의 한 줄이 `프로필: 팀`이면 팀 프로필이라 이 댓글을 요구하지 않는다. 그 줄을 더하거나 빼는 diff는 기준 브랜치가 아직 1인이면 댓글을 요구한다. 판정은 그 head의 `compare`로 하고, 열린 PR의 최신 파일 목록으로 하지 않는다. 주 버전과 표 밖의 되돌리기 어려움은 판정하지 않는다.
-- `templates/review-status.yml`: `issue_comment`의 생성·수정·삭제가 열린 PR의 댓글이고 작성자가 저장소 소유자이면, PR 코드를 checkout하지 않고 댓글 본문을 실행하지 않은 채 그 head의 `pull_request_target` 실행을 다시 돌린다. 다른 사람의 댓글은 다시 돌리지 않는다. 같은 PR의 이전 재실행은 취소한다. `issue_comment` 실행은 PR 체크가 아니기 때문이다. 평가하는 job의 권한은 읽기다. 재실행 job만 `actions: write`다.
+- `templates/review-status.yml`(과거 동작. 2026-11-06 「승인 댓글 편집 감지와 댓글 재실행을 줄인다」로 대체되었다): 그때 `issue_comment`의 생성·수정·삭제가 열린 PR의 댓글이고 작성자가 저장소 소유자이면, PR 코드를 checkout하지 않고 댓글 본문을 실행하지 않은 채 그 head의 `pull_request_target` 실행을 다시 돌렸다. 다른 사람의 댓글은 다시 돌리지 않았다. 같은 PR의 이전 재실행은 취소했다. `issue_comment` 실행은 PR 체크가 아니었다. 평가하는 job의 권한은 읽기였다. 재실행 job만 `actions: write`였다.
 - 승인 댓글의 첫 줄은 CRLF여도 SHA를 읽는다.
 - 게이트 경로의 Action 주 버전 변경과, `# vN`·`@vN`이 없어 주 번호를 모르는 `uses:`는 승인 댓글 예외가 아니다. 리뷰 status 면제는 그대로다.
-- 댓글 재실행은 `pull_request_target` 실행을 head SHA로 찾지 않는다. 그 이벤트는 실행을 base 커밋에 적는다. 실행의 `pull_requests`에서 PR 번호와 head SHA가 같은 것만 다시 돌린다.
-- 1인 승인 댓글의 작성자는 저장소 `owner.login`이다. 재실행도 그 로그인만 본다. 조직 소유 저장소는 그 로그인이 조직 이름이라 1인 프로필을 쓰지 않고 팀 프로필을 쓴다.
+- 댓글 재실행은 `pull_request_target` 실행을 head SHA로 찾지 않았다. 그 이벤트는 실행을 base 커밋에 적었다. 실행의 `pull_requests`에서 PR 번호와 head SHA가 같은 것만 다시 돌렸다. 그 재실행은 과거 동작이고, 2026-11-06 「승인 댓글 편집 감지와 댓글 재실행을 줄인다」로 대체되었다.
+- 1인 승인 댓글의 작성자는 저장소 `owner.login`이다. 재실행도 그때는 그 로그인만 보았다. 그 재실행은 과거 동작이고, 2026-11-06 「승인 댓글 편집 감지와 댓글 재실행을 줄인다」로 대체되었다. 조직 소유 저장소는 그 로그인이 조직 이름이라 1인 프로필을 쓰지 않고 팀 프로필을 쓴다.
 - 이벤트 정책 분류는 `workflow_path.exclude`에 `review-status.yml`이 있으면 그 정책을 대상으로 보지 않는다.
 - `templates/review-status-policy.json`: 허용 이벤트는 `issue_comment`와 `pull_request_target`뿐이다.
 - `POLICY.md` §9: 이 저장소도 `Review status`를 둔다. 예전 게이트 예외 문장은 뺐다. 순서는 이벤트 정책, workflow 파일, 그 다음 필수 체크 `Review status`다. 검사기를 바꾸는 PR은 정책·workflow 설치·필수 체크 등록을 하지 않는다.

@@ -37,7 +37,7 @@ Dependabot 버전 전용 예외는 `scripts/check_review_status.py`와 같다. �
 
 `tools/post_review_gate.py`는 **항상** 환경 변수 `GH_TOKEN`에 **게이트 전용 읽기 토큰**이 있어야 한다. 비어 있으면 `review gate refused: GH_TOKEN must be the gate account read-only token`로 끝난다. **개발자 `gh auth token`을 그대로 쓰지 않는다**(권한이 넓고, 게이트 읽기 주체와 섞인다).
 
-이 토큰으로 도는 **`Reader`는 REST GET과 `POST /graphql`을 쓴다**(`pull`/diff·커밋·트리·코멘트·승인 댓글 GraphQL 등, `tools/post_review_gate.py` 참고). **“메타데이터만”으로는 부족할 수 있다.** Fine-grained PAT이면 대상 저장소에 **콘텐츠(diff)·pull request·이슈(댓글)·GraphQL에 맞는 읽기**를 켠다. Classic PAT이면 보통 **`repo` 스코프**(해당 저장소가 비공개면 필수)로 커버된다. 설치 엔드포인트 등 앱 API는 **앱 JWT**(PEM)로 하고 `GH_TOKEN`과 섞지 않는다.
+이 토큰으로 도는 **`Reader`는 REST GET만 쓴다**(`pull`/diff·커밋·승인 댓글의 `created_at`·`updated_at`, `tools/post_review_gate.py` 참고). 승인 댓글의 편집 여부는 GraphQL `lastEditedAt`을 보지 않고 `updated_at`이 `created_at`과 같은지로만 본다. **“메타데이터만”으로는 부족할 수 있다.** Fine-grained PAT이면 대상 저장소에 **콘텐츠(diff)·pull request·이슈(댓글) 읽기**를 켠다. Classic PAT이면 보통 **`repo` 스코프**(해당 저장소가 비공개면 필수)로 커버된다. 설치 엔드포인트 등 앱 API는 **앱 JWT**(PEM)로 하고 `GH_TOKEN`과 섞지 않는다.
 
 - **리뷰 증거 status·(하드도어일 때) 승인 댓글**: 개발 계정의 `gh`(OAuth/PAT, Keychain에 연결된 자격 증명). 증거용 `gh api`는 이 토큰으로 한다.
 - **`post_review_gate.py`의 읽기**: 위와 **별도**인 **읽기 전용** 토큰을 `GH_TOKEN`으로 **서브셸에만** 내보낸다. PEM 경로·내용은 `GH_TOKEN`에 넣지 않는다.
@@ -71,7 +71,7 @@ git reset --hard "origin/main"
 
 1. **검토한 head SHA를 변수에 고정**한다(아래 `SHA`). PR이 갱신되면 다시 읽어 바꾼다.
 2. 증거 status(`review/independent`, 필요 시 `review/security`)는 **개발 계정 `gh api`**로 그 `SHA`에 올린다.
-3. **1인 프로필이고 되돌리기 어려움(PR)일 때만**: PR 댓글 `되돌리기 어려움 승인: <SHA>` (한 줄, 위와 **동일한** 전체 SHA). 편집하지 말고 새 댓글을 단다(`POLICY.md` §5). 되돌리기 쉬움이면 이 댓글은 필요 없다.
+3. **1인 프로필이고 되돌리기 어려움(PR)일 때만**: PR 댓글 `되돌리기 어려움 승인: <SHA>` (한 줄, 위와 **동일한** 전체 SHA). 편집하지 말고 새 댓글을 단다(`POLICY.md` §5). 댓글은 `Review status`를 자동으로 다시 돌리지 않는다. 이 단계 다음의 게이트 실행이 그 댓글을 읽는다. 되돌리기 쉬움이면 이 댓글은 필요 없다.
 4. 위 **체크아웃**으로 `GATE_TREE`를 깨끗이 맞춘다.
 5. Keychain에서 PEM을 임시 파일로 꺼내 **`GH_TOKEN`(게이트 읽기 전용)** 과 함께 `--dry-run` 후 실제 실행한다.
 

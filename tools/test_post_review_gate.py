@@ -56,9 +56,7 @@ def comment(head, login=OWNER, edited=False):
         "user": {"login": login},
         "body": f"되돌리기 어려움 승인: {head}\n",
         "created_at": stamp,
-        "updated_at": stamp,
-        "last_edited_at": stamp if edited else None,
-        "includes_created_edit": False,
+        "updated_at": "2026-11-06T00:00:01Z" if edited else stamp,
     }
 
 
@@ -125,6 +123,9 @@ class DecideTests(unittest.TestCase):
         self.assertEqual(approved.kind, "success")
         edited = decide(Scripted(pull(), files, statuses, comments=[comment(HEAD, edited=True)]))
         self.assertEqual(edited.kind, "failure")
+        source = Path(gate.__file__).read_text(encoding="utf-8")
+        self.assertNotIn("graphql", source)
+        self.assertNotIn("lastEditedAt", source)
 
     def test_head_mismatch_and_a_closed_pull_do_not_count_as_evidence_failure(self):
         files = [{"filename": "README.md"}]

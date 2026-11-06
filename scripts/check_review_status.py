@@ -9,11 +9,11 @@ A new head SHA needs success posted on that exact SHA. A prior head, an identica
 shift, a base update, and a force-push do not inherit it. Diff text and post-change blob ids are not evidence.
 A 1-person pull request that changes a POLICY.md §10 gate path also needs the repository owner's
 approval comment on this head. That comment is not reused from an older head. An edited comment
-is not approval: updated_at must equal created_at, and lastEditedAt must be null. A same-second
-edit keeps the timestamp strings equal and is still not approval. Post a new comment.
+is not approval when REST updated_at differs from created_at. Timestamps are whole seconds, so a
+same-second edit is not distinguished. Post a new comment, then re-run this job or post the gate
+by hand. A comment does not re-run this checker.
 The first line must be the current prefix or the deprecated prefix, then the full head SHA.
-A comment rerun does not parse the body. It runs this checker, so both prefixes share this match,
-and an edit re-run drops the edited comment.
+Both prefixes share this match.
 The pull request body is parsed for the review evidence table. It is never executed.
 The pull request base ref must be the repository default branch, and the event base SHA must be
 that branch or an ancestor of it. A pull request with a different base is not evidence."""
@@ -55,7 +55,7 @@ COMMON_PATHS = (
     ".github/workflows/**", ".github/actions/**", ".github/repository-settings.json", ".github/dependabot.yml",
     ".github/dependabot.yaml", ".github/CODEOWNERS", ".github/repo-baseline.json", ".github/workflow-policy.json",
     PROJECT_PATHS, "scripts/check_*.py",
-    "scripts/workflow_policy.py", "scripts/pr_author.py", "scripts/rerun_review_status.py",
+    "scripts/workflow_policy.py", "scripts/pr_author.py",
     "tools/post_review_gate.py", "tools/apply_github_settings.py", "docs/review-gate-app.md",
     ".claude/settings.json", ".claude/hooks/**", ".claude/agents/**", ".claude/commands/**", ".agents/skills/**",
     ".claude/skills/**", ".mcp.json", "Dockerfile", ".env*",
@@ -65,7 +65,7 @@ COMMON_PATHS = (
 ONE_WAY_PATHS = (
     ".github/workflows/**", "templates/review-status.yml", "templates/pr-policy.yml",
     "scripts/check_review_status.py", "scripts/workflow_policy.py", "scripts/pr_author.py",
-    "scripts/rerun_review_status.py", "tools/post_review_gate.py", "tools/apply_github_settings.py",
+    "tools/post_review_gate.py", "tools/apply_github_settings.py",
     "docs/review-gate-app.md", ".github/workflow-policy.json",
     "templates/review-status-policy.json", ".github/repository-settings.json", "templates/repository-settings.json",
 )
@@ -86,9 +86,6 @@ VERSION = re.compile(r"(?:sha\d+[-:]|h1:)[A-Za-z0-9+/=]+|(?<![\w.-])[0-9a-f]{7,}
 
 
 def read_api(endpoint):
-    comments = comment_list_target(endpoint)
-    if comments is not None:
-        return approval_comment_pages(*comments)
     paged = ["--paginate", "--slurp"] if "per_page" in endpoint else []
     result = subprocess.run(["gh", "api", "--method", "GET", endpoint, *paged],
                             capture_output=True, text=True, check=True, timeout=60)
@@ -413,89 +410,22 @@ def reviewed_state(status, allowed):
 
 
 def comment_unedited(comment):
-    """True when the comment was not edited.
+    """True when REST updated_at is the same non-empty string as created_at.
 
-    updated_at must be the same string as created_at. REST timestamps are whole seconds,
-    so a same-second edit can keep those strings equal. last_edited_at is GraphQL
-    lastEditedAt: null means GitHub recorded no edit, and a missing key is not approval.
-    includes_created_edit true means the history contains an edit."""
+    GitHub REST timestamps are whole seconds. A same-second edit keeps the strings
+    equal and is not distinguished. Do not edit an approval comment. Post a new one,
+    then re-run Review status or post the gate by hand. Extra keys are ignored."""
     if not isinstance(comment, dict):
         return False
     created = comment.get("created_at")
     updated = comment.get("updated_at")
-    if not (isinstance(created, str) and created != "" and created == updated):
-        return False
-    if "last_edited_at" not in comment or comment.get("last_edited_at") is not None:
-        return False
-    return comment.get("includes_created_edit") is not True
-
-
-def comment_list_target(endpoint):
-    """(repo, number) when endpoint is the issue-comment list. None otherwise."""
-    parts = endpoint.split("/")
-    if (len(parts) != 6 or parts[0] != "repos" or parts[3] != "issues"
-            or parts[5] != "comments?per_page=100" or not parts[4].isdigit()):
-        return None
-    return f"{parts[1]}/{parts[2]}", parts[4]
-
-
-def comment_record(node):
-    """One issue comment from GraphQL. Raises when the edit fields are missing."""
-    if not isinstance(node, dict):
-        raise ValueError("approval comments")
-    if "lastEditedAt" not in node or "includesCreatedEdit" not in node:
-        raise ValueError("approval comments")
-    author = node.get("author")
-    login = author.get("login") if isinstance(author, dict) else None
-    return {
-        "user": {"login": login},
-        "body": node.get("body"),
-        "created_at": node.get("createdAt"),
-        "updated_at": node.get("updatedAt"),
-        "last_edited_at": node.get("lastEditedAt"),
-        "includes_created_edit": node.get("includesCreatedEdit") is True,
-    }
-
-
-def approval_comment_pages(repo, number):
-    """Issue comments, 100 per page. lastEditedAt is null when the body was never edited."""
-    owner, name = repo.split("/", 1)
-    query = (
-        "query($owner:String!,$name:String!,$number:Int!,$cursor:String){"
-        "repository(owner:$owner,name:$name){pullRequest(number:$number){"
-        "comments(first:100,after:$cursor){nodes{author{login} body createdAt updatedAt "
-        "lastEditedAt includesCreatedEdit}pageInfo{hasNextPage endCursor}}}}}"
-    )
-    pages = []
-    cursor = None
-    for _ in range(20):
-        command = ["gh", "api", "graphql", "-f", f"query={query}", "-f", f"owner={owner}",
-                   "-f", f"name={name}", "-F", f"number={int(number)}"]
-        if cursor:
-            command.extend(["-f", f"cursor={cursor}"])
-        result = subprocess.run(command, capture_output=True, text=True, check=True, timeout=60)
-        try:
-            pull = json.loads(result.stdout)["data"]["repository"]["pullRequest"]
-            connection = pull["comments"]
-            nodes = connection["nodes"]
-            info = connection["pageInfo"]
-        except (json.JSONDecodeError, KeyError, TypeError):
-            raise ValueError("approval comments") from None
-        if not isinstance(nodes, list) or not isinstance(info, dict):
-            raise ValueError("approval comments")
-        pages.append([comment_record(node) for node in nodes])
-        if not info.get("hasNextPage"):
-            return pages
-        cursor = info.get("endCursor")
-        if not isinstance(cursor, str) or cursor == "":
-            raise ValueError("approval comments")
-    raise ValueError("approval comments")
+    return isinstance(created, str) and created != "" and created == updated
 
 
 def owner_approved(repo, number, head, read):
     """True when the owner has an unedited issue comment for this exact head.
-    updated_at must equal created_at, and GitHub must have no edit (lastEditedAt null).
-    An edited comment is not approval, including a same-second edit; post a new comment."""
+    REST updated_at must equal created_at. A different timestamp is not approval.
+    Post a new comment. A same-second edit is not distinguished."""
     owner = repository_owner(repo, read)
     pages = read(f"repos/{repo}/issues/{number}/comments?per_page=100")
     if not isinstance(pages, list):
@@ -783,7 +713,7 @@ def main(env=os.environ, read=read_api):
     try:
         repo, number = env["REPO"], env["PR_NUMBER"]
         head, base = env.get("HEAD_SHA") or "", env.get("BASE_SHA") or ""
-        # issue_comment has no pull_request sha. Read the current head so a new push invalidates the old comment.
+        # A caller without the event SHAs reads the current head, so a new push invalidates an older comment.
         if head == "" or base == "":
             pull = read(f"repos/{repo}/pulls/{number}")
             head = head or pull["head"]["sha"]
