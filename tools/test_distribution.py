@@ -110,7 +110,9 @@ class TrustBoundaryPathTests(unittest.TestCase):
     def test_review_status_workflow_does_not_rerun_on_comments(self):
         text = (ROOT / "templates/review-status.yml").read_text(encoding="utf-8")
         policy = (ROOT / "templates/review-status-policy.json").read_text(encoding="utf-8")
-        self.assertNotIn("issue_comment:", text)
+        on_block = text.split("\non:\n", 1)[1].split("\npermissions:", 1)[0]
+        self.assertNotIn("issue_comment", on_block)
+        self.assertIn("pull_request_target:", on_block)
         self.assertNotIn("scripts/rerun_review_status.py", text)
         self.assertIn("types: [opened, synchronize, reopened, ready_for_review, edited]", text)
         self.assertIn("pull_request_target:\n    branches: [main]\n", text)

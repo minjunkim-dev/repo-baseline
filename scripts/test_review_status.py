@@ -415,6 +415,7 @@ class ReviewStatusTests(unittest.TestCase):
         fresh = "2020-01-01T00:00:00Z"
         body = f"되돌리기 어려움 승인: {HEAD}"
         self.assertTrue(tool.comment_unedited(comment(body, created_at=fresh, updated_at=fresh)))
+        # GraphQL last_edited_at and includes_created_edit are ignored.
         self.assertTrue(tool.comment_unedited(
             comment(body, last_edited_at=fresh, includes_created_edit=True)))
         self.assertTrue(tool.comment_unedited(comment(body, omit_edit=True)))
@@ -441,6 +442,7 @@ class ReviewStatusTests(unittest.TestCase):
         check([comment(f"되돌리기 어려움 승인: {head}", created_at=fresh, updated_at=fresh)], [])
         check([comment(f"한쪽 문 승인: {head}", created_at=fresh, updated_at=fresh)], [])
         check([comment(f"되돌리기 어려움 승인: {head}", updated_at="2020-01-02T00:00:00Z")], [tool.OWNER])
+        # GraphQL edit fields are ignored when the REST timestamps match.
         check([comment(f"되돌리기 어려움 승인: {head}", last_edited_at=fresh)], [])
         check([comment(f"한쪽 문 승인: {head}", includes_created_edit=True)], [])
         check([comment(f"되돌리기 어려움 승인: {head}", omit_edit=True)], [])
