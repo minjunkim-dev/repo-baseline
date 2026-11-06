@@ -2,13 +2,20 @@
 
 리뷰 모델의 현행은 「리뷰는 패밀리가 다르면 된다」만이다. 그 아래의 리뷰 모델 절은 그 커밋 당시의 기록이다.
 
+## 2026-11-05 — 1인 프로필은 다른 계정의 리뷰 status와 편집된 승인 댓글을 받지 않는다
+
+- `scripts/check_review_status.py`: 1인 프로필에서 `review/independent`와 `review/security`는 `creator.login`이 저장소 소유자이거나 `STATUS_ACTORS`에 있을 때만 success다. `STATUS_ACTORS`는 `scripts/check_review_status.py`의 설정이고 지금은 비어 있다. 서버 앱의 로그인은 이 저장소에서 넣은 뒤 다시 복사한다. 소비 프로젝트의 복사본을 직접 고치지 않는다. 다른 작성자(`github-actions[bot]` 포함)의 status는 실패다. 없는 status로 보지 않는다. 목록은 `commits/{sha}/statuses`이고 최신순이다. context마다 첫 항목을 쓴다. combined status에는 `creator`가 없어 쓰지 않는다. 이어받기 해시는 diff와 바뀐 파일의 변경 후 blob id 전체다. `index` 줄의 축약 SHA는 쓰지 않는다. id는 바뀐 경로의 상위 디렉터리 tree만 읽는다. 다른 gitlink는 열지 않고, 바뀐 경로가 gitlink이면 그 커밋 id를 넣는다. 잘리거나 읽지 못하면 이어받지 않는다. 같은 경로의 `diff --git` 헤더는 가운데에서 자른다. `svc b/package.json`의 ` b/`를 구분자로 쓰지 않는다. 경로가 다르면 `rename to`·`copy to`를 읽고, 없으면 이어받지 않는다. 삭제·이름 변경·바이너리를 본다. `@@`의 함수 이름은 남긴다. 이름이 없는 파일은 그 헤더만으로 구분되지 않고, blob id가 그 이동을 가른다. 기준 브랜치가 다른 파일만 바꾸면 이어받는다. 같은 파일을 바꾸면 줄만 밀려도 다시 리뷰받는다. YAML, JSON, 같은 함수 안의 이동, CR을 넣은 줄도 이어받지 않는다. `prompts/pr-ci-setup.md`의 이어받기 문장도 같다. 이어받기의 이전 SHA도 같다. 팀 프로필은 작성자를 보지 않는다. (#34)
+- 승인 댓글은 `updated_at`이 `created_at`과 같은 문자열이고 GraphQL `lastEditedAt`이 null이며 `includesCreatedEdit`가 아닐 때만 인정한다. 편집한 댓글은 무효이고 새 댓글을 단다. REST 시각은 초 단위라 같은 초 편집은 두 문자열이 같다. 그 편집은 `lastEditedAt`으로 거절한다. `scripts/rerun_review_status.py`는 `created`·`edited`·`deleted`에서 검사기를 다시 돌린다. 실행 목록을 읽지 못하면 그 head에 실패하는 `Review status` 체크를 남긴다. 편집 이벤트의 `comment.user`는 처음 작성자라, 다른 계정이 소유자 댓글을 고쳐도 재실행되고 그 댓글은 승인이 아니게 된다.
+- `scripts/test_review_status.py`의 임시 git 저장소는 전역·시스템 git 설정을 읽지 않는다. `commit.gpgsign`과 `diff.noprefix`가 픽스처 커밋과 `diff --git a/` 헤더를 바꾸지 않는다.
+- 다시 적용할 프로젝트: smallnext, BGLike, mobile-runtime. `scripts/check_review_status.py`, `scripts/test_review_status.py`, `scripts/rerun_review_status.py`를 `tools/apply_baseline.py`로 다시 복사한다. `templates/review-status.yml`의 주석도 `.github/workflows/review-status.yml`로 다시 복사한다. workflow 파일은 manifest 해시 대상이 아니다. 스크립트 해시는 적용할 때 `.github/repo-baseline.json`에 다시 기록된다. 바뀐 복사 파일의 sha256은 이 변경의 PR 본문에 있다.
+
 ## 2026-11-05 — Review status를 필수 체크로 기록한다
 
 - `.github/repository-settings.json`: `protection.required_status_checks.checks`에 `{"context": "Review status", "app_id": 15368}`을 더했다. `strict`는 true다. 기존 `Baseline checks (Python 3.11)`, `Baseline checks (Python 3.13)`는 그대로다. context는 `templates/review-status.yml`과 `.github/workflows/review-status.yml`의 job 이름 `Review status`와 같다. PR #31의 체크 이름도 `Review status`다. 이슈 #32.
 - 이 파일은 기대값이다. 이 변경은 branch protection을 쓰지 않는다. 병합 뒤 소유자가 Mac에서 `tools/apply_github_settings.py`로 적용한다.
-- 적용되면 Dependabot 버전 전용 PR을 뺀 모든 PR(되돌리기 쉬움 포함)에 `review/independent`가 필요하다. 1인 프로필에서 status는 소유자만 올린다는 규칙이다. 에이전트가 status를 올리는 것은 금지지만 GitHub가 기술적으로 막지는 않는다. 검사기는 status 작성자를 아직 확인하지 않고, 그 확인은 후속 검사기 PR에서 고친다.
+- 적용되면 Dependabot 버전 전용 PR을 뺀 모든 PR(되돌리기 쉬움 포함)에 `review/independent`가 필요하다. 1인 프로필에서 status는 소유자만 올린다는 규칙이다. 에이전트가 status를 올리는 것은 금지지만 GitHub가 기술적으로 막지는 않는다. 그 시점의 검사기는 status 작성자를 확인하지 않았고, 확인은 #34에서 고친다.
 - `POLICY.md` §5·§9·§10, README, `docs/development-workflow.md`, `docs/github-settings-profile.md`, 셋업 프롬프트와 재적용 절차는 위 사실을 적는다. `templates/repository-settings.json`의 자리표시자는 그대로다.
-- 다시 적용할 프로젝트: smallnext, BGLike, mobile-runtime. `apply_baseline.py`는 `.github/repository-settings.json`을 복사하지 않는다. repo-baseline에 보호 규칙을 적용하고, 카나리 시험(같은 이름 체크 위장, 이전 실패 run이 남은 head의 병합 가능 여부, Dependabot 예외)을 통과하고, status 작성자·편집된 승인 댓글 검사기 수정이 병합·재적용된 뒤에 각 저장소가 별도 PR로 같은 체크를 적는다. 그 세 저장소도 기본 브랜치에 workflow가 있고 job이 한 번 성공한 뒤에 적는다. 그 PR도 branch protection을 쓰지 않는다. 적용은 각 저장소에서 소유자가 Mac으로 한다.
+- 다시 적용할 프로젝트: smallnext, BGLike, mobile-runtime. `apply_baseline.py`는 `.github/repository-settings.json`을 복사하지 않는다. repo-baseline에 보호 규칙을 적용하고, 카나리 시험(같은 이름 체크 위장, 이전 실패 run이 남은 head의 병합 가능 여부, Dependabot 예외)을 통과하고, status 작성자·편집된 승인 댓글 검사기 수정이 병합·재적용된 뒤에 각 저장소가 별도 PR로 같은 체크를 적는다. 카나리 결과는 Issue #32 댓글 하나에 적는다. 그 기록이 없으면 멈춘다. 그 세 저장소도 기본 브랜치에 workflow가 있고 job이 한 번 성공한 뒤에 적는다. 그 PR도 branch protection을 쓰지 않는다. 적용은 각 저장소에서 소유자가 Mac으로 한다.
 
 ## 2026-11-05 — 결정 분류 이름을 되돌리기 어려움·되돌리기 쉬움으로 바꾼다
 
@@ -108,7 +115,7 @@
 
 ## 2026-11-04 — 같은 diff의 리뷰 status 이어받기
 
-- `scripts/check_review_status.py`: 새 head에 그 context가 없고 diff identity가 이미 `success`인 status와 같으면 `Review status`가 그 status로 통과한다. 기준 브랜치 갱신만이 아니다. 커밋 목록이나 force-push 이력을 읽지 못하면 이어받지 않는다. 받은 커밋 수가 PR의 `commits`보다 적거나, force-push 이전 SHA가 없으면 이어받지 않는다. identity는 경로, 파일 모드, rename·copy, 추가·삭제한 줄, 바이너리 blob SHA다. 줄 번호와 주변 줄은 보지 않는다. 공백이 다르거나 diff를 읽지 못하면 이어받지 않는다. 이 head에 `failure`가 있으면 이전 성공으로 덮지 않는다. rebase로 커밋 목록에서 빠진 SHA는 pull request의 force-push 이전 head에서 찾는다. `git patch-id`는 공백을 지워서 쓰지 않았다. 이어받기는 절차 기록이고 보안 경계가 아니다. 이 검사기는 주 버전과 문 유형을 판정하지 않는다.
+- `scripts/check_review_status.py`: 새 head에 그 context가 없고 diff identity가 이미 `success`인 status와 같으면 `Review status`가 그 status로 통과한다. 기준 브랜치 갱신만이 아니다. 커밋 목록이나 force-push 이력을 읽지 못하면 이어받지 않는다. 받은 커밋 수가 PR의 `commits`보다 적거나, force-push 이전 SHA가 없으면 이어받지 않는다. identity는 경로, 파일 모드, rename·copy, 추가·삭제한 줄, 바이너리 blob SHA다. 줄 번호는 보지 않는다. hunk의 주변 줄은 #34에서부터 해시에 넣는다. 그 줄이 달라지면 이어받지 않는다. 공백이 다르거나 diff를 읽지 못하면 이어받지 않는다. 이 head에 `failure`가 있으면 이전 성공으로 덮지 않는다. rebase로 커밋 목록에서 빠진 SHA는 pull request의 force-push 이전 head에서 찾는다. `git patch-id`는 공백을 지워서 쓰지 않았다. 이어받기는 절차 기록이고 보안 경계가 아니다. 이 검사기는 주 버전과 문 유형을 판정하지 않는다.
 - Dependabot이 버전·해시·Action SHA만 바꾼 PR은 `review/independent`도 면제한다. 조건은 기존 `review/security` 예외와 같다. 이 면제는 리뷰 status(`review/security`, `review/independent`)와 외부 리뷰를 뺀다. 그 head에 리뷰 status가 있으면 `success`여야 한다. 사람 되돌리기 어려움 승인은 빼지 않는다. 주 버전 변경과 `scripts/check_review_status.py` 변경은 그 승인에서 빼지 않는다.
 - `POLICY.md` §8·`prompts/weekly-check.md`: 공개 저장소에 `review-status.yml`이 있으면 Actions 이벤트 정책이 그 파일의 `pull_request_target`만 허용하는지 본다.
 - 다시 적용할 프로젝트: Smallnext·BGLike·Runstir. `tools/apply_baseline.py`로 `scripts/check_review_status.py`와 `scripts/test_review_status.py`를 다시 복사한다. 각 프로젝트의 ②(필수 체크) 전에는 이 검사기가 기본 브랜치에 있어야 이어받기가 동작한다.

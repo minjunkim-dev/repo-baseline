@@ -123,6 +123,39 @@ class RerunCommandTests(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertEqual(len(calls), 1)
 
+    def test_edited_re_runs_and_an_unknown_action_posts_nothing(self):
+        sha = "e" * 40
+        pages = [[{"id": 5, "status": "completed", "head_sha": sha, "pull_requests": []}]]
+        calls = []
+
+        def execute(command, input=None):
+            calls.append(list(command))
+
+            class Result:
+                stdout = pull_body(sha) + "\n"
+
+            return Result()
+
+        edited = {"PR_NUMBER": "1", "REPO": "owner/repo", "COMMENT_ACTION": "edited"}
+        self.assertEqual(rerun.main(edited, execute, pages=pages), 0)
+        self.assertEqual(calls[1], ["gh", "run", "rerun", "5", "--repo", "owner/repo"])
+        calls.clear()
+        unknown = {"PR_NUMBER": "1", "REPO": "owner/repo", "COMMENT_ACTION": "labeled"}
+        self.assertEqual(rerun.main(unknown, execute, pages=pages), 0)
+        self.assertEqual(len(calls), 1)
+        self.assertNotIn("check-runs", " ".join(calls[0]))
+
+    def test_an_edit_re_runs_so_the_checker_can_drop_the_comment(self):
+        self.assertEqual(rerun.COMMENT_ACTIONS, ("created", "edited", "deleted"))
+        for action in rerun.COMMENT_ACTIONS:
+            self.assertTrue(rerun.comment_action_reruns(action))
+        self.assertFalse(rerun.comment_action_reruns("opened"))
+        text = (Path(__file__).resolve().parents[1] / "templates/review-status.yml").read_text(encoding="utf-8")
+        self.assertIn("types: [created, edited, deleted]", text)
+        self.assertIn("github.event.comment.user.login == github.repository_owner", text)
+        self.assertNotIn("github.event.sender.login", text)
+        self.assertIn("updated_at equals", text)
+
     def test_editing_or_deleting_the_approval_re_runs_the_completed_run(self):
         sha = "e" * 40
         pages = [[{"id": 5, "status": "completed", "head_sha": sha, "pull_requests": []}]]
@@ -131,6 +164,48 @@ class RerunCommandTests(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertEqual(calls[1][0][3], "5")
         self.assertTrue(rerun.comment_triggers(True, "open", "owner", "owner"))
+
+    def test_an_unreadable_run_list_posts_a_failing_check(self):
+        sha = "a" * 40
+
+        def failing(command, input=None):
+            if "actions/workflows" in " ".join(command):
+                raise subprocess.CalledProcessError(1, command)
+
+            class Result:
+                stdout = pull_body(sha) + "\n"
+
+            return Result()
+
+        calls = []
+
+        def execute(command, input=None):
+            calls.append(list(command))
+            return failing(command, input)
+
+        code = rerun.main({"PR_NUMBER": "1", "REPO": "owner/repo"}, execute)
+        self.assertEqual(code, 1)
+        posted = next(command for command in calls if "check-runs" in " ".join(command[0] if isinstance(command, tuple) else command))
+        self.assertIn("check-runs", " ".join(posted))
+
+        def broken_json(command, input=None):
+            class Result:
+                stdout = pull_body(sha) + "\n" if "pulls/" in " ".join(command) else "not-json"
+
+            return Result()
+
+        calls.clear()
+
+        def execute_json(command, input=None):
+            calls.append((list(command), input))
+            return broken_json(command, input)
+
+        code = rerun.main({"PR_NUMBER": "1", "REPO": "owner/repo"}, execute_json)
+        self.assertEqual(code, 1)
+        body = json.loads(calls[-1][1])
+        self.assertEqual(body["head_sha"], sha)
+        self.assertEqual(body["conclusion"], "failure")
+        self.assertEqual(body["name"], "Review status")
 
     def test_a_failed_rerun_posts_a_failing_check(self):
         sha = "a" * 40
