@@ -2,7 +2,13 @@
 
 리뷰 모델의 현행은 「2026-11-06 — 역할 분담: 클라우드 기본, 활성 로스터」다. 그 아래의 리뷰 모델 절은 그 커밋 당시의 기록이다.
 
-Dependabot 현행은 「2026-11-06 — Dependabot PR은 다른 PR과 같다」다. 그 아래 날짜의 pin 전용 면제 문장은 당시 기록이다. 승인 댓글 편집의 현행은 「2026-11-06 — 승인 댓글 편집 감지와 댓글 재실행을 줄인다」다. 게이트가 `review/independent`·`review/security`를 요구하던 문장은 「2026-11-06 — 게이트는 근거 표와 승인 댓글만 본다」로 대체되었다.
+Dependabot 현행은 「2026-11-06 — Dependabot PR은 다른 PR과 같다」다. 그 아래 날짜의 pin 전용 면제 문장은 당시 기록이다. 승인 댓글 편집의 현행은 「2026-11-06 — 승인 댓글 편집 감지와 댓글 재실행을 줄인다」다. 게이트가 `review/independent`·`review/security`를 요구하던 문장은 「2026-11-06 — 게이트는 근거 표와 승인 댓글만 본다」로 대체되었다. 신뢰 경계 경로의 Security 근거는 「2026-11-06 — Security 근거는 경로로 정한다」다.
+
+## 2026-11-06 — Security 근거는 경로로 정한다
+
+- `scripts/check_review_status.py`: 공통 경로, 의존성 파일 이름, 기준 브랜치의 `.github/trust-boundary-paths`에 걸리면 Security 칸의 `해당 없음`은 실패다. compare가 목록을 주지 않거나 경로 이름이 없으면 실패다. 그 파일 읽기가 404가 아닌 오류면 확인 불가다. 버그 찾기의 `해당 없음`은 그대로다. `review/independent`와 `review/security` status는 읽지 않는다.
+- 근거 표의 HTML 주석은 Author 줄과 표 둘 다 보기 전에 뺀다. 닫히지 않은 주석은 실패다. 모델을 적은 행은 P0·P1·P2가 정수여야 하고, P0나 P1이 0보다 크면 실패다. P2가 0보다 커도 그 칸만으로는 실패하지 않는다. effort가 비어 있으면 실패다. `result`가 `fail`, `failed`, `failure`, `실패`이면 실패다.
+- `review/independent`와 `review/security` 상수 이름은 검사기에서 뺐다. status는 advisory다. 필수 체크와 `review/gate` `app_id` 5641238은 바꾸지 않는다. Dependabot 면제는 없다. 승인 댓글의 REST 시각 비교는 그대로다.
 
 ## 2026-11-06 — 게이트는 근거 표와 승인 댓글만 본다
 
@@ -14,7 +20,7 @@ Dependabot 현행은 「2026-11-06 — Dependabot PR은 다른 PR과 같다」�
 
 ## 2026-11-06 — Dependabot PR은 다른 PR과 같다
 
-- 합의(2026-11-06, Dependabot=normal): 2026-11-04의 pin 전용 Dependabot 면제를 거둔다. `scripts/check_review_status.py`는 버전·해시 줄 비교, `uses:` pin 모양, web-flow 커밋터, 주 버전 판정으로 `review/independent`·`review/security`·근거 표·승인 댓글을 빼지 않는다. Dependabot PR도 그 넷을 다른 PR과 같이 요구한다. 경로에 걸리면 `review/security`가 필요하고, 게이트 경로면 사람 승인 댓글이 필요하다. `tools/post_review_gate.py`는 그 diff만으로 success를 올리지 않는다. 자동 성공 경로는 없다.
+- 합의(2026-11-06, Dependabot=normal): 2026-11-04의 pin 전용 Dependabot 면제를 거둔다. `scripts/check_review_status.py`는 버전·해시 줄 비교, `uses:` pin 모양, web-flow 커밋터, 주 버전 판정으로 `review/independent`·`review/security`·근거 표·승인 댓글을 빼지 않는다. Dependabot PR도 근거 표와 승인 댓글을 다른 PR과 같이 요구한다. 이 문장이 적던 `review/security` status 요구는 위 「Security 근거는 경로로 정한다」에서 근거 표의 Security 모델로 바뀌었다. status는 advisory다. 신뢰 경계 경로의 Security `해당 없음`은 실패다. 게이트 경로면 사람 승인 댓글이 필요하다. `tools/post_review_gate.py`는 그 diff만으로 success를 올리지 않는다. 자동 성공 경로는 없다.
 - `scripts/workflow_policy.py`가 Dependabot의 본문 절과 72자를 넘는 제목을 건너뛰는 것은 그대로다. 그 건너뜀은 근거 표와 하드도어 승인 댓글을 대신하지 않는다.
 - `POLICY.md`, README, `docs/review-gate-app.md`, `docs/development-workflow.md`, `docs/github-settings-profile.md`, `prompts/pr-ci-setup.md`, `prompts/github-repository-settings.md`, `prompts/weekly-check.md`는 이 규칙으로 고쳤다. §5 승인 댓글 문단의 `review/security`·`review/independent` 면제 문장도 뺐다. 작성자로 그 status를 빼지 않고, Action 주 버전이나 `uses:` pin 모양으로도 빼지 않는다. `외부 리뷰` 불릿이 앞 문단에 붙어 있던 줄바꿈을 되돌렸다. `docs/development-workflow.md`의 리뷰·수정 불릿, `prompts/pr-ci-setup.md`의 5번, `POLICY.md` §9의 GitHub auto-merge 불릿도 같은 방식으로 줄을 나눴다. 게이트 경로 문장은 그 경로를 바꾸면 승인 댓글이 필요하다고 적는다.
 - `.github/repository-settings.json`의 필수 체크는 바꾸지 않는다. `strict`와 `review/gate` `app_id` 5641238은 그대로다. 이 변경은 branch protection을 쓰지 않고 status를 올리지 않는다. 카나리 E는 다시 열지 않는다.

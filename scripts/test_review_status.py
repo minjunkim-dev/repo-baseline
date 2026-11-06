@@ -12,6 +12,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import check_review_status as tool
 
 HEAD = "a" * 40
+INDEPENDENT = "review/independent"
+SECURITY = "review/security"
 
 
 def passing_body(head):
@@ -149,7 +151,7 @@ def comment(body, login="owner", created_at="2020-01-01T00:00:00Z", updated_at=N
     return row
 
 
-OK = (tool.INDEPENDENT, "success")
+OK = (INDEPENDENT, "success")
 BUMP = ("@@ -1 +1 @@\n-  uses: actions/checkout@" + "a" * 40 + " # v1.0.0\n"
         "+  uses: actions/checkout@" + "b" * 40 + " # v1.1.0")
 
@@ -159,12 +161,12 @@ class ReviewStatusTests(unittest.TestCase):
         files = [{"filename": "src/app.py"}]
         self.assertEqual(run(api(files)), [])
         self.assertEqual(run(api(files, [OK])), [])
-        self.assertEqual(run(api(files, [(tool.INDEPENDENT, "failure")])), [])
-        self.assertEqual(run(api(files, [OK, (tool.SECURITY, "failure")])), [])
-        self.assertEqual(run(api(files, [OK, (tool.SECURITY, "success")])), [])
-        self.assertEqual(run(api(files, [(tool.INDEPENDENT, "success", "github-actions[bot]")])), [])
-        self.assertEqual(run(api(files, [(tool.INDEPENDENT, "success", "alice")])), [])
-        team = api(files, [(tool.INDEPENDENT, "success", "github-actions[bot]")], agents="프로필: 팀\n")
+        self.assertEqual(run(api(files, [(INDEPENDENT, "failure")])), [])
+        self.assertEqual(run(api(files, [OK, (SECURITY, "failure")])), [])
+        self.assertEqual(run(api(files, [OK, (SECURITY, "success")])), [])
+        self.assertEqual(run(api(files, [(INDEPENDENT, "success", "github-actions[bot]")])), [])
+        self.assertEqual(run(api(files, [(INDEPENDENT, "success", "alice")])), [])
+        team = api(files, [(INDEPENDENT, "success", "github-actions[bot]")], agents="프로필: 팀\n")
         self.assertEqual(run(team), [])
         base = api(files)
 
@@ -190,14 +192,14 @@ class ReviewStatusTests(unittest.TestCase):
             with self.subTest(path=path):
                 owner = [tool.OWNER] if path in {".github/workflows/ci.yml", "scripts/check_review_status.py"} else []
                 self.assertEqual(run(api([{"filename": path}])), owner)
-                self.assertEqual(run(api([{"filename": path}], [OK, (tool.SECURITY, "failure")])), owner)
-                self.assertNotIn(tool.INDEPENDENT, run(api([{"filename": path}])))
-                self.assertNotIn(tool.SECURITY, run(api([{"filename": path}])))
+                self.assertEqual(run(api([{"filename": path}], [OK, (SECURITY, "failure")])), owner)
+                self.assertNotIn(INDEPENDENT, run(api([{"filename": path}])))
+                self.assertNotIn(SECURITY, run(api([{"filename": path}])))
 
     def test_renaming_a_file_out_of_a_gate_path_still_needs_the_owner_comment(self):
         files = [{"filename": "docs/x.yml", "previous_filename": ".github/workflows/x.yml"}]
         self.assertEqual(run(api(files)), [tool.OWNER])
-        self.assertNotIn(tool.SECURITY, run(api(files, [OK])))
+        self.assertNotIn(SECURITY, run(api(files, [OK])))
 
     def test_project_paths_come_from_the_base_commit(self):
         files = [{"filename": "src/auth/login.py"}]
@@ -243,8 +245,8 @@ class ReviewStatusTests(unittest.TestCase):
         self.assertEqual(run(api(workflow, [OK], author=bot, commits=[bot])),
                          run(api(workflow, [OK])))
         self.assertEqual(run(api(workflow, author=bot, commits=[bot])), [tool.OWNER])
-        self.assertNotIn(tool.INDEPENDENT, run(api(workflow, author=bot, commits=[bot])))
-        self.assertNotIn(tool.SECURITY, run(api(workflow, author=bot, commits=[bot])))
+        self.assertNotIn(INDEPENDENT, run(api(workflow, author=bot, commits=[bot])))
+        self.assertNotIn(SECURITY, run(api(workflow, author=bot, commits=[bot])))
         minor = [{"filename": "package.json", "patch": '@@\n-  "x": "^1.2.3",\n+  "x": "^2.0.0",'}]
         self.assertEqual(run(api(minor, [OK], author=bot, commits=[bot])), [])
         self.assertEqual(run(api(minor, [OK], author=bot, commits=[bot])), run(api(minor, [OK])))
@@ -252,7 +254,7 @@ class ReviewStatusTests(unittest.TestCase):
         self.assertEqual(run(api(app, [OK], author=bot)), [])
         self.assertEqual(run(api(app, [OK], body="", author=bot)), [tool.EVIDENCE])
         approved = comment(f"되돌리기 어려움 승인: {HEAD}")
-        covered = [OK, (tool.SECURITY, "success")]
+        covered = [OK, (SECURITY, "success")]
         self.assertEqual(run(api(workflow, covered, author=bot, comments=[approved])), [])
 
     def test_a_combined_status_payload_is_not_consulted(self):
@@ -261,9 +263,9 @@ class ReviewStatusTests(unittest.TestCase):
         self.assertEqual(tool.main(env, api(files, [OK], combined=True)), 0)
         self.assertEqual(run(api(files)), [])
         gate = [{"filename": "scripts/check_review_status.py"}]
-        bot_security = [OK, (tool.SECURITY, "success", "github-actions[bot]")]
+        bot_security = [OK, (SECURITY, "success", "github-actions[bot]")]
         self.assertEqual(run(api(gate, bot_security)), [tool.OWNER])
-        self.assertEqual(run(api(gate, [OK, (tool.SECURITY, "success", "owner")])), [tool.OWNER])
+        self.assertEqual(run(api(gate, [OK, (SECURITY, "success", "owner")])), [tool.OWNER])
 
     def test_a_prior_sha_does_not_cover_this_head(self):
         """Success on another SHA is not evidence for this head."""
@@ -284,10 +286,10 @@ class ReviewStatusTests(unittest.TestCase):
         self.assertEqual(tool.main(env, read), 0)
         on_head = api(files, [OK], commit_shas=[prior, HEAD], extra_status={prior: [OK]})
         self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", on_head), [])
-        failed = api(files, [(tool.INDEPENDENT, "failure")], extra_status={prior: [OK]})
+        failed = api(files, [(INDEPENDENT, "failure")], extra_status={prior: [OK]})
         self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", failed), [])
         gate = [{"filename": ".github/workflows/ci.yml", "patch": "@@\n-run: a\n+run: b"}]
-        old_gate = api(gate, extra_status={prior: [OK, (tool.SECURITY, "success")]})
+        old_gate = api(gate, extra_status={prior: [OK, (SECURITY, "success")]})
         self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", old_gate), [tool.OWNER])
 
     def test_owner_approval_uses_rest_timestamps_only(self):
@@ -310,7 +312,7 @@ class ReviewStatusTests(unittest.TestCase):
         head = "a" * 40
         other = "b" * 40
         files = [{"filename": "templates/review-status.yml"}]
-        reviews = [OK, (tool.SECURITY, "success")]
+        reviews = [OK, (SECURITY, "success")]
 
         def check(comments, expected, **kwargs):
             read = api(files, reviews, comments=comments, head=head, **kwargs)
@@ -368,7 +370,7 @@ class ReviewStatusTests(unittest.TestCase):
         bot = "dependabot[bot]"
         bump = [{"filename": ".github/workflows/ci.yml", "patch": BUMP}]
         self.assertEqual(run(api(bump, author=bot, commits=[bot])), [tool.OWNER])
-        self.assertEqual(run(api([{"filename": "scripts/check_repo_baseline.py"}], [OK, (tool.SECURITY, "success")])), [])
+        self.assertEqual(run(api([{"filename": "scripts/check_repo_baseline.py"}], [OK, (SECURITY, "success")])), [])
         self.assertEqual(run(api([{"filename": "AGENTS.md", "patch": "@@\n+프로필: 팀\n"}], [OK])), [tool.OWNER])
         self.assertEqual(run(api([{"filename": "AGENTS.md", "patch": "@@\n+다른 줄\n"}], [OK])), [])
         self.assertEqual(run(api([{"filename": "AGENTS.md"}], [OK])), [tool.OWNER])
@@ -378,7 +380,7 @@ class ReviewStatusTests(unittest.TestCase):
 
     def test_owner_approval_uses_the_compare_for_this_head(self):
         head = "d" * 40
-        reviews = [OK, (tool.SECURITY, "success")]
+        reviews = [OK, (SECURITY, "success")]
         swapped = api([{"filename": "src/app.py"}], reviews, head=head,
                       compare_files=[{"filename": ".github/workflows/ci.yml"}])
         self.assertEqual(tool.missing("o/n", "1", head, "BASE", swapped), [tool.OWNER])
@@ -399,19 +401,19 @@ class ReviewStatusTests(unittest.TestCase):
     def test_a_new_head_invalidates_the_owner_comment(self):
         files = [{"filename": "scripts/check_review_status.py"}]
         old = "b" * 40
-        read = api(files, commit_shas=[old, HEAD], extra_status={old: [OK, (tool.SECURITY, "success")]},
+        read = api(files, commit_shas=[old, HEAD], extra_status={old: [OK, (SECURITY, "success")]},
                    comments=[comment(f"한쪽 문 승인: {old}")])
         self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", read), [tool.OWNER])
-        read_new = api(files, commit_shas=[old, HEAD], extra_status={old: [OK, (tool.SECURITY, "success")]},
+        read_new = api(files, commit_shas=[old, HEAD], extra_status={old: [OK, (SECURITY, "success")]},
                        comments=[comment(f"되돌리기 어려움 승인: {old}")])
         self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", read_new), [tool.OWNER])
         matched = "c" * 40
-        passed = api(files, [OK, (tool.SECURITY, "success")], comments=[comment(f"한쪽 문 승인: {matched}")], head=matched)
+        passed = api(files, [OK, (SECURITY, "success")], comments=[comment(f"한쪽 문 승인: {matched}")], head=matched)
         self.assertEqual(tool.missing("o/n", "1", matched, "BASE", passed), [])
 
     def test_unreadable_approval_comments_do_not_pass(self):
         files = [{"filename": "templates/review-status-policy.json"}]
-        base = api(files, [OK, (tool.SECURITY, "success")])
+        base = api(files, [OK, (SECURITY, "success")])
 
         def read(endpoint):
             if endpoint.endswith("/comments?per_page=100"):
@@ -441,14 +443,14 @@ class ReviewStatusTests(unittest.TestCase):
 
     def test_a_prior_failure_does_not_change_this_head(self):
         files = [{"filename": "src/app.py"}]
-        read = api(files, [OK], extra_status={"FAILED": [(tool.INDEPENDENT, "failure")]})
+        read = api(files, [OK], extra_status={"FAILED": [(INDEPENDENT, "failure")]})
         self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", read), [])
         missing_here = api(files, extra_status={"OLDER": [OK]})
         self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", missing_here), [])
 
     def test_a_newer_failure_on_this_head_does_not_hide_the_evidence(self):
         files = [{"filename": "src/app.py"}]
-        self.assertEqual(run(api(files, [(tool.INDEPENDENT, "failure"), OK])), [])
+        self.assertEqual(run(api(files, [(INDEPENDENT, "failure"), OK])), [])
 
     def test_review_evidence_table_matches_this_head_and_not_the_author_model(self):
         head = HEAD
@@ -466,7 +468,7 @@ class ReviewStatusTests(unittest.TestCase):
                 "Author: Cursor / grok-4.7",
                 "| axis | model | effort | head SHA | P0 | P1 | P2 | result |",
                 "| --- | --- | --- | --- | --- | --- | --- | --- |",
-                f"| {axis} | {model} | high | {sha} | {p0} | {p1} | note | pass |",
+                f"| {axis} | {model} | high | {sha} | {p0} | {p1} | 0 | pass |",
                 f"| Spec | Sonnet 5.5 | high | {sha} | 0 | 0 | 0 | pass |",
                 f"| 버그 찾기 | Opus 5.5 | high | {sha} | 0 | 0 | 0 | pass |",
                 f"| Security | Opus 5.5 | high | {sha} | 0 | 0 | 0 | pass |",
@@ -531,6 +533,81 @@ class ReviewStatusTests(unittest.TestCase):
         self.assertIn("same-family", tool.evidence_problems(
             table("Sonnet 5.5", head).replace("Author: Cursor / grok-4.7",
                                               "작성 도구: Cursor\n작성 모델: grok-4.7\n이전 작성 모델: Sonnet 5.5"), head))
+        self.assertIn("p2", tool.evidence_problems(table("Sonnet 5.5", head).replace("| 0 | pass |", "| note | pass |", 1), head))
+        self.assertIn("open", tool.evidence_problems(table("Sonnet 5.5", head, p0="1"), head))
+        self.assertIn("open", tool.evidence_problems(table("Sonnet 5.5", head, p1="2"), head))
+        self.assertIn("result", tool.evidence_problems(table("Sonnet 5.5", head).replace("| pass |", "| FAIL |", 1), head))
+        self.assertIn("effort", tool.evidence_problems(table("Sonnet 5.5", head).replace("| high |", "|  |", 1), head))
+        commented = "<!--\n" + table("Sonnet 5.5", other) + "-->\n" + table("Composer 2.5", head)
+        self.assertEqual(tool.evidence_problems(commented, head), [])
+        only_hidden = "<!--\nAuthor: Cursor / grok-4.7\n" + table("Sonnet 5.5", head) + "-->\n"
+        self.assertIn("table", tool.evidence_problems(only_hidden, head))
+        self.assertIn("author", tool.evidence_problems(only_hidden, head))
+        self.assertEqual(["comment"], tool.evidence_problems("<!--\n" + table("Sonnet 5.5", head), head))
+
+    def test_security_evidence_follows_the_trust_boundary_not_a_status(self):
+        head = HEAD
+
+        def na_body(sha=head):
+            return "\n".join([
+                "Author: Cursor 클라우드 에이전트 / grok-4.7",
+                "| axis | model | effort | head SHA | P0 | P1 | P2 | result |",
+                "| --- | --- | --- | --- | --- | --- | --- | --- |",
+                f"| Standards | Sonnet 5.5 | high | {sha} | 0 | 0 | 0 | pass |",
+                f"| Spec | Sonnet 5.5 | high | {sha} | 0 | 0 | 0 | pass |",
+                f"| 버그 찾기 | Opus 5.5 | high | {sha} | 0 | 0 | 0 | pass |",
+                f"| Security | 해당 없음: 신뢰 경계 변경 아님 | 해당 없음 | {sha} | 0 | 0 | 0 | pass |",
+                "",
+            ])
+
+        self.assertEqual(run(api([{"filename": "src/app.py"}], body=na_body())), [])
+        self.assertEqual(run(api([{"filename": "docs/readme.md"}], body=na_body())), [])
+        boundary = (
+            ".github/actions/x/action.yml",
+            "scripts/check_github_settings.py",
+            ".claude/hooks/x.sh",
+            ".mcp.json",
+            "svc/Dockerfile",
+            "web/package.json",
+            ".github/CODEOWNERS",
+        )
+        for path in boundary:
+            with self.subTest(path=path):
+                found = run(api([{"filename": path}], body=na_body()))
+                self.assertEqual(found, [tool.EVIDENCE])
+                self.assertEqual(run(api([{"filename": path}])), [])
+        renamed = [{"filename": "docs/keep.txt", "previous_filename": ".github/actions/old/action.yml"}]
+        self.assertEqual(run(api(renamed, body=na_body())), [tool.EVIDENCE])
+        unnamed = api([{"filename": "src/app.py"}], body=na_body(),
+                      compare_files=[{"patch": "@@\n-a\n+b\n"}])
+        self.assertEqual(run(unnamed), [tool.EVIDENCE])
+        capped = api([{"filename": "src/app.py"}], body=na_body(),
+                     compare_files=[{"filename": "src/app.py"}] * 300)
+        self.assertEqual(run(capped), [tool.OWNER, tool.EVIDENCE])
+        base = api([{"filename": "src/app.py"}], body=na_body())
+
+        def unread(endpoint):
+            if endpoint.endswith("/statuses?per_page=100"):
+                raise subprocess.CalledProcessError(1, "gh", stderr="HTTP 500")
+            return base(endpoint)
+
+        self.assertEqual(run(unread), [])
+        env = {"REPO": "o/n", "PR_NUMBER": "1", "HEAD_SHA": HEAD, "BASE_SHA": "BASE"}
+
+        def broken_list(endpoint):
+            if "trust-boundary-paths" in endpoint:
+                raise subprocess.CalledProcessError(1, "gh", stderr="HTTP 500")
+            return base(endpoint)
+
+        self.assertEqual(tool.main(env, broken_list), 2)
+
+        def too_big(endpoint):
+            if "/compare/" in endpoint and not endpoint.endswith("...main"):
+                raise subprocess.CalledProcessError(1, "gh", stderr="HTTP 406")
+            return base(endpoint)
+
+        self.assertIn(tool.EVIDENCE, run(too_big))
+        self.assertIn(tool.OWNER, run(too_big))
 
     def test_a_side_base_fails_and_a_main_base_still_passes(self):
         files = [{"filename": "src/app.py"}]
@@ -555,7 +632,7 @@ class ReviewStatusTests(unittest.TestCase):
     def test_same_head_side_pull_request_is_not_evidence_for_main(self):
         head = "c" * 40
         gate = [{"filename": ".github/workflows/ci.yml"}]
-        passed = [OK, (tool.SECURITY, "success")]
+        passed = [OK, (SECURITY, "success")]
         main_read = api(gate, passed, head=head, number="4", base_ref="main", base_sha="MAIN")
         # An empty diff against the side base would pass the owner check. It must not.
         side_read = api([], passed, head=head, number="5", base_ref="wip", base_sha="SIDE")
@@ -581,7 +658,7 @@ class ReviewStatusTests(unittest.TestCase):
 
     def test_a_retargeted_run_does_not_pass_on_the_old_side_base_sha(self):
         head = "c" * 40
-        passed = [OK, (tool.SECURITY, "success")]
+        passed = [OK, (SECURITY, "success")]
         # The live pull request targets main. A rerun of the old run still sends BASE_SHA=SIDE.
         both = api([], passed, head=head, number="4", base_ref="main", base_sha="SIDE", base_status="behind")
         output = StringIO()
@@ -592,7 +669,7 @@ class ReviewStatusTests(unittest.TestCase):
         self.assertEqual(tool.missing("o/n", "4", head, "SIDE", diverged), [tool.BASE_REF])
         ahead = api([{"filename": "src/app.py"}], [OK], head=head, base_sha="OLD", base_status="ahead")
         self.assertEqual(tool.missing("o/n", "1", head, "OLD", ahead), [])
-        gate = api([{"filename": ".github/workflows/ci.yml"}], [OK, (tool.SECURITY, "success")],
+        gate = api([{"filename": ".github/workflows/ci.yml"}], [OK, (SECURITY, "success")],
                    head=head, base_sha="OLD", base_status="identical")
         self.assertEqual(tool.missing("o/n", "1", head, "OLD", gate), [tool.OWNER])
         env = {"REPO": "o/n", "PR_NUMBER": "4", "HEAD_SHA": head, "BASE_SHA": "SIDE"}
