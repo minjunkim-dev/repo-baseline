@@ -2,7 +2,8 @@
 """Fail when a pull request head lacks the review statuses its changed paths need (POLICY.md §5).
 Paths only: content signals stay a reviewer judgement. On a 1-person profile, review/independent
 and review/security count only when creator.login is the repository owner or a login in
-STATUS_ACTORS (empty until the server app exists). Another creator is failure, not a missing
+STATUS_ACTORS (empty). The review-gate app is not listed: it posts review/gate only.
+Another creator is failure, not a missing
 context, so an older success is not carried over it. The same account still cannot tell a person
 from an agent. A team profile does not look at the creator.
 A base update creates a new head SHA. Carry hashes the diff and the full post-change blob id of
@@ -51,7 +52,7 @@ DEPENDABOT = "dependabot[bot]"
 WEB_FLOW = "web-flow"
 TEAM_LINE = "프로필: 팀"
 # Solo-profile logins that may post review/independent and review/security, besides the
-# repository owner. Empty until the server app exists. This file runs from the default
+# repository owner. The review-gate app is not added here. This file runs from the default
 # branch, so a pull request cannot add a login. A team profile does not read this tuple.
 STATUS_ACTORS = ()
 # Exact first-line prefixes. The second is deprecated and means the same approval.
