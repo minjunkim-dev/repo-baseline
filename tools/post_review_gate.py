@@ -6,7 +6,8 @@ Only that App's app_id satisfies the pin. A workflow GITHUB_TOKEN posts as
 app 15368, so the same context name from Actions does not. This file runs on
 the owner's Mac (later the Mac Studio server). It refuses to run under
 GITHUB_ACTIONS. The private key path is REVIEW_GATE_APP_KEY and is never
-written here. Reads use GH_TOKEN. The installation token is used for the
+written here. Reads use GH_TOKEN, the gate account's read-only token, not the
+developer gh token. The installation token is used for the
 single status POST and is requested only for this repository's statuses.
 
 --dry-run reads the evidence and prints the decision. It does not mint a
@@ -381,7 +382,7 @@ def run(argv, env, request, now=None, sign=None):
         return 2
     token = env.get("GH_TOKEN") or ""
     if not token:
-        print("review gate refused: GH_TOKEN must be the Mac gh token", file=sys.stderr)
+        print("review gate refused: GH_TOKEN must be the gate account read-only token", file=sys.stderr)
         return 2
     base = (env.get("REVIEW_GATE_API") or API).rstrip("/")
     reader = Reader(base, token, request)
