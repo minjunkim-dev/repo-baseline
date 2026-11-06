@@ -22,7 +22,9 @@ Dependabot 버전 전용 예외는 `scripts/check_review_status.py`와 같다. �
 
 오늘 `/tmp/approve.sh`는 `review/independent`와 `review/security`를 올리고, 되돌리기 어려움이면 댓글 `되돌리기 어려움 승인: <SHA>`를 단다. 그 다음에 봉인 사본으로 게이트를 올린다. 체크아웃의 `python3 tools/post_review_gate.py`는 실행 경로가 아니다. 에이전트는 세 가지 모두를 실행하지 않는다.
 
-증거 status와 승인 댓글은 소유자 `gh` 키링으로 올린다. 그 명령 앞에 `GH_TOKEN`을 두지 않는다. 게이트 프로세스의 `GH_TOKEN`은 그 키링이 아니라, 게이트 계정의 읽기 전용 토큰이다. 앱 토큰은 status POST 한 번에만 쓴다.
+증거 status와 승인 댓글은 개발 계정의 `gh` 키링으로 올린다. 그 셸에 `GH_TOKEN`을 두지 않는다. 게이트 프로세스만 다른 UID로 돈다. 그 UID의 `GH_TOKEN`은 읽기 전용 토큰 파일이고, 개발 계정의 `gh auth token`이 아니다. 앱 토큰은 status POST 한 번에만 쓴다.
+
+스크립트는 Keychain 항목을 읽지 않는다. `REVIEW_GATE_APP_KEY`는 일반 파일이고, 모드가 `0600`이며, symlink가 아니고, 봉인 트리 안이 아니어야 한다. 아래 첫 번째 배치가 그 조건이다. 두 번째 배치는 Keychain을 그 파일로 꺼내는 약한 방법이다. 둘을 섞지 않는다.
 
 ```bash
 set -euo pipefail
@@ -30,7 +32,10 @@ unset GH_TOKEN
 SHA="<현재 head의 전체 SHA>"
 REPO="minjunkim-dev/repo-baseline"
 PR="<번호>"
-SEAL="${HOME}/.config/repo-baseline/review-gate-seal"
+# 개발 계정의 $HOME이 아니다. reviewgate 사용자의 홈이다.
+GATE_USER=reviewgate
+GATE_HOME=/Users/reviewgate
+SEAL="$GATE_HOME/.config/repo-baseline/review-gate-seal"
 
 gh api "repos/${REPO}/statuses/${SHA}" -f state=success -f context=review/independent \
   -f description="<도구> <모델> 지적 <수>"
@@ -40,26 +45,50 @@ gh api "repos/${REPO}/statuses/${SHA}" -f state=success -f context=review/securi
 # 되돌리기 어려움만. 댓글을 고치지 말고 새로 단다.
 gh pr comment "$PR" --repo "$REPO" --body "되돌리기 어려움 승인: ${SHA}"
 
-# 아래 해시는 봉인 사본을 만들 때 적어 둔 값이다. 다르면 올리지 않는다.
-cd "$SEAL"
-sha256sum -c <<'EOF'
-<64자>  tools/post_review_gate.py
-<64자>  scripts/check_review_status.py
-<64자>  scripts/pr_author.py
-EOF
-
+# 키와 읽기 토큰은 이 셸에 들어오지 않는다. reviewgate의 홈에서만 읽는다.
+sudo -u "$GATE_USER" -H env HOME="$GATE_HOME" bash -s -- "$SHA" "$REPO" "$PR" <<'EOS'
+set -euo pipefail
+sha=$1 repo=$2 pr=$3
+seal="$HOME/.config/repo-baseline/review-gate-seal"
+cd "$seal"
+sha256sum -c "$HOME/.config/repo-baseline/seal.sha256"
+export GH_TOKEN="$(cat "$HOME/.config/repo-baseline/read-token")"
+export REVIEW_GATE_APP_ID="$(cat "$HOME/.config/repo-baseline/app-id")"
+export REVIEW_GATE_APP_KEY="$HOME/.config/repo-baseline/review-gate.pem"
 set +e
-dry=$(GH_TOKEN="<게이트 계정의 읽기 전용 토큰>" \
-  REVIEW_GATE_APP_ID="<앱 설정의 App ID>" \
-  REVIEW_GATE_APP_KEY="${HOME}/.config/repo-baseline/review-gate.pem" \
-  python3 -I "$SEAL/tools/post_review_gate.py" --repo "$REPO" --pr "$PR" --sha "$SHA" --dry-run)
+dry=$(python3 -I "$seal/tools/post_review_gate.py" --repo "$repo" --pr "$pr" --sha "$sha" --dry-run)
 set -e
 printf '%s\n' "$dry"
 kind=$(printf '%s\n' "$dry" | python3 -c 'import json,sys; print(json.loads(sys.stdin.read().splitlines()[-1])["kind"])')
 if [ "$kind" = success ] || [ "$kind" = failure ]; then
-  GH_TOKEN="<게이트 계정의 읽기 전용 토큰>" \
-  REVIEW_GATE_APP_ID="<앱 설정의 App ID>" \
-  REVIEW_GATE_APP_KEY="${HOME}/.config/repo-baseline/review-gate.pem" \
+  python3 -I "$seal/tools/post_review_gate.py" --repo "$repo" --pr "$pr" --sha "$sha"
+else
+  echo "review gate not posted: $kind" >&2
+  exit 1
+fi
+EOS
+```
+
+같은 UID의 Keychain만 쓸 때(두 번째 계정 전)는 위 `sudo` 블록 대신 아래를 쓴다. Keychain은 원본이고, 스크립트에 넘기는 값은 그 실행의 일반 파일이다. `trap`은 dry-run과 실실행이 끝난 뒤에 파일을 지운다. 서 있는 pem을 개발 홈에 두지 않는다. 세션이 풀려 있는 동안 같은 UID는 Keychain, 임시 파일, 봉인 트리를 읽을 수 있다. 첫 번째 배치와 같지 않다.
+
+```bash
+SEAL="/var/review-gate/review-gate-seal"
+KEY=$(mktemp -t review-gate-key)
+chmod 0600 "$KEY"
+trap 'rm -P "$KEY"' EXIT
+security find-generic-password -a "$USER" -s review-gate-app-key -w > "$KEY"
+TOKEN=$(security find-generic-password -a "$USER" -s review-gate-read-token -w)
+cd "$SEAL"
+sha256sum -c /var/review-gate/seal.sha256
+export REVIEW_GATE_APP_KEY="$KEY"
+export GH_TOKEN="$TOKEN"
+export REVIEW_GATE_APP_ID="<앱 ID>"
+set +e
+dry=$(python3 -I "$SEAL/tools/post_review_gate.py" --repo "$REPO" --pr "$PR" --sha "$SHA" --dry-run)
+set -e
+printf '%s\n' "$dry"
+kind=$(printf '%s\n' "$dry" | python3 -c 'import json,sys; print(json.loads(sys.stdin.read().splitlines()[-1])["kind"])')
+if [ "$kind" = success ] || [ "$kind" = failure ]; then
   python3 -I "$SEAL/tools/post_review_gate.py" --repo "$REPO" --pr "$PR" --sha "$SHA"
 else
   echo "review gate not posted: $kind" >&2
@@ -98,7 +127,7 @@ fi
 
 아래는 첫 비밀키를 설치하기 전의 조건이다.
 
-`0600` 파일은 같은 UID의 로컬 프로세스가 읽는다. 키는 Keychain에 두거나, 개발 계정과 다른 macOS 계정에 둔다. 게이트 프로세스가 근거를 읽는 `GH_TOKEN`은 그 계정의 읽기 전용 토큰이다. 개발 계정의 `gh auth token`을 게이트에 넘기지 않는다.
+스크립트가 받는 키는 항상 일반 파일이다. Keychain 항목이나 symlink는 받지 않는다. 첫 키 전에는 개발 UID와 다른 macOS 계정 `reviewgate`를 만든다. 키, 읽기 전용 토큰, 봉인 트리, 해시 기록은 그 계정 홈에만 둔다. 개발 계정의 `$HOME`에 두지 않는다. 같은 UID의 Keychain은 그 계정을 만들기 전의 약한 방법이고, 실행할 때마다 일반 파일로 꺼내 쓴 뒤 지운다.
 
 게이트는 체크아웃에서 실행하지 않는다. `post_review_gate.py`는 자기 파일의 상위 디렉터리 `scripts/`를 `sys.path` 앞에 넣는다. 파일 하나만 복사하면 그 경로에 `check_review_status.py`가 없어 실패하고, 체크아웃 안에서 `python3 -I tools/post_review_gate.py`를 실행하면 같은 이유로 체크아웃의 검사기를 읽는다. `python3 -I`는 `PYTHONPATH`와 스크립트 디렉터리를 `sys.path`에 넣지 않는다. 격리는 봉인 트리가 체크아웃 밖에 있고, 그 트리의 `tools/`와 `scripts/`만 있는 데서 온다.
 
@@ -111,28 +140,44 @@ fi
 | `scripts/pr_author.py` | 검사기가 `from pr_author import parse_author`로 읽는다 |
 
 ```bash
-SEAL="${HOME}/.config/repo-baseline/review-gate-seal"
-install -d -m 0700 "$SEAL"
-git -C /path/to/repo-baseline archive <검토한 커밋> \
+GATE_HOME=/Users/reviewgate
+SEAL="$GATE_HOME/.config/repo-baseline/review-gate-seal"
+sudo -u reviewgate -H env HOME="$GATE_HOME" bash -s <<'EOS'
+set -euo pipefail
+install -d -m 0700 "$HOME/.config/repo-baseline"
+install -d -m 0700 "$HOME/.config/repo-baseline/review-gate-seal"
+# 개발 체크아웃에서 archive만 넘긴다. 파일 소유는 reviewgate다.
+EOS
+sudo git -C /path/to/repo-baseline archive <검토한 커밋> \
   tools/post_review_gate.py scripts/check_review_status.py scripts/pr_author.py \
-  | tar -C "$SEAL" -x
-( cd "$SEAL" && sha256sum tools/post_review_gate.py scripts/check_review_status.py scripts/pr_author.py )
+  | sudo -u reviewgate tar -C "$SEAL" -x
+sudo -u reviewgate -H env HOME="$GATE_HOME" \
+  bash -c 'cd "$HOME/.config/repo-baseline/review-gate-seal" && sha256sum tools/post_review_gate.py scripts/check_review_status.py scripts/pr_author.py > "$HOME/.config/repo-baseline/seal.sha256" && chmod 0600 "$HOME/.config/repo-baseline/seal.sha256"'
 ```
 
-세 해시를 이 런북 밖에, 키와 같은 계정에 적는다. 실행 전에 `sha256sum -c`가 맞아야 한다. 하나라도 다르면 키를 연결하지 않는다. 해시가 적히기 전에는 키를 연결하지 않는다.
+세 해시는 `reviewgate` 홈의 `seal.sha256`이다. 개발 홈에 복사하지 않는다. 실행 전에 그 계정으로 `sha256sum -c`가 맞아야 한다. 하나라도 다르면 키를 연결하지 않는다. 두 번째 배치의 봉인 트리는 `/var/review-gate/review-gate-seal`이고, 해시 파일은 `/var/review-gate/seal.sha256`이다. 임시 키는 그 디렉터리 밖이다.
 
 ## 키를 Mac에 두기
 
+첫 번째 배치. pem은 `reviewgate`의 일반 파일이다. 봉인 디렉터리의 옆이지 안은 아니다. 스크립트는 봉인 트리 안을 거절한다.
+
+`reviewgate`로 로그인한 셸에서 한다. 개발 셸의 히스토리에 pem이나 토큰을 남기지 않는다.
+
 ```bash
 install -d -m 0700 "$HOME/.config/repo-baseline"
-install -m 0600 "$HOME/Downloads/<downloaded>.pem" "$HOME/.config/repo-baseline/review-gate.pem"
-rm -P "$HOME/Downloads/<downloaded>.pem"
-ls -l "$HOME/.config/repo-baseline/review-gate.pem"
+install -m 0600 /path/to/downloaded.pem "$HOME/.config/repo-baseline/review-gate.pem"
+rm -P /path/to/downloaded.pem
+umask 077
+cat > "$HOME/.config/repo-baseline/read-token"
+printf '%s\n' '<앱 설정의 App ID>' > "$HOME/.config/repo-baseline/app-id"
+chmod 0600 "$HOME/.config/repo-baseline/read-token" "$HOME/.config/repo-baseline/app-id"
 ```
 
-모드는 `0600`이고 소유자는 로그인 사용자다. iCloud, 동기화 폴더, 저장소, Grok Bot이 쓰는 컴퓨터, 클라우드 에이전트 환경에는 복사하지 않는다. `REVIEW_GATE_APP_KEY`만 경로를 받는다. 키 내용을 환경 변수나 argv에 넣지 않는다.
+`cat`은 토큰을 붙여 넣고 Ctrl-D로 끝낸다. 소유자는 `reviewgate`다. 개발 UID는 이 홈을 읽지 못한다. iCloud, 동기화 폴더, 저장소, Grok Bot이 쓰는 컴퓨터, 클라우드 에이전트 환경에는 복사하지 않는다. 키 내용을 환경 변수나 argv에 넣지 않는다.
 
-확인: 버린 브랜치에 열린 Draft PR을 만든다. 본문에 리뷰 근거를 채우지 않는다. 그 PR의 현재 head에 `--dry-run` 없이 실행하면 스크립트가 그 SHA에 `failure`를 올린다. 앱 이름으로 보이는지 본 뒤 PR을 닫는다. 기본 브랜치와, 리뷰 근거가 있는 PR에는 이 확인을 하지 않는다. head가 아닌 SHA에는 스크립트가 올리지 않는다.
+두 번째 배치를 쓸 때만, 같은 내용을 Keychain 항목 `review-gate-app-key`와 `review-gate-read-token`에 둔다. 개발 홈의 `review-gate.pem`은 만들지 않는다. 승인 절차의 `mktemp`가 그 항목을 스크립트가 읽는 일반 파일로 만든다.
+
+확인: 버린 브랜치에 열린 Draft PR을 만든다. 본문에 리뷰 근거를 채우지 않는다. 고른 배치의 승인 명령으로, `--dry-run` 없이 그 PR의 현재 head에 `failure`를 올린다. 앱 이름으로 보이는지 본 뒤 PR을 닫는다. 기본 브랜치와, 리뷰 근거가 있는 PR에는 이 확인을 하지 않는다. head가 아닌 SHA에는 스크립트가 올리지 않는다.
 
 ## 기준선에 App ID 넣기
 
@@ -161,7 +206,7 @@ python3 tools/apply_github_settings.py .
 
 앱 ID는 키를 바꿔도 그대로다. 보호의 `app_id`는 키 교체만으로 바꾸지 않는다.
 
-교체: 앱 설정에서 새 private key를 만든다. 새 파일을 0600으로 둔 뒤, 시험 전에 `REVIEW_GATE_APP_KEY`를 그 새 경로로 바꾼다. 옛 경로가 남아 있으면 시험은 옛 키를 본다. 위 확인과 같이, 근거가 없는 열린 Draft PR의 현재 head에 `failure`를 올려 새 키가 동작하는지 본다. 동작하면 그 경로를 남기고, 그 다음에 앱 설정에서 이전 키를 지우고 디스크의 이전 pem을 지운다. 이전 키로 만든 installation token은 만료된다. 이미 올라가 있는 status는 지워지지 않는다.
+교체: 앱 설정에서 새 private key를 만든다. 첫 번째 배치면 `reviewgate` 홈의 `review-gate.pem`만 바꾼다. 두 번째 배치면 Keychain 항목만 바꾸고, 시험은 그 실행의 임시 파일을 본다. 개발 홈에 옛 pem을 남기지 않는다. 위 확인과 같이, 근거가 없는 열린 Draft PR의 현재 head에 `failure`를 올려 새 키가 동작하는지 본다. 동작하면 그 경로를 남기고, 그 다음에 앱 설정에서 이전 키를 지우고 디스크의 이전 pem을 지운다. 이전 키로 만든 installation token은 만료된다. 이미 올라가 있는 status는 지워지지 않는다.
 
 폐기: 게이트를 올리는 일을 멈춘다. pem을 지운다. GitHub에서 키를 지우고, 필요하면 앱 설치를 제거한다. 설치를 빼면 새 `review/gate`를 올리지 못한다. 필수 체크로 남아 있으면 병합은 막힌다. 그것이 실패 닫힘이다. 보호에서 `review/gate`를 빼려면 기준선의 정수를 유지한 채 그 항목을 삭제한 별도 PR을 병합하고, 소유자가 계획을 본 뒤 적용한다. 15368이 `review/gate`를 충족하게 바꾸지 않는다.
 
@@ -169,7 +214,7 @@ python3 tools/apply_github_settings.py .
 
 서버가 생기기 전에는 키를 Mac에만 둔다. 서버가 생기면 같은 앱과 같은 앱 ID를 유지한 채 pem만 옮긴다.
 
-1. Mac Studio에 `0700` 디렉터리와 `0600` pem을 둔다. 개발용 Mac, Grok Bot의 컴퓨터, 저장소에는 두지 않는다. 옮긴 뒤 Mac의 pem을 지운다.
+1. Mac Studio의 게이트 계정 홈에 `0700` 디렉터리와 `0600` pem을 둔다. 그 계정은 개발 UID가 아니다. 개발용 Mac, Grok Bot의 컴퓨터, 저장소에는 두지 않는다. 옮긴 뒤 Mac의 pem을 지운다.
 2. 올리는 주체는 소유자다. 스크립트는 서버에서 돌린다. 팀원이 키를 받지 않는다.
 3. 증거 status `review/independent`와 `review/security`는 계속 사람 계정의 `gh`로 올린다. 팀 프로필에서는 그 PR을 구현하지 않은 사람이 남긴다. 앱이 그 둘을 대신 올리지 않는다. `STATUS_ACTORS`에 앱 로그인을 넣지 않는다.
 4. `AGENTS.md`의 `프로필: 팀`과 승인 수·CODEOWNERS 변경은 `POLICY.md` §9다. 그 설정 쓰기는 소유자 승인 뒤에 `tools/apply_github_settings.py`로 한다. 키 이전과 한 PR에 섞지 않는다.
