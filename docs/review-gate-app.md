@@ -7,6 +7,7 @@
 - 승인 경계는 항상 **commit status** `review/gate`이고, 브랜치 보호에 **전용 App의 정수 `app_id`로 고정**한다. (`github-actions` 15368으로는 그 필수 context를 충족하지 못하게 한다.)
 - **1인·소규모 팀의 권장 일상 경로**는 아래 **Keychain(앱 PEM) + 개발자 `gh`(증거 status) + 게이트 전용 읽기 `GH_TOKEN` + 기본 브랜치 checkout에서의 `post_review_gate.py`**다. 예전의 별도 `reviewgate` OS 계정, 봉인 트리(seal), sudoers, `git archive` 배포 중심 방식은 **선택(레거시)**로 두었다.
 - **코드 변경은 하지 않는다.** 이 PR은 문서만 고친다. 장기적으로는 `REPLACE` 자리표시자·필수 `Review status` 조정·carry 삭제 등이 후속 순서로 온다(합의 문서 순서).
+- repo-baseline의 기대값 `checks`에서 `Review status`(`app_id` 15368)를 뺐다. 남은 필수 체크는 Baseline checks 둘(`app_id` 15368)과 `review/gate`(`app_id` 5641238)다. workflow와 검사기는 남긴다. carry 삭제·증거-in-gate·Dependabot 코드는 이 변경에 없다. 보호 적용은 병합 뒤 소유자가 한다.
 
 ## 무엇을 고정하나
 
@@ -16,7 +17,7 @@
 
 전용 앱은 Commit statuses 쓰기와 Metadata 읽기만 가진다. Checks 권한이 없으므로 체크 run을 만들지 못한다. 브랜치 보호는 `{"context": "review/gate", "app_id": <그 앱의 정수 ID>}`로 고정한다. workflow 토큰이 같은 context로 commit status나 체크 run을 올려도 그 객체의 앱은 15368이다. 게시는 201일 수 있다. 그 객체는 필수 조건이 아니다.
 
-`Review status` workflow는 증거 검사로 남긴다. `review/independent`, `review/security`, 승인 댓글, 근거 표를 읽고 없으면 실패한다. `review/gate`를 쓰지 않는다. 필수 목록에는 `app_id` 15368으로 남는다. 그 초록색은 승인 경계가 아니다. 15368은 같은 이름의 체크 run을 위조할 수 있다. 스크립트는 그 체크의 conclusion을 읽지 않는다.
+`Review status` workflow는 증거 검사로 남긴다. `review/independent`, `review/security`, 승인 댓글, 근거 표를 읽고 없으면 실패한다. `review/gate`를 쓰지 않는다. 필수 목록에는 두지 않는다. 그 초록색은 승인 경계가 아니다. 15368은 같은 이름의 체크 run을 위조할 수 있다. 스크립트는 그 체크의 conclusion을 읽지 않는다.
 
 `strict`는 true다. 새 head에는 `review/gate`가 없다. 인자 SHA가 열린 PR의 현재 head와 다르면 스크립트는 올리지 않는다. 조회 실패, 키가 0600 일반 파일이 아님, `GITHUB_ACTIONS`가 설정됨은 아무것도 올리지 않는다. 근거가 실패하면 그 SHA에 `failure`를 올려 이 앱이 이전에 올린 success를 지운다. 닫힌 PR, head 불일치, 기본 브랜치가 아닌 base에는 올리지 않는다.
 
@@ -185,7 +186,7 @@ gh api "repos/${REPO}/statuses/${SHA}" -f state=success -f context=review/indepe
 python3 tools/apply_github_settings.py .
 ```
 
-`DIFF`에 `review/gate`의 `app_id`가 그 정수로 가는지만 확인한 뒤, 소유자가 승인하고 `--apply`한다. 이 설계 PR은 그 명령을 실행하지 않는다. smallnext, BGLike, mobile-runtime은 각자 기준선 PR에서 같은 context를 더한다. 그 PR도 보호를 적용하지 않는다. 적용은 각 저장소에서 소유자가 Mac으로 한다. repo-baseline의 E 재시험 기록을 Issue #32에 남기기 전에는 그 셋을 적용하지 않는다.
+소비 프로젝트가 `review/gate`를 처음 넣을 때는 `DIFF`에 그 `app_id`가 전용 앱 정수로 가는지만 확인한 뒤, 소유자가 승인하고 `--apply`한다. repo-baseline은 이미 5641238이다. 기대값에서 `Review status`를 뺀 뒤의 적용 DIFF는 그 한 항목을 빼는 것이다. Baseline checks와 `review/gate` 5641238은 남긴다. 이 문서는 `--apply`를 실행하지 않는다. smallnext, BGLike, mobile-runtime은 각자 기준선 PR에서 `review/gate`를 더하고, `Review status`가 필수로 있으면 그 PR에서 뺀다. 그 PR도 보호를 적용하지 않는다. 적용은 각 저장소에서 소유자가 Mac으로 한다. repo-baseline의 E 재시험 음성 결과(PR #47, 위조와 소유자 status가 병합을 BLOCKED로 남김)는 Issue #32 댓글에 있다. 전용 앱 success로 병합이 열리는 대조는 그 댓글에서 미실행이다. 이 문서는 그 셋의 보호를 적용하지 않는다.
 
 ### 적용 전후
 
@@ -197,6 +198,8 @@ python3 tools/apply_github_settings.py .
 | smallnext | `PR conventions` 15368, `Repository hygiene` 15368, `Project checks` 15368, `Review status` 15368 | 왼쪽을 유지하고 `review/gate`를 전용 앱 ID에 추가 |
 | BGLike | `policy / PR conventions and scope` 15368, `smoke` 15368, `CI` 15368, `Review status` 15368 | 왼쪽을 유지하고 `review/gate`를 전용 앱 ID에 추가 |
 | mobile-runtime | `CI` 15368, `Review status` 15368 | 왼쪽을 유지하고 `review/gate`를 전용 앱 ID에 추가 |
+
+위 표는 `review/gate`를 더하던 때의 계획이다. 카나리 E 재시험(Issue #32, PR #47) 뒤 repo-baseline의 기대값은 `Review status`를 뺀다. 남은 필수 context는 `Baseline checks (Python 3.11)` 15368, `Baseline checks (Python 3.13)` 15368, `review/gate` 5641238이다. 서버 적용은 이 변경이 하지 않는다. 병합 뒤 소유자가 계획을 보고 `--apply`한다. 그 DIFF는 `Review status` 한 항목을 빼는 것이다. smallnext, BGLike, mobile-runtime의 표는 이 변경이 바꾸지 않는다.
 
 ## 키 교체와 폐기
 

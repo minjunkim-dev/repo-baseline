@@ -108,8 +108,8 @@ class GitHubSettingsTests(unittest.TestCase):
         path = settings.ROOT / ".github/repository-settings.json"
         if path.exists():
             project = json.loads(path.read_text())
-            # repo-baseline records review/gate with a REPLACE placeholder until the App ID exists.
-            # A consumer profile has no such string. Substituting only that string keeps validate_profile usable.
+            # A profile may still hold review/gate app_id REPLACE:<APP_ID> before the App exists.
+            # Substituting only that string keeps validate_profile usable. Other app ids stay as written.
             checks = ((project.get("expected") or {}).get("protection") or {}).get("required_status_checks") or {}
             for item in checks.get("checks") or []:
                 if item.get("context") == "review/gate" and item.get("app_id") == "REPLACE:<APP_ID>":

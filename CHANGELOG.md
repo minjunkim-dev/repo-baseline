@@ -2,6 +2,12 @@
 
 리뷰 모델의 현행은 「2026-11-06 — 역할 분담: 클라우드 기본, 활성 로스터」다. 그 아래의 리뷰 모델 절은 그 커밋 당시의 기록이다.
 
+## 2026-11-06 — 필수 체크에서 Review status를 뺀다
+
+- `.github/repository-settings.json`: `protection.required_status_checks.checks`에서 `{"context": "Review status", "app_id": 15368}`을 뺐다. `Baseline checks (Python 3.11)`, `Baseline checks (Python 3.13)`(`app_id` 15368)와 `{"context": "review/gate", "app_id": 5641238}`는 그대로다. `strict`는 true다. `Review status` workflow와 `scripts/check_review_status.py`는 증거 검사로 남는다. 이 파일은 기대값이다. 이 변경은 branch protection을 쓰지 않는다. 병합 뒤 소유자가 Mac에서 `tools/apply_github_settings.py`로 적용한다. 카나리 E 재시험(PR #47, Issue #32)은 Actions 15368의 위조와 소유자 status가 병합을 BLOCKED로 남긴 기록이다.
+- `POLICY.md`, README, `docs/github-settings-profile.md`, `docs/development-workflow.md`, `docs/review-gate-app.md`, 셋업 프롬프트는 이 저장소의 필수 체크 목록에서 `Review status`를 뺐다.
+- `apply_baseline.py`는 `.github/repository-settings.json`을 복사하지 않는다. smallnext, BGLike, mobile-runtime의 기준선은 이 변경이 바꾸지 않는다.
+
 ## 2026-11-06 — 게이트 문서: Keychain 우선·합의(문서만)
 
 - `docs/review-gate-app.md`: 1인·소규모 팀의 **권장 경로**를 **개발자 macOS Keychain의 앱 PEM**(실행 시에만 임시 파일로 꺼냄) + **개발자 `gh`로 증거 status** + **`GH_TOKEN` 게이트 전용 읽기 토큰(`tools/post_review_gate.py` 현행)** + **기본 브랜치의 깨끗한 checkout에서 `post_review_gate.py`**로 다시 썼다. **unset GH_TOKEN**과 “별도 읽기 토큰 불필요”는 코드와 어긋나서 뺐다. 체크아웃은 `git status --porcelain`·`git reset --hard origin/main`(또는 핀 SHA)로 고정. 같은 **UID 에이전트**와의 격리 한계·Keychain 과장 없음·PEM을 argv에 넣지 않는 설명을 추가했다. **멀티라인 PEM**은 `security -w` 대화형 한 줄 입력에 맞지 않으므로 **Keychain Access GUI**(또는 0600 파일→GUI)만 권장하고, 대화형 `-w`로 PEM 붙여넣기는 금지했다. **게이트 `GH_TOKEN` 스코프**는 `Reader`의 REST·GraphQL 호출에 맞춘다. 증거 `gh api` 전에 **`unset GH_TOKEN GITHUB_TOKEN`**. 예전 **reviewgate 전용 UID·봉인(seal)·sudoers·git archive** 중심 절차는 **레거시(선택)**로 남겼다.
