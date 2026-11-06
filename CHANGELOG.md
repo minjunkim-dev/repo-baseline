@@ -16,7 +16,7 @@
 ## 2026-11-06 — review/gate 앱 ID와 봇 근거, 버전 전용 diff
 
 - `review/gate`의 `app_id`는 0보다 큰 정수이고 15368이 아니어야 한다. `scripts/check_github_settings.py`와 `tools/apply_github_settings.py`가 같은 조건으로 거절한다. 0, -1, 15368은 통과하지 않는다.
-- `[bot]`으로 끝나는 로그인의 `review/independent`·`review/security`와 승인 댓글은 1인·팀 모두 실패다. 팀 프로필이 사람 작성자를 보지 않는 것은 그대로다.
+- `[bot]`으로 끝나는 로그인의 `review/independent`와 `review/security`는 1인·팀 모두 실패다. 승인 댓글의 `[bot]` 작성자는 승인이 아니다. 팀 프로필은 그 댓글을 요구하지 않으므로, 그 댓글이 팀 검사를 실패로 만들지는 않는다. 팀 프로필이 사람 작성자를 보지 않는 것은 그대로다.
 - 버전 전용 판정은 `\n`으로만 줄을 나눈다. `\r`, 다른 제어 문자, U+2028, U+2029가 있으면 버전 전용이 아니다. 신뢰 경계의 workflow는 `uses:`의 40자 SHA 또는 `v` 태그 pin만 버전 전용이다. Dependabot처럼 보이는 커밋을 REST나 web-flow로 만드는 쪽은 카나리 전이다(`docs/review-gate-app.md`).
 - `tools/apply_github_settings.py`와 `docs/review-gate-app.md`를 공통 경로와 게이트 경로에 넣었다.
 
