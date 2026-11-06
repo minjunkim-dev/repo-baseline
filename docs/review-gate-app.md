@@ -89,7 +89,7 @@ ls -l "$HOME/.config/repo-baseline/review-gate.pem"
 
 `.github/repository-settings.json`의 `review/gate` `app_id`는 지금 문자열 `REPLACE:<APP_ID>`다. 이것은 자리표시자다. 앱을 만든 뒤 그 문자열 전체를 앱 설정의 App ID 정수로 바꾼다. 따옴표 없는 숫자다. 15368을 넣지 않는다. 0을 넣지 않는다.
 
-`tools/apply_github_settings.py`는 값이 `REPLACE`로 시작하면 조회 전에 멈춘다. 정수가 된 뒤에만 계획을 본다.
+`tools/apply_github_settings.py`는 값이 `REPLACE`로 시작하면 조회 전에 멈춘다. `scripts/check_github_settings.py`도 그 문자열인 동안 `validate_profile`이 실패해 UNVERIFIED로 끝난다. 0이나 15368 같은 가짜 정수로 그 실패를 넘기지 않는다. 정수가 된 뒤에만 계획을 본다.
 
 ```bash
 python3 tools/apply_github_settings.py .
