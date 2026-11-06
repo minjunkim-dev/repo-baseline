@@ -45,7 +45,7 @@
           },
           {
             "context": "review/gate",
-            "app_id": "REPLACE:<APP_ID>"
+            "app_id": 5641238
           }
         ]
       },
