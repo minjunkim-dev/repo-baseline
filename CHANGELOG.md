@@ -2,6 +2,13 @@
 
 리뷰 모델의 현행은 「2026-11-06 — 역할 분담: 클라우드 기본, 활성 로스터」다. 그 아래의 리뷰 모델 절은 그 커밋 당시의 기록이다.
 
+## 2026-11-06 — Review status는 이전 SHA의 success를 이어받지 않는다
+
+- `scripts/check_review_status.py`: 새 head에는 그 SHA의 `review/independent`·`review/security` success가 있어야 한다. diff identity, 변경 후 blob id, 기준 브랜치 갱신, force-push 이전 head는 근거가 아니다. 같은 SHA에서 다른 작성자의 최신 status를 실패로 보는 규칙과 승인 댓글·근거 표는 그대로다.
+- `tools/post_review_gate.py`: 게이트 읽기는 force-push 이력과 diff를 더 이상 검사기에 넘기지 않는다. `review/gate`는 그 SHA의 status만 본다. 필수 체크 목록과 보호 적용은 바꾸지 않는다.
+- `POLICY.md`, `docs/review-gate-app.md`, `docs/development-workflow.md`, `prompts/pr-ci-setup.md`, `prompts/github-repository-settings.md`: 이어받기 설명을 이 규칙에 맞춘다.
+- 다시 적용할 프로젝트: smallnext, BGLike, mobile-runtime. `scripts/check_review_status.py`와 `scripts/test_review_status.py`를 `tools/apply_baseline.py`로 다시 복사한다. `tools/post_review_gate.py`는 복사하지 않는다. 이 변경은 branch protection을 쓰지 않고, `.github/repository-settings.json`의 필수 체크를 바꾸지 않는다.
+
 ## 2026-11-06 — 필수 체크에서 Review status를 뺀다
 
 - `.github/repository-settings.json`: `protection.required_status_checks.checks`에서 `{"context": "Review status", "app_id": 15368}`을 뺐다. `Baseline checks (Python 3.11)`, `Baseline checks (Python 3.13)`(`app_id` 15368)와 `{"context": "review/gate", "app_id": 5641238}`는 그대로다. `strict`는 true다. `Review status` workflow와 `scripts/check_review_status.py`는 증거 검사로 남는다. 이 파일은 기대값이다. 이 변경은 branch protection을 쓰지 않는다. 병합 뒤 소유자가 Mac에서 `tools/apply_github_settings.py`로 적용한다. 카나리 E 재시험(PR #47, Issue #32)은 Actions 15368의 위조와 소유자 status가 병합을 BLOCKED로 남긴 기록이다.

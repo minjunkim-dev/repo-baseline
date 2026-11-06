@@ -72,7 +72,6 @@ class Scripted:
         self.comments = comments or []
         self.commits = commits or [{"sha": HEAD, "commit": {"committer": {"date": "2026-11-06T00:00:00Z"}}}]
         self.agents = None
-        self.diffs = []
 
     def read(self, endpoint):
         if endpoint == f"repos/{REPO}/pulls/7":
@@ -91,19 +90,13 @@ class Scripted:
             return [self.statuses]
         if endpoint == f"repos/{REPO}/issues/7/comments?per_page=100":
             return [self.comments]
-        if endpoint.startswith(review.FORCE_PUSHES):
-            return []
         if endpoint == f"repos/{REPO}/pulls/7/commits?per_page=100":
             return [self.commits]
         raise AssertionError(endpoint)
 
-    def read_diff(self, endpoint):
-        self.diffs.append(endpoint)
-        raise AssertionError(endpoint)
-
 
 def decide(scripted, sha=HEAD):
-    return gate.decide(REPO, "7", sha, scripted.read, scripted.read_diff)
+    return gate.decide(REPO, "7", sha, scripted.read)
 
 
 class DecideTests(unittest.TestCase):
