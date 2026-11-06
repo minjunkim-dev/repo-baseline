@@ -157,23 +157,28 @@ class DecideTests(unittest.TestCase):
         self.assertEqual(found.kind, "failure")
         self.assertIn(review.INDEPENDENT, found.detail)
 
-    def test_version_only_dependabot_is_exempt_and_another_file_is_not(self):
+    def test_dependabot_pin_bump_needs_the_same_gate_as_any_author(self):
         patch = "\n".join([
             "@@ -1 +1 @@",
             "-        uses: actions/checkout@" + "a" * 40 + " # v4.2.1",
             "+        uses: actions/checkout@" + "b" * 40 + " # v4.2.1",
         ])
         files = [{"filename": ".github/workflows/check.yml", "status": "modified", "patch": patch}]
-        commits = [{
-            "sha": HEAD,
-            "author": {"login": "dependabot[bot]"},
-            "committer": {"login": "web-flow"},
-            "commit": {"verification": {"verified": True}, "committer": {"date": "2026-11-06T00:00:00Z"}},
-        }]
-        bot = pull(body="", user="dependabot[bot]")
-        self.assertEqual(decide(Scripted(bot, files, [], commits=commits)).kind, "success")
-        extra = files + [{"filename": "README.md", "patch": "@@\n-a\n+b\n"}]
-        self.assertEqual(decide(Scripted(bot, extra, [], commits=commits)).kind, "failure")
+        bot = pull(user="dependabot[bot]")
+        bare = decide(Scripted(bot, files, []))
+        self.assertEqual(bare.kind, "failure")
+        for gap in (review.INDEPENDENT, review.SECURITY, review.OWNER):
+            self.assertIn(gap, bare.detail)
+        empty = pull(body="", user="dependabot[bot]")
+        statuses = [status(review.INDEPENDENT), status(review.SECURITY)]
+        missing_table = decide(Scripted(empty, files, statuses, comments=[comment(HEAD)]))
+        self.assertEqual(missing_table.kind, "failure")
+        self.assertIn(review.EVIDENCE, missing_table.detail)
+        approved = decide(Scripted(bot, files, statuses, comments=[comment(HEAD)]))
+        self.assertEqual(approved.kind, "success")
+        person = pull()
+        self.assertEqual(decide(Scripted(person, files, [])).kind, "failure")
+        self.assertEqual(decide(Scripted(person, files, statuses, comments=[comment(HEAD)])).kind, "success")
 
     def test_a_different_base_posts_nothing(self):
         files = [{"filename": "README.md"}]

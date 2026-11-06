@@ -205,11 +205,8 @@ def _security_row_needs_status(body):
 
 def _on_head(repo, head, base, pull, read):
     """Review statuses that must be success on this SHA.
-    A version-only Dependabot bump is the checker's exemption and needs neither."""
-    pinned, commits = review.pinned_change(repo, base, head, read)
-    bump = pinned is not None and commits is not None and review.dependabot_bump(pull, commits, pinned)
-    if bump:
-        return []
+    Dependabot uses the same statuses as any other author."""
+    pinned, _ = review.pinned_change(repo, base, head, read)
     patterns = review.COMMON_PATHS + review.DEPENDENCY_FILES + review.project_paths(repo, base, read)
     touched = pinned is None or any(
         review.matches(entry.get(key) or "", patterns)

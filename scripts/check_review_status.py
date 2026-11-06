@@ -8,7 +8,9 @@ The same account still cannot tell a person from an agent. A team profile does n
 A new head SHA needs success posted on that exact SHA. A prior head, an identical diff, a line-number
 shift, a base update, and a force-push do not inherit it. Diff text and post-change blob ids are not evidence.
 A 1-person pull request that changes a POLICY.md §10 gate path also needs the repository owner's
-approval comment on this head. That comment is not reused from an older head. An edited comment
+approval comment on this head. Dependabot follows the same evidence table, review statuses, and
+owner comment as any other author. A version or hash bump is not a separate success path.
+That comment is not reused from an older head. An edited comment
 is not approval when REST updated_at differs from created_at. Timestamps are whole seconds, so a
 same-second edit is not distinguished. Post a new comment, then re-run this job or post the gate
 by hand. A comment does not re-run this checker.
@@ -38,8 +40,6 @@ EVIDENCE = "review/evidence"
 # Not a commit status. The job fails with this name when this pull request does not target the
 # repository default branch. A status posted under this name does not count.
 BASE_REF = "review/base-branch"
-DEPENDABOT = "dependabot[bot]"
-WEB_FLOW = "web-flow"
 TEAM_LINE = "프로필: 팀"
 # Solo-profile logins that may post review/independent and review/security, besides the
 # repository owner. The review-gate app is not added here. This file runs from the default
@@ -60,8 +60,8 @@ COMMON_PATHS = (
     ".claude/settings.json", ".claude/hooks/**", ".claude/agents/**", ".claude/commands/**", ".agents/skills/**",
     ".claude/skills/**", ".mcp.json", "Dockerfile", ".env*",
 )
-# POLICY.md §10 gate paths. A change here needs the 1-person owner comment unless the Dependabot
-# version-only exception applies. Other hard-to-reverse decisions (money, account, migration) are not in this list.
+# POLICY.md §10 gate paths. A change here needs the 1-person owner comment, including a Dependabot
+# pull request. Other hard-to-reverse decisions (money, account, migration) are not in this list.
 ONE_WAY_PATHS = (
     ".github/workflows/**", "templates/review-status.yml", "templates/pr-policy.yml",
     "scripts/check_review_status.py", "scripts/workflow_policy.py", "scripts/pr_author.py",
@@ -77,12 +77,6 @@ DEPENDENCY_FILES = (
     "Podfile", "Podfile.lock", "build.gradle", "build.gradle.kts", "gradle.lockfile", "libs.versions.toml",
     "pubspec.yaml", "pubspec.lock", "composer.json", "composer.lock",
 )
-# A number or hash right after a word character, "." or "-" is part of a name (pkg-2), so changing it needs Security. That
-# also catches file names such as x-1.0.0.tgz, so an npm or yarn lockfile bump needs Security too: the safe side.
-# shortcut: any other number counts as a version, so a Dependabot line changing only a number passes; upgrade if
-# Dependabot ever changes more than versions.
-VERSION = re.compile(r"(?:sha\d+[-:]|h1:)[A-Za-z0-9+/=]+|(?<![\w.-])[0-9a-f]{7,}\b"
-                     r"|(?<![\w.-])v?\d+(?:\.\d+)*(?:[-+][0-9A-Za-z.-]+)?")
 
 
 def read_api(endpoint):
@@ -117,133 +111,6 @@ def project_paths(repo, base, read):
     # CODEOWNERS spellings work too: /src/auth/ means src/auth/**, and /auth stays a root path.
     return tuple(re.sub(r"/$", "/**", line.strip()) for line in lines
                  if line.strip() and not line.startswith("#"))
-
-
-# splitlines() also breaks on \v, \f, \x1c-\x1e, \x85, U+2028 and U+2029, so a tail
-# after one of those would not be part of the uses: line. \n is the only break we accept.
-# \t may appear in a normal diff line. \r and every other control is rejected.
-_HIDDEN_BREAK = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f\u2028\u2029]")
-# A workflow pin is a full 40-hex SHA or a v-tag. A shorter hex run is not a pin:
-# [0-9a-f]{7,} would turn an unrelated token into V and hide the rest of the line.
-_USES_PIN = re.compile(
-    r"^(?P<prefix>\s*(?:-\s+)?)uses:\s+(?P<action>[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)@"
-    r"(?P<pin>[0-9a-fA-F]{40}|v\d+(?:\.\d+)*)"
-    r"(?:\s+#\s*v\d+(?:\.\d+)*)?\s*$")
-
-
-def diff_lines(patch):
-    """Diff lines split on \\n. None when a hidden break or other control is present."""
-    if not isinstance(patch, str) or _HIDDEN_BREAK.search(patch):
-        return None
-    return patch.split("\n")
-
-
-def _on_trust_boundary(name):
-    return bool(name) and (matches(name, COMMON_PATHS) or matches(name, ONE_WAY_PATHS))
-
-
-def _workflow_pin_only(changed):
-    """True when every changed line is one uses: pin and only that pin or its version comment differs.
-    A trust-boundary workflow is not version-only for any other shape."""
-    shapes = []
-    for line in changed:
-        found = _USES_PIN.fullmatch(line[1:])
-        if found is None:
-            return False
-        shapes.append((line[0], found.group("prefix"), found.group("action")))
-    removed = sorted(item[1:] for item in shapes if item[0] == "-")
-    added = sorted(item[1:] for item in shapes if item[0] == "+")
-    return bool(removed) and removed == added
-
-
-def only_versions(entry):
-    """True when a modified file's diff replaces lines with the same lines apart from version and hash values.
-    A rename (previous_filename) or any status other than modified is not version-only, even when the
-    patch is only a uses: pin. A trust-boundary file passes only as a workflow whose changed lines are uses: pins."""
-    if entry.get("previous_filename"):
-        return False
-    if entry.get("status") != "modified":
-        return False
-    name = entry.get("filename") or ""
-    is_workflow = name.startswith(".github/workflows/")
-    if _on_trust_boundary(name) and not is_workflow:
-        return False
-    if not is_workflow and not matches(name, DEPENDENCY_FILES):
-        return False
-    lines = diff_lines(entry.get("patch") or "")
-    if lines is None:
-        return False
-    changed = [line for line in lines if line[:1] in ("-", "+")]
-    if not changed:
-        return False
-    if is_workflow:
-        return _workflow_pin_only(changed)
-    normal = [VERSION.sub("V", line[1:]) for line in changed]
-    return (sorted(text for line, text in zip(changed, normal) if line[0] == "-")
-            == sorted(text for line, text in zip(changed, normal) if line[0] == "+"))
-
-
-def is_hash(token):
-    return re.fullmatch(r"(?:sha\d+[-:]|h1:)[A-Za-z0-9+/=]+|[0-9a-fA-F]{7,}", token) is not None
-
-
-def _token_at(body, start, end):
-    while start > 0 and (body[start - 1].isalnum() or body[start - 1] in "+/=_-"):
-        start -= 1
-    while end < len(body) and (body[end].isalnum() or body[end] in "+/=_-"):
-        end += 1
-    return body[start:end]
-
-
-def line_majors(line, workflow):
-    """Major numbers on one diff line. None means a uses: line has no # vN comment and no @vN tag.
-    A digit inside a commit hash is not a major. Gate-path templates use the same rule as workflows."""
-    body = line[1:]
-    if workflow or "uses:" in body:
-        found = [int(number) for number in re.findall(r"(?:#\s*v|@v)(\d+)", body, re.IGNORECASE)]
-        return found or None
-    found = []
-    for match in re.finditer(r"(?<![\w.-])v?(\d+)(?:\.\d+)*(?:[-+][0-9A-Za-z.-]+)?", body, re.IGNORECASE):
-        if is_hash(match.group(0)) or is_hash(_token_at(body, match.start(), match.end())):
-            continue
-        found.append(int(match.group(1)))
-    return found
-
-
-def major_change(files):
-    """True when a gate-path version move is a new major, or a workflow pin does not say its major.
-    Review-status exemption is unchanged. This only refuses the owner-comment exemption (POLICY.md §10)."""
-    for entry in files:
-        name = entry.get("filename") or ""
-        previous = entry.get("previous_filename") or ""
-        if not matches(name, ONE_WAY_PATHS) and not matches(previous, ONE_WAY_PATHS):
-            continue
-        workflow = name.startswith(".github/workflows/") or previous.startswith(".github/workflows/")
-        removed, added = [], []
-        lines = diff_lines(entry.get("patch") or "")
-        if lines is None:
-            return True
-        for line in lines:
-            if line[:1] not in "-+":
-                continue
-            found = line_majors(line, workflow)
-            if found is None:
-                return True
-            (removed if line[0] == "-" else added).extend(found)
-        if sorted(removed) != sorted(added):
-            return True
-    return False
-
-
-def dependabot_bump(pull, commits, files):
-    """POLICY.md §5 exception: Dependabot's own commits, changing only versions and hashes.
-    An author login follows the commit email and a signature only matches the committer, so both
-    must show GitHub made the commit: web-flow as committer, verified. A person's amend fails this."""
-    return (pull["user"]["login"] == DEPENDABOT
-            and all((commit.get("author") or {}).get("login") == DEPENDABOT
-                    and (commit.get("committer") or {}).get("login") == WEB_FLOW
-                    and commit["commit"]["verification"]["verified"] for commit in commits)
-            and all(only_versions(entry) for entry in files))
 
 
 def approval_sha(body):
@@ -633,11 +500,6 @@ def evidence_problems(body, head):
     return problems
 
 
-def _dependabot_author(pull):
-    user = pull.get("user") if isinstance(pull, dict) else None
-    return isinstance(user, dict) and user.get("login") == DEPENDABOT
-
-
 def missing(repo, number, head, base, read=read_api):
     pull = read(f"repos/{repo}/pulls/{number}")
     # This pull request's base ref only. A different base is not evidence. The event base SHA
@@ -652,20 +514,16 @@ def missing(repo, number, head, base, read=read_api):
     # The open pull request's file and commit lists follow its current head, which can move
     # after this event. review/independent and review/security follow compare(base, head).
     patterns = COMMON_PATHS + DEPENDENCY_FILES + project_paths(repo, base, read)
-    pinned, pinned_commits = pinned_change(repo, base, head, read)
+    pinned, _ = pinned_change(repo, base, head, read)
     if pinned is None:
         touched = True
-        bump = False
     else:
         touched = any(matches(entry.get(key, ""), patterns) for entry in pinned
                       for key in ("filename", "previous_filename"))
-        bump = bool(touched and pinned_commits is not None and dependabot_bump(pull, pinned_commits, pinned))
-    needed = []
-    # The version-only Dependabot exception drops both reviews. A status posted anyway still has to be success.
-    if not bump:
-        needed.append(INDEPENDENT)
+    needed = [INDEPENDENT]
     # Compare stops at 300 files. A hidden path cannot be ruled out.
-    if pinned is None or (touched and not bump):
+    # Dependabot uses this same path rule. A version bump is not exempt.
+    if pinned is None or touched:
         needed.append(SECURITY)
     statuses = status_list(read(f"repos/{repo}/commits/{head}/statuses?per_page=100"))
     # The list is newest first. An older success does not erase a newer failure.
@@ -689,16 +547,14 @@ def missing(repo, number, head, base, read=read_api):
     # The owner comment is tied to this SHA. A posted status under another name does not replace it.
     if pinned is None:
         needs_owner = True
-        version_only = False
     else:
         introduced = touches_agents(pinned) and blob_has_team_line(repo, head, read)
         needs_owner = one_way(pinned, False) or profile_line_changes(pinned) or introduced
-        version_only = (pinned_commits is not None and dependabot_bump(pull, pinned_commits, pinned)
-                        and not major_change(pinned))
-    if needs_owner and not version_only and solo and not owner_approved(repo, number, head, read):
+    if needs_owner and solo and not owner_approved(repo, number, head, read):
         result.append(OWNER)
     # The body is the current pull request text. This run's head is the event SHA, not a later push.
-    if isinstance(pull, dict) and not _dependabot_author(pull):
+    # Dependabot is included. An empty body is not evidence.
+    if isinstance(pull, dict):
         found = evidence_problems(pull.get("body"), head)
         if found:
             detail = ", ".join(found)

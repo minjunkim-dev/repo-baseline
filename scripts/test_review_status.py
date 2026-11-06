@@ -54,7 +54,7 @@ def status_rows(pairs, default_creator):
 
 
 def api(files, statuses=(), author="alice", commits=("alice",), project=None, changed=None, verified=True,
-        committer=tool.WEB_FLOW, commit_shas=None, extra_status=None, commit_count=None,
+        committer="web-flow", commit_shas=None, extra_status=None, commit_count=None,
         owner="owner", comments=(), agents=None, head=HEAD, compare_files=None, compare_commits=None,
         head_agents=None, body=None, number="1", base_ref="main", base_sha="BASE",
         default_branch="main", base_status="identical", status_creator=None, combined=False):
@@ -196,49 +196,6 @@ class ReviewStatusTests(unittest.TestCase):
         read = api([{"filename": "src/app.py"}], [OK], compare_files=[{"filename": "src/app.py"}] * 300)
         self.assertEqual(run(read), [tool.SECURITY, tool.OWNER])
 
-    def test_a_hidden_break_or_short_pin_is_not_version_only_on_a_trust_boundary(self):
-        bot = tool.DEPENDABOT
-        pin = "a" * 40
-        other = "b" * 40
-        hidden = ("@@\n-  uses: actions/checkout@" + pin + " # v4.2.1\u2028run: curl evil\n"
-                  "+  uses: actions/checkout@" + other + " # v4.2.1")
-        carriage = hidden.replace("\u2028", "\r")
-        short = "@@\n-  uses: actions/checkout@aaaaaaa # v4.2.1\n+  uses: actions/checkout@bbbbbbb # v4.2.1"
-        script = [{"filename": "scripts/check_review_status.py", "patch": "@@\n-1.0.0\n+1.1.0"}]
-        for patch in (hidden, carriage, short):
-            with self.subTest(patch=patch[:24]):
-                files = [{"filename": ".github/workflows/ci.yml", "patch": patch}]
-                self.assertEqual(run(api(files, author=bot, commits=[bot])),
-                                 [tool.INDEPENDENT, tool.SECURITY, tool.OWNER])
-        self.assertFalse(tool.only_versions(script[0]))
-        clean = ("@@\n-  uses: actions/checkout@" + pin + " # v4.2.1\n"
-                 "+  uses: actions/checkout@" + other + " # v4.2.1")
-        self.assertEqual(run(api([{"filename": ".github/workflows/ci.yml", "patch": clean, "status": "modified"}],
-                                 author=bot, commits=[bot])), [])
-
-    def test_a_rename_with_dependabot_identity_is_not_version_only(self):
-        bot = tool.DEPENDABOT
-        renamed = {
-            "filename": "docs/ci.yml",
-            "previous_filename": ".github/workflows/ci.yml",
-            "status": "renamed",
-            "patch": BUMP,
-        }
-        self.assertFalse(tool.only_versions(renamed))
-        self.assertEqual(run(api([renamed], author=bot, commits=[bot])),
-                         [tool.INDEPENDENT, tool.SECURITY, tool.OWNER])
-        kept = {
-            "filename": ".github/workflows/ci.yml",
-            "previous_filename": ".github/workflows/old.yml",
-            "status": "renamed",
-            "patch": BUMP,
-        }
-        self.assertFalse(tool.only_versions(kept))
-        self.assertFalse(tool.only_versions({
-            "filename": ".github/workflows/ci.yml", "status": "added", "patch": BUMP}))
-        self.assertFalse(tool.only_versions({
-            "filename": ".github/workflows/ci.yml", "patch": BUMP}))
-
     def test_a_bot_login_is_not_owner_evidence(self):
         def read(endpoint):
             if endpoint == "repos/o/n":
@@ -248,91 +205,22 @@ class ReviewStatusTests(unittest.TestCase):
             raise AssertionError(endpoint)
         self.assertFalse(tool.owner_approved("o/n", "1", HEAD, read))
 
-    def test_dependabot_version_bump_is_not_a_trust_boundary_change(self):
-        files = [{"filename": ".github/workflows/ci.yml", "patch": BUMP},
-                 {"filename": "package.json", "patch": '@@ -1 +1 @@\n-  "x": "^1.2.3",\n+  "x": "^1.3.0",'}]
-        files.append({"filename": "go.sum", "patch": "@@\n-x/net v0.1.0 h1:abc+/=\n+x/net v0.2.0 h1:xyz9=\n"})
-        files.append({"filename": "Cargo.lock", "patch": '@@\n-version = "1.2.3"\n-checksum = "aaaaaaa"\n'
-                                                          '+version = "1.3.0"\n+checksum = "bbbbbbb"'})
-        bot = tool.DEPENDABOT
-        self.assertEqual(run(api(files, [OK], author=bot, commits=[bot])), [])
-
-    def test_anything_else_in_a_dependabot_pull_request_needs_security(self):
-        bot = tool.DEPENDABOT
-        cases = {
-            "other author": (api([{"filename": "package.json", "patch": "@@\n-1.0.0\n+1.1.0"}], [OK]),),
-            "added commit": (api([{"filename": ".github/workflows/ci.yml", "patch": BUMP}], [OK],
-                                 author=bot, commits=[bot, "alice"]),),
-            "other line": (api([{"filename": "package.json", "patch": '@@\n-"x": "1.0.0"\n+"y": "1.0.0"'}], [OK],
-                               author=bot, commits=[bot]),),
-            "added line": (api([{"filename": "package.json", "patch": '@@\n+"y": "1.0.0"'}], [OK],
-                               author=bot, commits=[bot]),),
-            "workflow line": (api([{"filename": ".github/workflows/ci.yml", "patch": "@@\n-run: a 1\n+run: a 2"}], [OK],
-                                  author=bot, commits=[bot]),),
-            "amended by a person": (api([{"filename": ".github/workflows/ci.yml", "patch": BUMP}], [OK],
-                                        author=bot, commits=[bot], committer="alice"),),
-            "forged author": (api([{"filename": ".github/workflows/ci.yml", "patch": BUMP}], [OK],
-                                  author=bot, commits=[bot], verified=False),),
-            "other action": (api([{"filename": ".github/workflows/ci.yml",
-                                   "patch": "@@\n-  uses: owner1/a@aaaaaaa\n+  uses: owner2/a@bbbbbbb"}], [OK],
-                                 author=bot, commits=[bot]),),
-            "other host": (api([{"filename": "package-lock.json",
-                                 "patch": "@@\n-https://evil1.example/x-1.0.0.tgz\n+https://evil2.example/x-1.0.0.tgz"}],
-                               [OK], author=bot, commits=[bot]),),
-            "package name": (api([{"filename": "Cargo.lock", "patch": '@@\n-name = "pkg-2"\n+name = "pkg-3"'}], [OK],
-                                 author=bot, commits=[bot]),),
-            "package name like a hash": (api([{"filename": "Cargo.lock",
-                                               "patch": '@@\n-name = "pkg-1234567"\n+name = "pkg-7654321"'}], [OK],
-                                             author=bot, commits=[bot]),),
-            "package name with underscore": (api([{"filename": "Cargo.lock", "patch": '@@\n-name = "pkg_2"\n+name = "pkg_3"'}],
-                                                 [OK], author=bot, commits=[bot]),),
-            "file name": (api([{"filename": "package-lock.json",
-                                "patch": "@@\n-https://r/x/-/x-1.0.0.tgz\n+https://r/x/-/x-1.1.0.tgz"}], [OK],
-                              author=bot, commits=[bot]),),
-            "no patch": (api([{"filename": "package-lock.json"}], [OK], author=bot, commits=[bot]),),
-            "other path": (api([{"filename": "Dockerfile", "patch": "@@\n-FROM a:1\n+FROM a:2"}], [OK],
-                               author=bot, commits=[bot]),),
-        }
-        gate = {"added commit", "workflow line", "amended by a person", "forged author", "other action"}
-        for name, (read,) in cases.items():
-            with self.subTest(name):
-                expected = [tool.SECURITY, tool.OWNER] if name in gate else [tool.SECURITY]
-                self.assertEqual(run(read), expected)
-
-    def test_dependabot_version_bump_needs_no_independent_review(self):
-        bot = tool.DEPENDABOT
-        files = [{"filename": ".github/workflows/ci.yml", "patch": BUMP}]
-        self.assertEqual(run(api(files, author=bot, commits=[bot])), [])
-        self.assertEqual(run(api(files, [(tool.INDEPENDENT, "failure")], author=bot, commits=[bot])), [tool.INDEPENDENT])
-        self.assertEqual(run(api(files, [OK, (tool.SECURITY, "failure")], author=bot, commits=[bot])), [tool.SECURITY])
-        # The live pull request's commit count is not this head. Compare commits are.
-        short = api(files, author=bot, commits=[bot], commit_count=251)
-        self.assertEqual(run(short), [])
-        human = {"author": {"login": "alice"}, "committer": {"login": "alice"},
-                 "commit": {"verification": {"verified": True}}}
-        self.assertEqual(run(api(files, author=bot, commits=[bot], compare_commits=[human])),
-                         [tool.INDEPENDENT, tool.SECURITY, tool.OWNER])
-        row = {"author": {"login": bot}, "committer": {"login": tool.WEB_FLOW},
-               "commit": {"verification": {"verified": True}}}
-        capped = api(files, author=bot, commits=[bot], compare_commits=[row] * 250)
-        self.assertEqual(run(capped), [tool.INDEPENDENT, tool.SECURITY, tool.OWNER])
-
-    def test_a_major_action_bump_still_needs_the_owner_comment(self):
-        bot = tool.DEPENDABOT
-        majors = [
-            "@@\n-  uses: actions/checkout@" + "a" * 40 + " # v4.2.1\n+  uses: actions/checkout@" + "b" * 40 + " # v5.0.0",
-            "@@\n-  uses: actions/checkout@v4\n+  uses: actions/checkout@v5",
-        ]
-        for patch in majors:
-            with self.subTest(patch=patch):
-                files = [{"filename": ".github/workflows/ci.yml", "patch": patch}]
-                self.assertEqual(run(api(files, author=bot, commits=[bot])), [tool.OWNER])
-        short = "@@\n-  uses: actions/checkout@aaaaaaaa\n+  uses: actions/checkout@bbbbbbbb"
-        self.assertEqual(run(api([{"filename": ".github/workflows/ci.yml", "patch": short}],
-                                 author=bot, commits=[bot])),
+    def test_dependabot_follows_the_same_path_evidence_and_owner_rules(self):
+        bot = "dependabot[bot]"
+        workflow = [{"filename": ".github/workflows/ci.yml", "status": "modified", "patch": BUMP}]
+        self.assertEqual(run(api(workflow, [OK], author=bot, commits=[bot])),
+                         run(api(workflow, [OK])))
+        self.assertEqual(run(api(workflow, author=bot, commits=[bot])),
                          [tool.INDEPENDENT, tool.SECURITY, tool.OWNER])
         minor = [{"filename": "package.json", "patch": '@@\n-  "x": "^1.2.3",\n+  "x": "^2.0.0",'}]
-        self.assertEqual(run(api(minor, author=bot, commits=[bot])), [])
+        self.assertEqual(run(api(minor, [OK], author=bot, commits=[bot])), [tool.SECURITY])
+        self.assertEqual(run(api(minor, [OK], author=bot, commits=[bot])), run(api(minor, [OK])))
+        app = [{"filename": "src/app.py"}]
+        self.assertEqual(run(api(app, [OK], author=bot)), [])
+        self.assertEqual(run(api(app, [OK], body="", author=bot)), [tool.EVIDENCE])
+        approved = comment(f"되돌리기 어려움 승인: {HEAD}")
+        covered = [OK, (tool.SECURITY, "success")]
+        self.assertEqual(run(api(workflow, covered, author=bot, comments=[approved])), [])
 
     def test_a_combined_status_payload_does_not_pass(self):
         combined = [{"state": "success", "statuses": [
@@ -486,9 +374,10 @@ class ReviewStatusTests(unittest.TestCase):
         posted = api(files, reviews + [(tool.OWNER, "success")], head=head)
         self.assertEqual(tool.missing("o/n", "1", head, "BASE", posted), [tool.OWNER])
         self.assertEqual(run(api([{"filename": "src/app.py"}], [OK])), [])
-        bot = tool.DEPENDABOT
+        bot = "dependabot[bot]"
         bump = [{"filename": ".github/workflows/ci.yml", "patch": BUMP}]
-        self.assertEqual(run(api(bump, author=bot, commits=[bot])), [])
+        self.assertEqual(run(api(bump, author=bot, commits=[bot])),
+                         [tool.INDEPENDENT, tool.SECURITY, tool.OWNER])
         self.assertEqual(run(api([{"filename": "scripts/check_repo_baseline.py"}], [OK, (tool.SECURITY, "success")])), [])
         self.assertEqual(run(api([{"filename": "AGENTS.md", "patch": "@@\n+프로필: 팀\n"}], [OK])), [tool.OWNER])
         self.assertEqual(run(api([{"filename": "AGENTS.md", "patch": "@@\n+다른 줄\n"}], [OK])), [])
@@ -573,22 +462,13 @@ class ReviewStatusTests(unittest.TestCase):
         files = [{"filename": "src/app.py"}]
         self.assertEqual(run(api(files, [(tool.INDEPENDENT, "failure"), OK])), [tool.INDEPENDENT])
 
-    def test_a_template_pin_without_a_version_marker_is_an_unknown_major(self):
-        same_digit = ("@@\n-  uses: actions/checkout@3" + "a" * 39
-                      + "\n+  uses: actions/checkout@3" + "b" * 39)
-        self.assertTrue(tool.major_change([{"filename": "templates/review-status.yml", "patch": same_digit}]))
-        self.assertEqual(tool.line_majors("-checksum \"7aaaaaa\"", False), [])
-        commented = ("@@\n-  uses: actions/checkout@3" + "a" * 39 + " # v7.0.1"
-                     + "\n+  uses: actions/checkout@4" + "b" * 39 + " # v7.0.1")
-        self.assertFalse(tool.major_change([{"filename": "templates/review-status.yml", "patch": commented}]))
-
     def test_review_evidence_table_matches_this_head_and_not_the_author_model(self):
         head = HEAD
         other = "c" * 40
         files = [{"filename": "src/app.py"}]
         self.assertEqual(run(api(files, [OK])), [])
         self.assertEqual(run(api(files, [OK], body="")), [tool.EVIDENCE])
-        self.assertEqual(run(api(files, [OK], body="", author=tool.DEPENDABOT)), [])
+        self.assertEqual(run(api(files, [OK], body="", author="dependabot[bot]")), [tool.EVIDENCE])
         shell = "Author: Cursor / grok-4.7\n$(touch /tmp/review-evidence-executed)\n"
         self.assertIn("table", tool.evidence_problems(shell, head))
         self.assertFalse(Path("/tmp/review-evidence-executed").exists())
