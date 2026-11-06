@@ -2,6 +2,16 @@
 
 리뷰 모델의 현행은 「2026-11-06 — 역할 분담: 클라우드 기본, 활성 로스터」다. 그 아래의 리뷰 모델 절은 그 커밋 당시의 기록이다.
 
+Dependabot 현행은 「2026-11-06 — Dependabot PR은 다른 PR과 같다」다. 그 아래 날짜의 pin 전용 면제 문장은 당시 기록이다. 승인 댓글 편집의 현행은 「2026-11-06 — 승인 댓글 편집 감지와 댓글 재실행을 줄인다」다.
+
+## 2026-11-06 — Dependabot PR은 다른 PR과 같다
+
+- 합의(2026-11-06, Dependabot=normal): 2026-11-04의 pin 전용 Dependabot 면제를 거둔다. `scripts/check_review_status.py`는 버전·해시 줄 비교, `uses:` pin 모양, web-flow 커밋터, 주 버전 판정으로 `review/independent`·`review/security`·근거 표·승인 댓글을 빼지 않는다. Dependabot PR도 그 넷을 다른 PR과 같이 요구한다. 경로에 걸리면 `review/security`가 필요하고, 게이트 경로면 사람 승인 댓글이 필요하다. `tools/post_review_gate.py`는 그 diff만으로 success를 올리지 않는다. 자동 성공 경로는 없다.
+- `scripts/workflow_policy.py`가 Dependabot의 본문 절과 72자를 넘는 제목을 건너뛰는 것은 그대로다. 그 건너뜀은 근거 표와 하드도어 승인 댓글을 대신하지 않는다.
+- `POLICY.md`, README, `docs/review-gate-app.md`, `docs/development-workflow.md`, `docs/github-settings-profile.md`, `prompts/pr-ci-setup.md`, `prompts/github-repository-settings.md`, `prompts/weekly-check.md`는 이 규칙으로 고쳤다.
+- `.github/repository-settings.json`의 필수 체크는 바꾸지 않는다. `strict`와 `review/gate` `app_id` 5641238은 그대로다. 이 변경은 branch protection을 쓰지 않고 status를 올리지 않는다. 카나리 E는 다시 열지 않는다.
+- 다시 적용할 프로젝트: smallnext, BGLike, mobile-runtime. `scripts/check_review_status.py`와 `scripts/test_review_status.py`를 `tools/apply_baseline.py`로 다시 복사한다. `tools/post_review_gate.py`는 복사하지 않는다. 소유자가 repo-baseline에서 `--repo`로 실행한다.
+
 ## 2026-11-06 — 승인 댓글 편집 감지와 댓글 재실행을 줄인다
 
 - `scripts/check_review_status.py`: 승인 댓글은 REST `updated_at`이 `created_at`과 같은 문자열일 때만 인정한다. GraphQL `lastEditedAt`·`includesCreatedEdit`는 보지 않는다. REST 시각은 초 단위라 같은 초 편집은 구분하지 않는다. 하드 도어의 SHA 전체 댓글 요구는 그대로다. 댓글을 고치지 말고 새 댓글을 단다.
