@@ -34,13 +34,15 @@ Dependabot 버전 전용 예외는 `scripts/check_review_status.py`와 같다. �
 
 ### 무엇을 쓰나 (현재 코드와 맞춤)
 
-`tools/post_review_gate.py`는 **항상** 환경 변수 `GH_TOKEN`에 **게이트 전용 읽기 토큰**(설치 스코프: 저장소 메타데이터·상태 등 읽기에 필요한 최소 권한)이 있어야 한다. 비어 있으면 `review gate refused: GH_TOKEN must be the gate account read-only token`로 끝난다. **개발자 `gh auth token`을 그대로 쓰지 않는다**(권한이 넓고, 게이트 읽기 주체와 섞인다).
+`tools/post_review_gate.py`는 **항상** 환경 변수 `GH_TOKEN`에 **게이트 전용 읽기 토큰**이 있어야 한다. 비어 있으면 `review gate refused: GH_TOKEN must be the gate account read-only token`로 끝난다. **개발자 `gh auth token`을 그대로 쓰지 않는다**(권한이 넓고, 게이트 읽기 주체와 섞인다).
+
+이 토큰으로 도는 **`Reader`는 REST GET과 `POST /graphql`을 쓴다**(`pull`/diff·커밋·트리·코멘트·승인 댓글 GraphQL 등, `tools/post_review_gate.py` 참고). **“메타데이터만”으로는 부족할 수 있다.** Fine-grained PAT이면 대상 저장소에 **콘텐츠(diff)·pull request·이슈(댓글)·GraphQL에 맞는 읽기**를 켠다. Classic PAT이면 보통 **`repo` 스코프**(해당 저장소가 비공개면 필수)로 커버된다. 설치 엔드포인트 등 앱 API는 **앱 JWT**(PEM)로 하고 `GH_TOKEN`과 섞지 않는다.
 
 - **리뷰 증거 status·(하드도어일 때) 승인 댓글**: 개발 계정의 `gh`(OAuth/PAT, Keychain에 연결된 자격 증명). 증거용 `gh api`는 이 토큰으로 한다.
 - **`post_review_gate.py`의 읽기**: 위와 **별도**인 **읽기 전용** 토큰을 `GH_TOKEN`으로 **서브셸에만** 내보낸다. PEM 경로·내용은 `GH_TOKEN`에 넣지 않는다.
 - **쓰기(`review/gate` POST)**: Keychain에서 꺼낸 PEM 경로를 `REVIEW_GATE_APP_KEY`에 두고, `REVIEW_GATE_APP_ID`는 전용 앱의 정수 ID. `post_review_gate.py`는 이 저장소의 `tools/post_review_gate.py`를 **기본 브랜치(또는 검증한 릴리스)의 깨끗한 트리**에서 실행한다. **검토 중인 PR head의 워크스페이스에서는 실행하지 않는다.**
 
-게이트 읽기 토큰 발급 예(한 번만): GitHub에서 **Fine-grained PAT** 또는 별도 **기계용 GitHub 사용자 + PAT**를 두고, 위 넷 저장소만 읽기로 제한한다. 값은 Keychain 항목 `review-gate-read-token` 등에만 두고, 셸 프로파일에 넣지 않는다.
+게이트 읽기 토큰 발급 예(한 번만): GitHub에서 **Fine-grained PAT** 또는 별도 **기계용 GitHub 사용자 + PAT**를 두고, 위 넷 저장소에 대해 위 **Reader**가 부르는 API에 맞는 **읽기**를 연다. 값은 Keychain 항목 `review-gate-read-token` 등에만 두고, 셸 프로파일에 넣지 않는다.
 
 **후속 코드 변경 아이디어:** 개발자 `gh` 자격 증명 하나로 읽기까지 하게 바꾸는 것은 가능하지만, **지금 릴리스의 스크립트는 그렇게 동작하지 않는다.**
 
@@ -88,6 +90,9 @@ if [ -n "$(git status --porcelain)" ]; then
 fi
 git reset --hard origin/main
 
+# 개발자 gh로 증거를 올리기 전에 ambient 토큰을 비운다 — 남아 있으면 gh가 게이트 읽기 PAT을 쓸 수 있다
+unset GH_TOKEN GITHUB_TOKEN
+
 # 2: 증거 (개발자 gh — description은 실제에 맞게)
 gh api "repos/${REPO}/statuses/${SHA}" -f state=success -f context=review/independent \
   -f description="<도구> <모델> 지적 <수>"
@@ -130,14 +135,18 @@ gh api "repos/${REPO}/statuses/${SHA}" -f state=success -f context=review/indepe
 
 ### Keychain에 넣기
 
-**PEM 내용을 명령 줄 argv로 넣지 않는다** (`-w "$(cat file.pem)"`는 프로세스 목록에 노출될 수 있다). 아래 중 하나를 쓴다.
+**PEM 내용을 명령 줄 argv로 넣지 않는다** (`-w "$(cat file.pem)"`는 프로세스 목록에 노출될 수 있다).
 
-- **대화형:** `security add-generic-password -a "$USER" -s review-gate-app-key -w` 만 실행하고, 프롬프트가 뜨면 PEM **전체**를 붙여 넣는다(끝에 개행 포함 여부는 GitHub PEM 형식에 맞출 것).
-- **GUI:** **Keychain Access**에서 generic password 항목을 추가하고, 값 필드에 PEM 전체를 붙여 넣는다.
+**멀티라인 PEM 저장(필수):** Apple `security add-generic-password`의 `-w` **대화형 입력은 보통 getpass() 한 줄**이라, **첫 개행에서 끊긴다**. 그러면 Keychain에는 `-----BEGIN … PRIVATE KEY-----` 한 줄만 들어가고, 나중에 `openssl` 서명이 실패한다. **앱 PEM은 아래 둘 중 하나로만 저장한다.**
 
-`cat`·`$(< file)`로 PEM을 **명령 줄에 펼쳐 넣지 않는다**. 잠시 파일에 둔 뒤 GUI로 옮기는 방식이면, 옮긴 뒤 그 파일을 바로 지운다.
+1. **권장 — Keychain Access.app:** “password” / generic 항목을 만들거나 수정하고, **값 필드에 PEM 전체**(BEGIN~END, 줄 바꿈 포함)를 붙여 넣는다. 서비스 이름 예: `review-gate-app-key`, 계정은 본인 Mac 계정.
+2. **임시 파일 → GUI:** 다운로드한 PEM을 **0600** 잠시 파일에만 둔 뒤, **Keychain Access에 붙여 넣고 즉시 파일을 지운다.** PEM을 **셸 argv나 `$(cat …)`로 `security`에 넘기지 않는다.**
 
-`review-gate-read-token` 항목에는 **게이트 읽기 전용 PAT 문자열만** 넣는다. 넣은 뒤 디스크에 남긴 원본을 지운다.
+`security` 한 줄 CLI만으로 멀티라인 비밀을 안전하게 넣는 공식 경로가 없으면, **GUI가 필수**다. **대화형 `security … -w`(인자 없음)로 PEM 전체를 넣는 방법은 쓰지 않는다.**
+
+**꺼내기:** `security find-generic-password -a "$USER" -s review-gate-app-key -w`는 저장한 **전체 문자열**(멀티라인 PEM)을 stdout에 내므로, 위 스니펫처럼 **임시 0600 파일**로 리다이렉트해 `REVIEW_GATE_APP_KEY`에 쓴다.
+
+`review-gate-read-token` 항목에는 **게이트 읽기 전용 PAT(한 줄)**만 넣는다. GUI로 넣어도 되고, 한 줄이라 짧은 대화형 입력도 가능하지만 argv에 넣지 않는다. 넣은 뒤 디스크에 남긴 원본을 지운다.
 
 다운로드한 원본 PEM은 Keychain에 넣은 뒤 **디스크에서 지운다.** 개발 홈에 서 있는 `review-gate.pem`을 두지 않는다.
 

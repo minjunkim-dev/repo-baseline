@@ -4,7 +4,7 @@
 
 ## 2026-11-06 — 게이트 문서: Keychain 우선·합의(문서만)
 
-- `docs/review-gate-app.md`: 1인·소규모 팀의 **권장 경로**를 **개발자 macOS Keychain의 앱 PEM**(실행 시에만 임시 파일로 꺼냄) + **개발자 `gh`로 증거 status** + **`GH_TOKEN` 게이트 전용 읽기 토큰(`tools/post_review_gate.py` 현행)** + **기본 브랜치의 깨끗한 checkout에서 `post_review_gate.py`**로 다시 썼다. **unset GH_TOKEN**과 “별도 읽기 토큰 불필요”는 코드와 어긋나서 뺐다. 체크아웃은 `git status --porcelain`·`git reset --hard origin/main`(또는 핀 SHA)로 고정. 같은 **UID 에이전트**와의 격리 한계·Keychain 과장 없음·PEM을 argv에 넣지 않는 설명을 추가했다. 예전 **reviewgate 전용 UID·봉인(seal)·sudoers·git archive** 중심 절차는 **레거시(선택)**로 남겼다.
+- `docs/review-gate-app.md`: 1인·소규모 팀의 **권장 경로**를 **개발자 macOS Keychain의 앱 PEM**(실행 시에만 임시 파일로 꺼냄) + **개발자 `gh`로 증거 status** + **`GH_TOKEN` 게이트 전용 읽기 토큰(`tools/post_review_gate.py` 현행)** + **기본 브랜치의 깨끗한 checkout에서 `post_review_gate.py`**로 다시 썼다. **unset GH_TOKEN**과 “별도 읽기 토큰 불필요”는 코드와 어긋나서 뺐다. 체크아웃은 `git status --porcelain`·`git reset --hard origin/main`(또는 핀 SHA)로 고정. 같은 **UID 에이전트**와의 격리 한계·Keychain 과장 없음·PEM을 argv에 넣지 않는 설명을 추가했다. **멀티라인 PEM**은 `security -w` 대화형 한 줄 입력에 맞지 않으므로 **Keychain Access GUI**(또는 0600 파일→GUI)만 권장하고, 대화형 `-w`로 PEM 붙여넣기는 금지했다. **게이트 `GH_TOKEN` 스코프**는 `Reader`의 REST·GraphQL 호출에 맞춘다. 증거 `gh api` 전에 **`unset GH_TOKEN GITHUB_TOKEN`**. 예전 **reviewgate 전용 UID·봉인(seal)·sudoers·git archive** 중심 절차는 **레거시(선택)**로 남겼다.
 - `prompts/pr-ci-setup.md`, `docs/development-workflow.md`: 권장 경로를 위와 맞추고 **봉인 사본** 문장을 **레거시**로 표시했다.
 - `POLICY.md` §5·§9, `README.md`, `docs/github-settings-profile.md`: repo-baseline의 `review/gate` `app_id` 기록이 **5641238**(#44)이므로, `REPLACE:<APP_ID>`는 **다른 저장소·채우기 전**의 자리표시자로만 쓴다고 고쳤다. 합의의 나머지(증거-in-gate·Dependabot·편집 댓글 규칙·코드 삭제 순서)는 **후속 PR**이다. Python 게이트 로직·`.github/repository-settings.json` 필수 목록 변경은 이 PR에 없다.
 
