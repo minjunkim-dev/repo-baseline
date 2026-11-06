@@ -132,7 +132,7 @@
 
 ## 일상 개발 시작
 
-개발 절차는 Matt Pocock 스킬을 그대로 쓴다. 어떤 스킬로 시작할지는 사용자가 `/ask-matt`를 실행한다. `disable-model-invocation: true`인 스킬은 사용자가 실행한다. 처음 셋업과 이 기준이 더하는 `main` 경계는 [프로젝트 초기 설정과 일상 개발](docs/development-workflow.md)을 따른다.
+개발 절차는 Matt Pocock 스킬을 그대로 쓴다. 어떤 스킬로 시작할지는 사용자가 `/ask-matt`를 실행한다. `disable-model-invocation: true`인 스킬은 사용자가 실행한다. 처음 셋업과 이 기준이 더하는 `main` 경계는 [프로젝트 초기 설정과 일상 개발](docs/development-workflow.md)을 따른다. 트렁크(`main` 하나, squash, 선택적 피처 플래그)도 그 문서다.
 
 ## 자체 리뷰와 회고
 

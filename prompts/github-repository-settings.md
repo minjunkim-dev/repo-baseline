@@ -55,6 +55,8 @@ GitHub 최종 확인은 두 번째 작업의 마무리다. 세 번째 프롬프�
 | 브랜치 잠금 | Off |
 | Release 불변성(immutable releases) | On |
 
+이 표는 트렁크다. 기준 브랜치는 `main` 하나다. GitFlow의 `develop` 브랜치와 `release` 브랜치를 만들지 마. 그 브랜치는 GitHub Release가 아니다. Release 불변성 행은 그대로다. squash만 켜고, 병합 뒤 브랜치를 지우고, 선형 이력을 켜. 끝나지 않은 작업은 긴 브랜치 대신 꺼진 피처 플래그로 `main`에 둔다(`docs/development-workflow.md`). 플래그 파일 검사는 서버 보호의 필수 체크에 넣지 마. `.github/workflow-policy.json`의 `feature_flags`로 그 저장소가 켤 때만 `scripts/workflow_policy.py`가 그 파일을 본다. repo-baseline은 그 값을 `false`로 둔다. 이 문장으로 branch protection을 다시 쓰지 마.
+
 1인 프로필에서 본인 PR에 다른 사람의 승인 1명을 강제하지 마. 승인 0명이어도 `POLICY.md` §10의 되돌리기 어려움(one-way door: 되돌리기 어려운 결정)은 사람이 최종 head를 승인한다.
 팀 프로필은 `templates/CODEOWNERS`로 `.github/CODEOWNERS`를 두는 작업을 PR·CI/CD 작업에 인계해. 소유자마다 쓰기 권한이 있는지, 소유자가 두 명 이상이거나 팀인지 확인해. 저장소가 개인 계정 소유인지 조직 소유인지 기록하고, 조직 소유 저장소의 차이는 `POLICY.md` §9를 따라.
 기존 협업·release 운영과 충돌하면 근거를 확인해. 다른 목적의 보호를 삭제하거나 보호 공백을 만들지 마.
