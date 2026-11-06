@@ -98,30 +98,31 @@ def decide(scripted, sha=HEAD):
 
 
 class DecideTests(unittest.TestCase):
-    def test_posts_success_only_when_head_family_and_statuses_agree(self):
+    def test_posts_success_from_the_evidence_table_without_review_statuses(self):
         files = [{"filename": "README.md", "patch": "@@\n-a\n+b\n"}]
-        found = decide(Scripted(pull(), files, [status(review.INDEPENDENT)]))
+        found = decide(Scripted(pull(), files, []))
         self.assertEqual(found.kind, "success")
         self.assertEqual(found.sha, HEAD)
+        self.assertNotIn(review.INDEPENDENT, found.detail)
+        self.assertNotIn(review.SECURITY, found.detail)
 
-    def test_security_status_is_required_when_the_table_names_a_model(self):
+    def test_a_security_model_in_the_table_does_not_require_a_security_status(self):
         files = [{"filename": "README.md", "patch": "@@\n-a\n+b\n"}]
         body = evidence(HEAD, security="Opus 5.5")
-        found = decide(Scripted(pull(body=body), files, [status(review.INDEPENDENT)]))
-        self.assertEqual(found.kind, "failure")
-        self.assertIn(review.SECURITY, found.detail)
-        both = [status(review.INDEPENDENT), status(review.SECURITY)]
-        self.assertEqual(decide(Scripted(pull(body=body), files, both)).kind, "success")
+        found = decide(Scripted(pull(body=body), files, []))
+        self.assertEqual(found.kind, "success")
+        failed = [status(review.INDEPENDENT, state="failure"), status(review.SECURITY, state="failure")]
+        self.assertEqual(decide(Scripted(pull(body=body), files, failed)).kind, "success")
 
-    def test_a_trust_boundary_path_needs_security_and_the_owner_comment(self):
+    def test_a_trust_boundary_path_needs_the_owner_comment(self):
         files = [{"filename": ".github/repository-settings.json", "patch": "@@\n-a\n+b\n"}]
-        statuses = [status(review.INDEPENDENT), status(review.SECURITY)]
-        bare = decide(Scripted(pull(), files, statuses))
+        bare = decide(Scripted(pull(), files, []))
         self.assertEqual(bare.kind, "failure")
         self.assertIn(review.OWNER, bare.detail)
-        approved = decide(Scripted(pull(), files, statuses, comments=[comment(HEAD)]))
+        self.assertNotIn(review.SECURITY, bare.detail)
+        approved = decide(Scripted(pull(), files, [], comments=[comment(HEAD)]))
         self.assertEqual(approved.kind, "success")
-        edited = decide(Scripted(pull(), files, statuses, comments=[comment(HEAD, edited=True)]))
+        edited = decide(Scripted(pull(), files, [], comments=[comment(HEAD, edited=True)]))
         self.assertEqual(edited.kind, "failure")
         source = Path(gate.__file__).read_text(encoding="utf-8")
         self.assertNotIn("graphql", source)
@@ -136,26 +137,23 @@ class DecideTests(unittest.TestCase):
         self.assertEqual(closed.kind, "skip")
         self.assertEqual(closed.detail, "closed")
 
-    def test_a_team_profile_does_not_accept_a_bot_review_status(self):
+    def test_a_team_profile_ignores_a_bot_review_status(self):
         files = [{"filename": "README.md", "patch": "@@\n-a\n+b\n"}]
         scripted = Scripted(pull(), files, [status(review.INDEPENDENT, login="github-actions[bot]")])
         scripted.agents = "프로필: 팀\n"
         found = decide(scripted)
-        self.assertEqual(found.kind, "failure")
-        self.assertIn(review.INDEPENDENT, found.detail)
-        human = Scripted(pull(), files, [status(review.INDEPENDENT, login="alice")])
-        human.agents = "프로필: 팀\n"
-        self.assertEqual(decide(human).kind, "success")
+        self.assertEqual(found.kind, "success")
+        self.assertNotIn(review.INDEPENDENT, found.detail)
 
-    def test_same_family_and_actions_creator_fail_closed(self):
+    def test_same_family_evidence_fails_and_an_actions_status_does_not(self):
         files = [{"filename": "README.md", "patch": "@@\n-a\n+b\n"}]
-        same = decide(Scripted(pull(body=evidence(HEAD, standards="grok-4.7")), files, [status(review.INDEPENDENT)]))
+        same = decide(Scripted(pull(body=evidence(HEAD, standards="grok-4.7")), files, []))
         self.assertEqual(same.kind, "failure")
         self.assertIn(review.EVIDENCE, same.detail)
         forged = [status(review.INDEPENDENT, login="github-actions[bot]"), status(review.INDEPENDENT)]
         found = decide(Scripted(pull(), files, forged))
-        self.assertEqual(found.kind, "failure")
-        self.assertIn(review.INDEPENDENT, found.detail)
+        self.assertEqual(found.kind, "success")
+        self.assertNotIn(review.INDEPENDENT, found.detail)
 
     def test_dependabot_pin_bump_needs_the_same_gate_as_any_author(self):
         patch = "\n".join([
@@ -167,8 +165,9 @@ class DecideTests(unittest.TestCase):
         bot = pull(user="dependabot[bot]")
         bare = decide(Scripted(bot, files, []))
         self.assertEqual(bare.kind, "failure")
-        for gap in (review.INDEPENDENT, review.SECURITY, review.OWNER):
-            self.assertIn(gap, bare.detail)
+        self.assertIn(review.OWNER, bare.detail)
+        self.assertNotIn(review.INDEPENDENT, bare.detail)
+        self.assertNotIn(review.SECURITY, bare.detail)
         empty = pull(body="", user="dependabot[bot]")
         statuses = [status(review.INDEPENDENT), status(review.SECURITY)]
         missing_table = decide(Scripted(empty, files, statuses, comments=[comment(HEAD)]))
@@ -285,17 +284,19 @@ class HttpTests(unittest.TestCase):
         self.assertTrue(all(item[2]["Authorization"] == "Bearer ghp_mac_read" for item in reads))
         self.assertTrue(all(item[2]["Authorization"] != "Bearer ghs_test_token" for item in hub.calls if item[0] == "GET"))
 
-    def test_actions_status_posts_failure_for_that_sha_only(self):
+    def test_bad_evidence_posts_failure_for_that_sha_only(self):
         directory, key = _key()
         self.addCleanup(directory.cleanup)
         hub = self.hub(statuses=[status(review.INDEPENDENT, login="github-actions[bot]")])
+        hub.pull = pull(body=evidence(HEAD, standards="grok-4.7"))
         code = gate.main(
             ["--repo", REPO, "--pr", "7", "--sha", HEAD],
             self.env(key), hub, now=lambda: 1700000000, sign=lambda data, path: b"sig")
         self.assertEqual(code, 1)
-        posts = [item for item in hub.calls if "/statuses/" in item[1]]
+        posts = [item for item in hub.calls if item[0] == "POST" and item[1].endswith(f"/statuses/{HEAD}")]
         self.assertEqual(posts[0][3]["state"], "failure")
-        self.assertTrue(posts[0][1].endswith(f"/statuses/{HEAD}"))
+        self.assertEqual(posts[0][3]["context"], "review/gate")
+        self.assertFalse(any(item[0] == "GET" and "/commits/" in item[1] and "/statuses" in item[1] for item in hub.calls))
 
     def test_head_mismatch_does_not_post(self):
         directory, key = _key()

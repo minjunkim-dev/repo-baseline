@@ -2,7 +2,15 @@
 
 리뷰 모델의 현행은 「2026-11-06 — 역할 분담: 클라우드 기본, 활성 로스터」다. 그 아래의 리뷰 모델 절은 그 커밋 당시의 기록이다.
 
-Dependabot 현행은 「2026-11-06 — Dependabot PR은 다른 PR과 같다」다. 그 아래 날짜의 pin 전용 면제 문장은 당시 기록이다. 승인 댓글 편집의 현행은 「2026-11-06 — 승인 댓글 편집 감지와 댓글 재실행을 줄인다」다.
+Dependabot 현행은 「2026-11-06 — Dependabot PR은 다른 PR과 같다」다. 그 아래 날짜의 pin 전용 면제 문장은 당시 기록이다. 승인 댓글 편집의 현행은 「2026-11-06 — 승인 댓글 편집 감지와 댓글 재실행을 줄인다」다. 게이트가 `review/independent`·`review/security`를 요구하던 문장은 「2026-11-06 — 게이트는 근거 표와 승인 댓글만 본다」로 대체되었다.
+
+## 2026-11-06 — 게이트는 근거 표와 승인 댓글만 본다
+
+- `scripts/check_review_status.py`와 `tools/post_review_gate.py`: `review/independent`와 `review/security`를 읽지 않는다. 없거나 failure여도 게이트는 그 이유로 실패하지 않는다. 성공 조건은 PR 본문 근거 표와, 1인 프로필에서 게이트 경로를 바꾼 head의 승인 댓글이다. Dependabot PR도 그 표와 승인 댓글을 다른 PR과 같이 요구한다. pin 전용 면제는 없다. 표의 축은 Standards, Spec, 버그 찾기, Security다. 모델이거나, 그 축이 허용하는 `해당 없음:`이어야 한다. Standards와 Spec은 `해당 없음`으로 비우지 않는다. 앱은 `review/gate`만 올린다. 소유자는 그 두 status를 참고로 남겨도 된다.
+- 승인 댓글 규칙은 앞 절 그대로다. REST `updated_at`이 `created_at`과 같은 문자열일 때만 인정한다. 같은 초 편집은 구분하지 않는다. GraphQL `lastEditedAt`은 보지 않는다. 댓글은 `Review status`나 `review/gate`를 자동으로 다시 돌리지 않는다.
+- 품질 기준은 status와 별개다. Standards·Spec의 기본은 Composer이고, 버그 찾기와 Security의 기본은 Opus다. 리뷰 패밀리는 작성 패밀리와 다르다(`docs/development-workflow.md`).
+- `.github/repository-settings.json`의 필수 체크는 바꾸지 않는다. Baseline checks (Python 3.11), Baseline checks (Python 3.13), `review/gate`(`app_id` 5641238)다. `Review status`는 필수 목록에 없다. 이 변경은 branch protection을 쓰지 않고 commit status를 올리지 않는다. 카나리 E는 다시 열지 않는다.
+- 다시 적용할 프로젝트: smallnext, BGLike, mobile-runtime. `scripts/check_review_status.py`와 `scripts/test_review_status.py`를 `tools/apply_baseline.py`로 다시 복사한다. `tools/post_review_gate.py`는 복사하지 않는다.
 
 ## 2026-11-06 — Dependabot PR은 다른 PR과 같다
 

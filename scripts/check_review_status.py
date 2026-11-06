@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
-"""Fail when a pull request head lacks the review statuses its changed paths need (POLICY.md §5).
-Paths only: content signals stay a reviewer judgement. On a 1-person profile, review/independent
-and review/security count only when creator.login is the repository owner or a login in
-STATUS_ACTORS (empty). The review-gate app is not listed: it posts review/gate only.
-Another creator is failure, not a missing context, so an older success on this SHA is not used.
-The same account still cannot tell a person from an agent. A team profile does not look at the creator.
-A new head SHA needs success posted on that exact SHA. A prior head, an identical diff, a line-number
-shift, a base update, and a force-push do not inherit it. Diff text and post-change blob ids are not evidence.
+"""Fail when a pull request head lacks the review evidence the gate needs (POLICY.md §5).
+
+review/independent and review/security are advisory commit statuses. This checker does not read
+them. A missing status, a failure, and a status from another creator do not fail the gate.
+The review-gate app posts review/gate only. The owner may still post the advisory statuses.
+The pull request body is parsed for the review evidence table. It is never executed. Every
+required axis needs a model, or `해당 없음:` where that axis allows it. Standards and Spec
+do not allow `해당 없음`. The table must name this head.
 A 1-person pull request that changes a POLICY.md §10 gate path also needs the repository owner's
-approval comment on this head. Dependabot follows the same evidence table, review statuses, and
+approval comment on this head. Dependabot follows the same evidence table and
 owner comment as any other author. A version or hash bump is not a separate success path.
+Advisory review statuses are not required for either author.
 That comment is not reused from an older head. An edited comment
 is not approval when REST updated_at differs from created_at. Timestamps are whole seconds, so a
 same-second edit is not distinguished. Post a new comment, then re-run this job or post the gate
@@ -30,6 +31,7 @@ import sys
 
 from pr_author import parse_author
 
+# Advisory contexts. The gate does not read them and does not require them.
 INDEPENDENT = "review/independent"
 SECURITY = "review/security"
 # Not a commit status. The job fails with this name when the owner comment is missing.
@@ -41,10 +43,6 @@ EVIDENCE = "review/evidence"
 # repository default branch. A status posted under this name does not count.
 BASE_REF = "review/base-branch"
 TEAM_LINE = "프로필: 팀"
-# Solo-profile logins that may post review/independent and review/security, besides the
-# repository owner. The review-gate app is not added here. This file runs from the default
-# branch, so a pull request cannot add a login. A team profile does not read this tuple.
-STATUS_ACTORS = ()
 # Exact first-line prefixes. The second is deprecated and means the same approval.
 APPROVAL_LINE = re.compile(
     r"(?:되돌리기 어려움 승인:|한쪽 문 승인:)"
@@ -101,6 +99,7 @@ def matches(path, patterns):
 
 
 def project_paths(repo, base, read):
+    """Patterns from the base branch's trust-boundary file. The gate does not require a status from them."""
     try:
         found = read(f"repos/{repo}/contents/{PROJECT_PATHS}?ref={base}")
     except subprocess.CalledProcessError as error:
@@ -237,43 +236,9 @@ def repository_owner(repo, read):
     return owner
 
 
-def status_actors(repo, read):
-    """Owner plus STATUS_ACTORS. Blank entries are not logins. Solo profile only."""
-    extra = tuple(login for login in STATUS_ACTORS if isinstance(login, str) and login != "")
-    return (repository_owner(repo, read), *extra)
-
-
 def bot_creator(login):
     """True for a GitHub App or Actions login. Those accounts do not post review evidence."""
     return isinstance(login, str) and login.casefold().endswith("[bot]")
-
-
-def status_actor(status):
-    creator = status.get("creator") if isinstance(status, dict) else None
-    login = creator.get("login") if isinstance(creator, dict) else None
-    if not isinstance(login, str) or login == "":
-        return None
-    return login
-
-
-def reviewed_state(status, allowed):
-    """State that counts for one review context.
-
-    A [bot] login is failure on every profile, including a team profile where allowed is None.
-    allowed is None on a team profile: a human creator is not checked.
-    On a 1-person profile, a creator outside allowed is failure. The newest state per
-    context on this SHA counts. Dropping that status would reveal an older success
-    on the same SHA."""
-    actor = status_actor(status)
-    if bot_creator(actor):
-        print(f"review status untrusted {status.get('context')} from {actor} is not success")
-        return "failure"
-    if allowed is None:
-        return status["state"]
-    if any(same_login(actor, login) for login in allowed):
-        return status["state"]
-    print(f"review status untrusted {status.get('context')} from {actor or 'unknown'} is not success")
-    return "failure"
 
 
 def comment_unedited(comment):
@@ -312,24 +277,6 @@ def owner_approved(repo, number, head, read):
                     and approval_sha(comment.get("body")) == wanted):
                 return True
     return False
-
-
-def status_list(pages):
-    """Newest-first status objects from GET /commits/{sha}/statuses.
-
-    Each page is a list. The combined status object is a dict and has no creator,
-    so it is not this list and must not count as success."""
-    if not isinstance(pages, list):
-        raise ValueError("commit statuses")
-    flat = []
-    for page in pages:
-        if not isinstance(page, list):
-            raise ValueError("commit statuses")
-        for status in page:
-            if not isinstance(status, dict) or "context" not in status:
-                raise ValueError("commit statuses")
-            flat.append(status)
-    return flat
 
 
 # Alias, then family. Opus and Sonnet are both Claude. Two families in one name is unknown.
@@ -507,43 +454,14 @@ def missing(repo, number, head, base, read=read_api):
     default = default_base(repo, pull, read)
     if default is None or not event_base_on_default(repo, base, default, read):
         return [BASE_REF]
-    # None means a team profile: any creator still counts. A 1-person profile counts the owner
-    # and STATUS_ACTORS only, and treats every other creator as failure.
+    # A team profile does not require the owner comment. A 1-person profile does, on a gate path.
     solo = not team_profile(repo, base, read)
-    allowed = status_actors(repo, read) if solo else None
     # The open pull request's file and commit lists follow its current head, which can move
-    # after this event. review/independent and review/security follow compare(base, head).
-    patterns = COMMON_PATHS + DEPENDENCY_FILES + project_paths(repo, base, read)
+    # after this event. The owner comment follows compare(base, head). Advisory review
+    # statuses are not read: missing, failed, or untrusted review/independent and
+    # review/security do not change this result.
     pinned, _ = pinned_change(repo, base, head, read)
-    if pinned is None:
-        touched = True
-    else:
-        touched = any(matches(entry.get(key, ""), patterns) for entry in pinned
-                      for key in ("filename", "previous_filename"))
-    needed = [INDEPENDENT]
-    # Compare stops at 300 files. A hidden path cannot be ruled out.
-    # Dependabot uses this same path rule. A version bump is not exempt.
-    if pinned is None or touched:
-        needed.append(SECURITY)
-    statuses = status_list(read(f"repos/{repo}/commits/{head}/statuses?per_page=100"))
-    # The list is newest first. An older success does not erase a newer failure.
-    # An untrusted creator is failure, so it also does not reveal an older trusted success.
-    newest = {}
-    for status in statuses:
-        context = status["context"]
-        if context in newest:
-            continue
-        if context in (INDEPENDENT, SECURITY):
-            newest[context] = reviewed_state(status, allowed)
-        else:
-            newest[context] = status["state"]
-    present = set(newest)
-    for context in (INDEPENDENT, SECURITY):
-        if context not in needed and context in present:
-            needed.append(context)
-    passed = {context for context, state in newest.items() if state == "success"}
-    # Success counts only when it is posted on this head. A prior SHA is not evidence.
-    result = [context for context in needed if context not in passed]
+    result = []
     # The owner comment is tied to this SHA. A posted status under another name does not replace it.
     if pinned is None:
         needs_owner = True
@@ -583,7 +501,7 @@ def main(env=os.environ, read=read_api):
             print(f"review status FAIL on {head}: base is not the repository default branch")
         else:
             print(f"review status MISSING on {head}: " + ", ".join(absent)
-                  + "; run the review, set the status on this head, then re-run this job")
+                  + "; fix the evidence table or the owner approval comment on this head, then re-run this job")
         return 1
     print(f"review status PASS on {head}")
     return 0

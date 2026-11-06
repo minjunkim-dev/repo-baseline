@@ -10,7 +10,8 @@ written here. Reads use GH_TOKEN, the gate account's read-only token, not the
 developer gh token. The installation token is used for the
 single status POST and is requested only for this repository's statuses.
 
---dry-run reads the evidence and prints the decision. It does not mint a
+--dry-run reads the evidence table and, when needed, the owner approval comment.
+It does not read review/independent or review/security. It does not mint a
 token and does not POST. A conclusive failure on a real run POSTs state
 failure on that head so an older success from this App does not remain.
 A head mismatch, a closed pull request, or a base that is not the default
@@ -190,49 +191,6 @@ class Reader:
         return None
 
 
-def _security_row_needs_status(body):
-    if not isinstance(body, str):
-        return True
-    rows = review.evidence_table(body.replace("\r\n", "\n").replace("\r", "\n")[:review.BODY_LIMIT])
-    if not rows:
-        return True
-    for row in rows:
-        if review.AXIS_KEYS.get(row.get("axis", "").strip().lower()) != "security":
-            continue
-        return not review._not_applicable(row.get("model", ""))
-    return True
-
-
-def _on_head(repo, head, base, pull, read):
-    """Review statuses that must be success on this SHA.
-    Dependabot uses the same statuses as any other author."""
-    pinned, _ = review.pinned_change(repo, base, head, read)
-    patterns = review.COMMON_PATHS + review.DEPENDENCY_FILES + review.project_paths(repo, base, read)
-    touched = pinned is None or any(
-        review.matches(entry.get(key) or "", patterns)
-        for entry in pinned for key in ("filename", "previous_filename"))
-    solo = not review.team_profile(repo, base, read)
-    allowed = review.status_actors(repo, read) if solo else None
-    newest = {}
-    for status in review.status_list(read(f"repos/{repo}/commits/{head}/statuses?per_page=100")):
-        context = status["context"]
-        if context in newest or context not in (review.INDEPENDENT, review.SECURITY):
-            continue
-        # A [bot] login is not evidence on a team profile either. allowed is None there,
-        # and reviewed_state would otherwise keep that success.
-        if review.bot_creator(review.status_actor(status)):
-            newest[context] = "failure"
-            continue
-        newest[context] = review.reviewed_state(status, allowed)
-    gaps = []
-    if newest.get(review.INDEPENDENT) != "success":
-        gaps.append(review.INDEPENDENT)
-    need_security = touched or _security_row_needs_status(pull.get("body")) or review.SECURITY in newest
-    if need_security and newest.get(review.SECURITY) != "success":
-        gaps.append(review.SECURITY)
-    return gaps
-
-
 def decide(repo, number, sha, read):
     """Evidence for this owner/repo/PR/SHA. skip and unverified must not POST."""
     notes = io.StringIO()
@@ -262,7 +220,6 @@ def _decide(repo, number, sha, read):
         if review.BASE_REF in absent:
             return Decision("skip", "base", head)
         gaps = [item for item in absent if item != review.BASE_REF]
-        gaps.extend(item for item in _on_head(repo, head, base, pull, read) if item not in gaps)
         if gaps:
             return Decision("failure", ",".join(gaps), head)
         return Decision("success", "", head)

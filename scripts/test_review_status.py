@@ -1,4 +1,4 @@
-"""Which review statuses a pull request head needs, from its changed paths."""
+"""Evidence table and owner-approval requirements for a pull request head."""
 
 import base64
 from contextlib import redirect_stdout
@@ -155,46 +155,78 @@ BUMP = ("@@ -1 +1 @@\n-  uses: actions/checkout@" + "a" * 40 + " # v1.0.0\n"
 
 
 class ReviewStatusTests(unittest.TestCase):
-    def test_every_pull_request_needs_the_independent_review(self):
+    def test_advisory_review_statuses_do_not_fail_the_gate(self):
         files = [{"filename": "src/app.py"}]
-        self.assertEqual(run(api(files)), [tool.INDEPENDENT])
+        self.assertEqual(run(api(files)), [])
         self.assertEqual(run(api(files, [OK])), [])
-        self.assertEqual(run(api(files, [(tool.INDEPENDENT, "failure")])), [tool.INDEPENDENT])
-
-    def test_a_posted_security_failure_blocks_even_when_paths_do_not_need_it(self):
-        files = [{"filename": "src/app.py"}]
-        self.assertEqual(run(api(files, [OK, (tool.SECURITY, "failure")])), [tool.SECURITY])
+        self.assertEqual(run(api(files, [(tool.INDEPENDENT, "failure")])), [])
+        self.assertEqual(run(api(files, [OK, (tool.SECURITY, "failure")])), [])
         self.assertEqual(run(api(files, [OK, (tool.SECURITY, "success")])), [])
+        self.assertEqual(run(api(files, [(tool.INDEPENDENT, "success", "github-actions[bot]")])), [])
+        self.assertEqual(run(api(files, [(tool.INDEPENDENT, "success", "alice")])), [])
+        team = api(files, [(tool.INDEPENDENT, "success", "github-actions[bot]")], agents="프로필: 팀\n")
+        self.assertEqual(run(team), [])
+        base = api(files)
 
-    def test_trust_boundary_paths_also_need_security(self):
+        def unreadable(endpoint):
+            if "/statuses" in endpoint:
+                raise subprocess.CalledProcessError(1, "gh", stderr="HTTP 500")
+            return base(endpoint)
+
+        self.assertEqual(run(unreadable), [])
+        seen = []
+
+        def watch(endpoint):
+            seen.append(endpoint)
+            return base(endpoint)
+
+        self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", watch), [])
+        self.assertFalse(any("/statuses" in item for item in seen))
+
+    def test_trust_boundary_paths_do_not_require_a_review_status(self):
         for path in (".github/workflows/ci.yml", ".github/actions/x/action.yml", "scripts/check_review_status.py",
                      ".github/repo-baseline.json", "api/.env.local", "svc/Dockerfile", "web/package-lock.json",
                      ".claude/skills/x/SKILL.md", ".mcp.json", tool.PROJECT_PATHS):
             with self.subTest(path=path):
                 owner = [tool.OWNER] if path in {".github/workflows/ci.yml", "scripts/check_review_status.py"} else []
-                self.assertEqual(run(api([{"filename": path}], [OK])), [tool.SECURITY, *owner])
-                self.assertEqual(run(api([{"filename": path}], [OK, (tool.SECURITY, "success")])), owner)
+                self.assertEqual(run(api([{"filename": path}])), owner)
+                self.assertEqual(run(api([{"filename": path}], [OK, (tool.SECURITY, "failure")])), owner)
+                self.assertNotIn(tool.INDEPENDENT, run(api([{"filename": path}])))
+                self.assertNotIn(tool.SECURITY, run(api([{"filename": path}])))
 
-    def test_renaming_a_file_out_of_a_trust_boundary_path_still_counts(self):
+    def test_renaming_a_file_out_of_a_gate_path_still_needs_the_owner_comment(self):
         files = [{"filename": "docs/x.yml", "previous_filename": ".github/workflows/x.yml"}]
-        self.assertEqual(run(api(files, [OK])), [tool.SECURITY, tool.OWNER])
+        self.assertEqual(run(api(files)), [tool.OWNER])
+        self.assertNotIn(tool.SECURITY, run(api(files, [OK])))
 
     def test_project_paths_come_from_the_base_commit(self):
         files = [{"filename": "src/auth/login.py"}]
-        self.assertEqual(run(api(files, [OK], project="# comment\nsrc/auth/**\n")), [tool.SECURITY])
-        self.assertEqual(run(api(files, [OK], project="src/billing/**\n")), [])
+        listed = api(files, project="# comment\nsrc/auth/**\n")
+        self.assertEqual(tool.project_paths("o/n", "BASE", listed), ("src/auth/**",))
+        self.assertTrue(tool.matches("src/auth/login.py", tool.project_paths("o/n", "BASE", listed)))
+        self.assertEqual(run(listed), [])
+        billing = api(files, project="src/billing/**\n")
+        self.assertFalse(tool.matches("src/auth/login.py", tool.project_paths("o/n", "BASE", billing)))
+        self.assertEqual(run(billing), [])
         literal = [{"filename": "app/[id]/route.ts"}]
         for spelling in ("app/[id]/**", "app/[id]/route.ts", "/app/[id]/route.ts"):
             with self.subTest(spelling):
-                self.assertEqual(run(api(literal, [OK], project=spelling + "\n")), [tool.SECURITY])
-        self.assertEqual(run(api([{"filename": "x/[id].ts"}], [OK], project="[id].ts\n")), [tool.SECURITY])
+                read = api(literal, project=spelling + "\n")
+                self.assertTrue(tool.matches("app/[id]/route.ts", tool.project_paths("o/n", "BASE", read)))
+                self.assertEqual(run(read), [])
+        bracket = api([{"filename": "x/[id].ts"}], project="[id].ts\n")
+        self.assertTrue(tool.matches("x/[id].ts", tool.project_paths("o/n", "BASE", bracket)))
+        self.assertEqual(run(bracket), [])
         for spelling in ("/src", "src/auth", "src/auth/", "/src/auth/", "/src/auth/**"):
             with self.subTest(spelling):
-                self.assertEqual(run(api(files, [OK], project=spelling + "\n")), [tool.SECURITY])
+                read = api(files, project=spelling + "\n")
+                self.assertTrue(tool.matches("src/auth/login.py", tool.project_paths("o/n", "BASE", read)))
+                self.assertEqual(run(read), [])
+        self.assertEqual(tool.project_paths("o/n", "BASE", api(files)), ())
 
-    def test_a_capped_compare_needs_security(self):
-        read = api([{"filename": "src/app.py"}], [OK], compare_files=[{"filename": "src/app.py"}] * 300)
-        self.assertEqual(run(read), [tool.SECURITY, tool.OWNER])
+    def test_a_capped_compare_needs_the_owner_comment(self):
+        read = api([{"filename": "src/app.py"}], compare_files=[{"filename": "src/app.py"}] * 300)
+        self.assertEqual(run(read), [tool.OWNER])
 
     def test_a_bot_login_is_not_owner_evidence(self):
         def read(endpoint):
@@ -210,10 +242,11 @@ class ReviewStatusTests(unittest.TestCase):
         workflow = [{"filename": ".github/workflows/ci.yml", "status": "modified", "patch": BUMP}]
         self.assertEqual(run(api(workflow, [OK], author=bot, commits=[bot])),
                          run(api(workflow, [OK])))
-        self.assertEqual(run(api(workflow, author=bot, commits=[bot])),
-                         [tool.INDEPENDENT, tool.SECURITY, tool.OWNER])
+        self.assertEqual(run(api(workflow, author=bot, commits=[bot])), [tool.OWNER])
+        self.assertNotIn(tool.INDEPENDENT, run(api(workflow, author=bot, commits=[bot])))
+        self.assertNotIn(tool.SECURITY, run(api(workflow, author=bot, commits=[bot])))
         minor = [{"filename": "package.json", "patch": '@@\n-  "x": "^1.2.3",\n+  "x": "^2.0.0",'}]
-        self.assertEqual(run(api(minor, [OK], author=bot, commits=[bot])), [tool.SECURITY])
+        self.assertEqual(run(api(minor, [OK], author=bot, commits=[bot])), [])
         self.assertEqual(run(api(minor, [OK], author=bot, commits=[bot])), run(api(minor, [OK])))
         app = [{"filename": "src/app.py"}]
         self.assertEqual(run(api(app, [OK], author=bot)), [])
@@ -222,55 +255,15 @@ class ReviewStatusTests(unittest.TestCase):
         covered = [OK, (tool.SECURITY, "success")]
         self.assertEqual(run(api(workflow, covered, author=bot, comments=[approved])), [])
 
-    def test_a_combined_status_payload_does_not_pass(self):
-        combined = [{"state": "success", "statuses": [
-            {"context": tool.INDEPENDENT, "state": "success", "description": "", "id": 1}]}]
-        self.assertRaises(ValueError, tool.status_list, combined)
+    def test_a_combined_status_payload_is_not_consulted(self):
         files = [{"filename": "src/app.py"}]
         env = {"REPO": "o/n", "PR_NUMBER": "1", "HEAD_SHA": HEAD, "BASE_SHA": "BASE"}
-        self.assertEqual(tool.main(env, api(files, [OK], combined=True)), 2)
-        self.assertEqual(run(api(files, [OK])), [])
-
-    def test_a_solo_profile_counts_an_owner_status_and_not_another_creator(self):
-        files = [{"filename": "src/app.py"}]
-        self.assertEqual(tool.STATUS_ACTORS, ())
-        self.assertEqual(tool.status_actors("o/n", api(files)), ("owner",))
-        self.assertEqual(run(api(files, [OK])), [])
-        self.assertEqual(run(api(files, [(tool.INDEPENDENT, "success", "Owner")], owner="owner")), [])
-        for creator in ("github-actions[bot]", "alice", None):
-            with self.subTest(creator=creator):
-                posted = [(tool.INDEPENDENT, "success", creator)]
-                self.assertEqual(run(api(files, posted)), [tool.INDEPENDENT])
-        # Newest untrusted success hides an older owner success. Combined status is newest first.
-        hidden = [
-            (tool.INDEPENDENT, "success", "github-actions[bot]"),
-            (tool.INDEPENDENT, "success", "owner"),
-        ]
-        self.assertEqual(run(api(files, hidden)), [tool.INDEPENDENT])
-        newer_owner = [
-            (tool.INDEPENDENT, "success", "owner"),
-            (tool.INDEPENDENT, "success", "github-actions[bot]"),
-        ]
-        self.assertEqual(run(api(files, newer_owner)), [])
-        # A [bot] login does not count, even when it is listed in STATUS_ACTORS.
-        original = tool.STATUS_ACTORS
-        try:
-            tool.STATUS_ACTORS = ("server-app[bot]", "server-human", "")
-            self.assertEqual(tool.status_actors("o/n", api(files)), ("owner", "server-app[bot]", "server-human"))
-            self.assertEqual(run(api(files, [(tool.INDEPENDENT, "success", "server-app[bot]")])), [tool.INDEPENDENT])
-            self.assertEqual(run(api(files, [(tool.INDEPENDENT, "success", "server-human")])), [])
-            self.assertEqual(run(api(files, [(tool.INDEPENDENT, "success", "other-app[bot]")])), [tool.INDEPENDENT])
-        finally:
-            tool.STATUS_ACTORS = original
-        team = api(files, [(tool.INDEPENDENT, "success", "github-actions[bot]")], agents="프로필: 팀\n")
-        self.assertEqual(run(team), [tool.INDEPENDENT])
-        team_human = api(files, [(tool.INDEPENDENT, "success", "alice")], agents="프로필: 팀\n")
-        self.assertEqual(run(team_human), [])
+        self.assertEqual(tool.main(env, api(files, [OK], combined=True)), 0)
+        self.assertEqual(run(api(files)), [])
         gate = [{"filename": "scripts/check_review_status.py"}]
         bot_security = [OK, (tool.SECURITY, "success", "github-actions[bot]")]
-        self.assertEqual(run(api(gate, bot_security)), [tool.SECURITY, tool.OWNER])
-        both = [OK, (tool.SECURITY, "success", "owner")]
-        self.assertEqual(run(api(gate, both)), [tool.OWNER])
+        self.assertEqual(run(api(gate, bot_security)), [tool.OWNER])
+        self.assertEqual(run(api(gate, [OK, (tool.SECURITY, "success", "owner")])), [tool.OWNER])
 
     def test_a_prior_sha_does_not_cover_this_head(self):
         """Success on another SHA is not evidence for this head."""
@@ -283,21 +276,19 @@ class ReviewStatusTests(unittest.TestCase):
             seen.append(endpoint)
             return base(endpoint)
 
-        self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", read), [tool.INDEPENDENT])
+        self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", read), [])
         self.assertFalse(any(
-            f"/commits/{prior}/" in item or "/git/trees/" in item or "force-push" in item
-            for item in seen))
+            f"/commits/{prior}/" in item or "/statuses" in item or "/git/trees/" in item
+            or "force-push" in item for item in seen))
         env = {"REPO": "o/n", "PR_NUMBER": "1", "HEAD_SHA": HEAD, "BASE_SHA": "BASE"}
-        self.assertEqual(tool.main(env, read), 1)
+        self.assertEqual(tool.main(env, read), 0)
         on_head = api(files, [OK], commit_shas=[prior, HEAD], extra_status={prior: [OK]})
         self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", on_head), [])
         failed = api(files, [(tool.INDEPENDENT, "failure")], extra_status={prior: [OK]})
-        self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", failed), [tool.INDEPENDENT])
+        self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", failed), [])
         gate = [{"filename": ".github/workflows/ci.yml", "patch": "@@\n-run: a\n+run: b"}]
         old_gate = api(gate, extra_status={prior: [OK, (tool.SECURITY, "success")]})
-        self.assertEqual(
-            tool.missing("o/n", "1", HEAD, "BASE", old_gate),
-            [tool.INDEPENDENT, tool.SECURITY, tool.OWNER])
+        self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", old_gate), [tool.OWNER])
 
     def test_owner_approval_uses_rest_timestamps_only(self):
         fresh = "2020-01-01T00:00:00Z"
@@ -376,8 +367,7 @@ class ReviewStatusTests(unittest.TestCase):
         self.assertEqual(run(api([{"filename": "src/app.py"}], [OK])), [])
         bot = "dependabot[bot]"
         bump = [{"filename": ".github/workflows/ci.yml", "patch": BUMP}]
-        self.assertEqual(run(api(bump, author=bot, commits=[bot])),
-                         [tool.INDEPENDENT, tool.SECURITY, tool.OWNER])
+        self.assertEqual(run(api(bump, author=bot, commits=[bot])), [tool.OWNER])
         self.assertEqual(run(api([{"filename": "scripts/check_repo_baseline.py"}], [OK, (tool.SECURITY, "success")])), [])
         self.assertEqual(run(api([{"filename": "AGENTS.md", "patch": "@@\n+프로필: 팀\n"}], [OK])), [tool.OWNER])
         self.assertEqual(run(api([{"filename": "AGENTS.md", "patch": "@@\n+다른 줄\n"}], [OK])), [])
@@ -396,7 +386,7 @@ class ReviewStatusTests(unittest.TestCase):
                       compare_files=[{"filename": "src/app.py"}])
         self.assertEqual(tool.missing("o/n", "1", head, "BASE", current), [])
         huge = api([{"filename": "src/app.py"}], [OK], compare_files=[{"filename": "src/app.py"}] * 300)
-        self.assertEqual(run(huge), [tool.SECURITY, tool.OWNER])
+        self.assertEqual(run(huge), [tool.OWNER])
         base = api([{"filename": "src/app.py"}], [OK])
 
         def too_big(endpoint):
@@ -404,19 +394,17 @@ class ReviewStatusTests(unittest.TestCase):
             if "/compare/" in endpoint and not endpoint.endswith("...main"):
                 raise subprocess.CalledProcessError(1, "gh", stderr="HTTP 406")
             return base(endpoint)
-        self.assertEqual(run(too_big), [tool.SECURITY, tool.OWNER])
+        self.assertEqual(run(too_big), [tool.OWNER])
 
     def test_a_new_head_invalidates_the_owner_comment(self):
         files = [{"filename": "scripts/check_review_status.py"}]
         old = "b" * 40
         read = api(files, commit_shas=[old, HEAD], extra_status={old: [OK, (tool.SECURITY, "success")]},
                    comments=[comment(f"한쪽 문 승인: {old}")])
-        self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", read),
-                         [tool.INDEPENDENT, tool.SECURITY, tool.OWNER])
+        self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", read), [tool.OWNER])
         read_new = api(files, commit_shas=[old, HEAD], extra_status={old: [OK, (tool.SECURITY, "success")]},
                        comments=[comment(f"되돌리기 어려움 승인: {old}")])
-        self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", read_new),
-                         [tool.INDEPENDENT, tool.SECURITY, tool.OWNER])
+        self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", read_new), [tool.OWNER])
         matched = "c" * 40
         passed = api(files, [OK, (tool.SECURITY, "success")], comments=[comment(f"한쪽 문 승인: {matched}")], head=matched)
         self.assertEqual(tool.missing("o/n", "1", matched, "BASE", passed), [])
@@ -446,7 +434,7 @@ class ReviewStatusTests(unittest.TestCase):
         head = "e" * 40
         live_docs = api([{"filename": "src/app.py"}], [OK], head=head,
                         compare_files=[{"filename": ".github/workflows/ci.yml"}])
-        self.assertEqual(tool.missing("o/n", "1", head, "BASE", live_docs), [tool.SECURITY, tool.OWNER])
+        self.assertEqual(tool.missing("o/n", "1", head, "BASE", live_docs), [tool.OWNER])
         live_workflow = api([{"filename": ".github/workflows/ci.yml"}], [OK], head=head,
                             compare_files=[{"filename": "src/app.py"}])
         self.assertEqual(tool.missing("o/n", "1", head, "BASE", live_workflow), [])
@@ -456,11 +444,11 @@ class ReviewStatusTests(unittest.TestCase):
         read = api(files, [OK], extra_status={"FAILED": [(tool.INDEPENDENT, "failure")]})
         self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", read), [])
         missing_here = api(files, extra_status={"OLDER": [OK]})
-        self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", missing_here), [tool.INDEPENDENT])
+        self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", missing_here), [])
 
-    def test_a_newer_failure_on_this_head_hides_an_older_success(self):
+    def test_a_newer_failure_on_this_head_does_not_hide_the_evidence(self):
         files = [{"filename": "src/app.py"}]
-        self.assertEqual(run(api(files, [(tool.INDEPENDENT, "failure"), OK])), [tool.INDEPENDENT])
+        self.assertEqual(run(api(files, [(tool.INDEPENDENT, "failure"), OK])), [])
 
     def test_review_evidence_table_matches_this_head_and_not_the_author_model(self):
         head = HEAD
@@ -615,8 +603,9 @@ class ReviewStatusTests(unittest.TestCase):
 
     def test_cli_exit_codes(self):
         env = {"REPO": "o/n", "PR_NUMBER": "1", "HEAD_SHA": HEAD, "BASE_SHA": "BASE"}
-        self.assertEqual(tool.main(env, api([{"filename": "a"}], [OK])), 0)
-        self.assertEqual(tool.main(env, api([{"filename": "a"}])), 1)
+        self.assertEqual(tool.main(env, api([{"filename": "a"}])), 0)
+        self.assertEqual(tool.main(env, api([{"filename": "a"}], body="")), 1)
+        self.assertEqual(tool.main(env, api([{"filename": "scripts/check_review_status.py"}])), 1)
 
         def broken(endpoint):
             raise subprocess.CalledProcessError(1, "gh", stderr="HTTP 403")

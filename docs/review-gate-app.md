@@ -6,8 +6,8 @@
 
 - 승인 경계는 항상 **commit status** `review/gate`이고, 브랜치 보호에 **전용 App의 정수 `app_id`로 고정**한다. (`github-actions` 15368으로는 그 필수 context를 충족하지 못하게 한다.)
 - **1인·소규모 팀의 권장 일상 경로**는 아래 **Keychain(앱 PEM) + 개발자 `gh`(증거 status) + 게이트 전용 읽기 `GH_TOKEN` + 기본 브랜치 checkout에서의 `post_review_gate.py`**다. 예전의 별도 `reviewgate` OS 계정, 봉인 트리(seal), sudoers, `git archive` 배포 중심 방식은 **선택(레거시)**로 두었다.
-- **코드 변경은 하지 않는다.** 이 PR은 문서만 고친다. 장기적으로는 `REPLACE` 자리표시자·증거-in-gate 등 남은 정리가 후속이다. 검사기의 diff identity 이어받기는 그 뒤에 빠졌다.
-- repo-baseline의 기대값 `checks`에서 `Review status`(`app_id` 15368)를 뺐다. 남은 필수 체크는 Baseline checks 둘(`app_id` 15368)과 `review/gate`(`app_id` 5641238)다. workflow와 검사기는 남긴다. 증거-in-gate·Dependabot 코드는 그 변경에 없다. 검사기는 그 뒤 diff identity로 status를 이어받지 않는다. 보호 적용은 병합 뒤 소유자가 한다.
+- 2026-11-06 문서 합의 당시에는 이 파일을 문서만 고쳤다. 그 뒤 검사기는 diff identity로 status를 이어받지 않게 됐고, 증거-in-gate로 `review/independent`·`review/security`를 게이트 조건에서 뺐다. `REPLACE` 자리표시자는 다른 저장소가 앱 ID를 채우기 전에만 남는다.
+- repo-baseline의 기대값 `checks`에서 `Review status`(`app_id` 15368)를 뺐다. 남은 필수 체크는 Baseline checks 둘(`app_id` 15368)과 `review/gate`(`app_id` 5641238)다. workflow와 검사기는 남긴다. 그 변경은 증거-in-gate를 넣지 않았다. 그 뒤 검사기는 diff identity로 status를 이어받지 않게 됐고, 지금은 `review/independent`·`review/security`를 읽지 않는다. 근거 표와 승인 댓글로 판정한 뒤 `review/gate`만 올린다. Dependabot 버전 전용 예외는 승인 댓글과 근거 표에 남아 있다. 보호 적용은 병합 뒤 소유자가 한다. 이 문서는 필수 체크 목록을 바꾸지 않는다.
 
 ## 무엇을 고정하나
 
@@ -17,15 +17,15 @@
 
 전용 앱은 Commit statuses 쓰기와 Metadata 읽기만 가진다. Checks 권한이 없으므로 체크 run을 만들지 못한다. 브랜치 보호는 `{"context": "review/gate", "app_id": <그 앱의 정수 ID>}`로 고정한다. workflow 토큰이 같은 context로 commit status나 체크 run을 올려도 그 객체의 앱은 15368이다. 게시는 201일 수 있다. 그 객체는 필수 조건이 아니다.
 
-`Review status` workflow는 증거 검사로 남긴다. `review/independent`, `review/security`, 승인 댓글, 근거 표를 읽고 없으면 실패한다. `review/gate`를 쓰지 않는다. 필수 목록에는 두지 않는다. 그 초록색은 승인 경계가 아니다. 15368은 같은 이름의 체크 run을 위조할 수 있다. 스크립트는 그 체크의 conclusion을 읽지 않는다.
+`Review status` workflow는 증거 검사로 남긴다. 근거 표와, 필요할 때의 승인 댓글을 읽고 없으면 실패한다. `review/independent`와 `review/security`는 읽지 않는다. `review/gate`를 쓰지 않는다. 필수 목록에는 두지 않는다. 그 초록색은 승인 경계가 아니다. 15368은 같은 이름의 체크 run을 위조할 수 있다. 스크립트는 그 체크의 conclusion을 읽지 않는다.
 
 `strict`는 true다. 새 head에는 `review/gate`가 없다. 인자 SHA가 열린 PR의 현재 head와 다르면 스크립트는 올리지 않는다. 조회 실패, 키가 0600 일반 파일이 아님, `GITHUB_ACTIONS`가 설정됨은 아무것도 올리지 않는다. 근거가 실패하면 그 SHA에 `failure`를 올려 이 앱이 이전에 올린 success를 지운다. 닫힌 PR, head 불일치, 기본 브랜치가 아닌 base에는 올리지 않는다.
 
-Dependabot PR은 다른 PR과 같은 근거다. 브랜치 보호는 작성자별로 빼지 못하므로 `review/gate`는 그 PR에도 필요하다. 버전·해시·Action SHA만 바꾼 diff여도 스크립트는 리뷰 status, 근거 표, 그리고 게이트 경로면 승인 댓글이 있을 때만 success를 올린다. 자동 성공 경로는 없다. 2026-11-04의 pin 전용 면제(주 버전만 승인, `uses:` pin 모양, web-flow 커밋터, 숨은 줄바꿈)는 쓰지 않는다.
+Dependabot PR은 다른 PR과 같은 근거다. 브랜치 보호는 작성자별로 빼지 못하므로 `review/gate`는 그 PR에도 필요하다. 버전·해시·Action SHA만 바꾼 diff여도 스크립트는 근거 표와, 게이트 경로면 승인 댓글이 있을 때만 success를 올린다. `review/independent`와 `review/security`는 없어도 success다. 자동 성공 경로는 없다. 2026-11-04의 pin 전용 면제(주 버전만 승인, `uses:` pin 모양, web-flow 커밋터, 숨은 줄바꿈)는 쓰지 않는다.
 
-검사기와 이 게이트 모두 이전 SHA의 status를 이어받지 않는다. `review/independent`와 `review/security`는 이 head에 success여야 한다. 1인 프로필에서 작성자는 저장소 소유자 또는 `STATUS_ACTORS`다. `STATUS_ACTORS`는 비어 있다. 이 앱의 로그인을 거기에 넣지 않는다. 앱은 `review/gate`만 올린다. 로그인이 `[bot]`으로 끝나면 1인·팀 모두 그 status를 받지 않는다. `github-actions[bot]`이 올린 리뷰 status는 실패다. 승인 댓글의 작성자가 `[bot]`이면 그 댓글도 승인이 아니다.
+검사기와 이 게이트는 `review/independent`와 `review/security`를 읽지 않는다. 없어도, failure여도, `[bot]`이 올렸어도 게이트는 그 이유로 실패하지 않는다. 앱은 `review/gate`만 올린다. 근거 표의 head SHA는 이 head여야 한다. 이전 head의 표는 통과하지 못한다. 승인 댓글의 작성자가 `[bot]`이면 그 댓글은 승인이 아니다.
 
-합의(증거-in-gate 방향): 장기적으로는 **별도 필수 `review/independent`·`review/security` status에 의존하지 않고**, PR 본문 근거·하드도어 승인 댓글만으로 게이트가 판정한 뒤 `review/gate`만 올리는 쪽으로 정리할 수 있다. **현재 구현**은 위 문단과 `tools/post_review_gate.py`가 읽는 검사기 그대로다.
+합의(증거-in-gate, 2026-11-06 Adopt-with-tweak): 게이트는 별도 필수 `review/independent`·`review/security` status에 의존하지 않는다. PR 본문 근거 표(필요한 축마다 모델 또는 `해당 없음:`)와, 필요할 때의 하드도어 승인 댓글로 판정한 뒤 `review/gate`만 올린다. 그 둘의 status는 참고로 남길 수 있다. 품질 기준(Standards·Spec은 Composer, 버그 찾기와 Security는 Opus, 패밀리는 작성과 다름)은 status와 별개로 `docs/development-workflow.md`에 있다.
 
 ## 권장: Keychain(PEM) + 개발자 gh + 게이트 읽기 GH_TOKEN + 기본 브랜치 checkout
 
@@ -39,7 +39,7 @@ Dependabot PR은 다른 PR과 같은 근거다. 브랜치 보호는 작성자별
 
 이 토큰으로 도는 **`Reader`는 REST GET만 쓴다**(`pull`/diff·커밋·승인 댓글의 `created_at`·`updated_at`, `tools/post_review_gate.py` 참고). 승인 댓글의 편집 여부는 GraphQL `lastEditedAt`을 보지 않고 `updated_at`이 `created_at`과 같은지로만 본다. **“메타데이터만”으로는 부족할 수 있다.** Fine-grained PAT이면 대상 저장소에 **콘텐츠(diff)·pull request·이슈(댓글) 읽기**를 켠다. Classic PAT이면 보통 **`repo` 스코프**(해당 저장소가 비공개면 필수)로 커버된다. 설치 엔드포인트 등 앱 API는 **앱 JWT**(PEM)로 하고 `GH_TOKEN`과 섞지 않는다.
 
-- **리뷰 증거 status·(하드도어일 때) 승인 댓글**: 개발 계정의 `gh`(OAuth/PAT, Keychain에 연결된 자격 증명). 증거용 `gh api`는 이 토큰으로 한다.
+- **근거 표·(하드도어일 때) 승인 댓글**: 근거 표는 PR 본문이다. 승인 댓글은 개발 계정의 `gh`다. `review/independent`와 `review/security`를 참고로 남길 때만 그 `gh`로 status를 올린다. 게이트 조건이 아니다.
 - **`post_review_gate.py`의 읽기**: 위와 **별도**인 **읽기 전용** 토큰을 `GH_TOKEN`으로 **서브셸에만** 내보낸다. PEM 경로·내용은 `GH_TOKEN`에 넣지 않는다.
 - **쓰기(`review/gate` POST)**: Keychain에서 꺼낸 PEM 경로를 `REVIEW_GATE_APP_KEY`에 두고, `REVIEW_GATE_APP_ID`는 전용 앱의 정수 ID. `post_review_gate.py`는 이 저장소의 `tools/post_review_gate.py`를 **기본 브랜치(또는 검증한 릴리스)의 깨끗한 트리**에서 실행한다. **검토 중인 PR head의 워크스페이스에서는 실행하지 않는다.**
 
@@ -70,7 +70,7 @@ git reset --hard "origin/main"
 소유자가 직접 한다. 에이전트 셸이 아니다.
 
 1. **검토한 head SHA를 변수에 고정**한다(아래 `SHA`). PR이 갱신되면 다시 읽어 바꾼다.
-2. 증거 status(`review/independent`, 필요 시 `review/security`)는 **개발 계정 `gh api`**로 그 `SHA`에 올린다.
+2. `review/independent`와 `review/security`는 올리지 않아도 된다. 참고로 남기려면 **개발 계정 `gh api`**로 그 `SHA`에 올린다. 앱은 올리지 않는다.
 3. **1인 프로필이고 되돌리기 어려움(PR)일 때만**: PR 댓글 `되돌리기 어려움 승인: <SHA>` (한 줄, 위와 **동일한** 전체 SHA). 편집하지 말고 새 댓글을 단다(`POLICY.md` §5). 댓글은 `Review status`를 자동으로 다시 돌리지 않는다. 이 단계 다음의 게이트 실행이 그 댓글을 읽는다. 되돌리기 쉬움이면 이 댓글은 필요 없다.
 4. 위 **체크아웃**으로 `GATE_TREE`를 깨끗이 맞춘다.
 5. Keychain에서 PEM을 임시 파일로 꺼내 **`GH_TOKEN`(게이트 읽기 전용)** 과 함께 `--dry-run` 후 실제 실행한다.
@@ -94,10 +94,9 @@ git reset --hard origin/main
 # 개발자 gh로 증거를 올리기 전에 ambient 토큰을 비운다 — 남아 있으면 gh가 게이트 읽기 PAT을 쓸 수 있다
 unset GH_TOKEN GITHUB_TOKEN
 
-# 2: 증거 (개발자 gh — description은 실제에 맞게)
-gh api "repos/${REPO}/statuses/${SHA}" -f state=success -f context=review/independent \
-  -f description="<도구> <모델> 지적 <수>"
-# Security를 실행했을 때만
+# 2: 참고 status는 선택이다. 게이트는 이 명령을 요구하지 않는다.
+# gh api "repos/${REPO}/statuses/${SHA}" -f state=success -f context=review/independent \
+#   -f description="<도구> <모델> 지적 <수>"
 # gh api "repos/${REPO}/statuses/${SHA}" -f state=success -f context=review/security ...
 
 # 3: 1인 프로필 + 되돌리기 어려움(PR)일 때만
@@ -215,7 +214,7 @@ python3 tools/apply_github_settings.py .
 
 1. Mac Studio의 게이트 계정 홈에 `0700` 디렉터리와 **또는** 동등한 HSM·Keychain 정책을 둔다. 개발용 Mac, Grok Bot의 컴퓨터, 저장소에는 두지 않는다. 옮긴 뒤 이전 위치의 재사용 가능한 PEM을 지운다.
 2. 올리는 주체는 소유자다. 스크립트는 서버에서 돌릴 수 있으나, **키 재사용 자격 증명은 에이전트와 공유하지 않는다.**
-3. 증거 status `review/independent`와 `review/security`는 계속 사람 계정의 `gh`로 올린다. 팀 프로필에서는 그 PR을 구현하지 않은 사람이 남긴다. 앱이 그 둘을 대신 올리지 않는다. `STATUS_ACTORS`에 앱 로그인을 넣지 않는다.
+3. `review/independent`와 `review/security`는 게이트 조건이 아니다. 참고로 남긴다면 사람 계정의 `gh`로 올린다. 팀 프로필에서는 그 PR을 구현하지 않은 사람이 남긴다. 앱이 그 둘을 대신 올리지 않는다.
 4. `AGENTS.md`의 `프로필: 팀`과 승인 수·CODEOWNERS 변경은 `POLICY.md` §9다. 그 설정 쓰기는 소유자 승인 뒤에 `tools/apply_github_settings.py`로 한다. 키 이전과 한 PR에 섞지 않는다.
 5. 되돌리기: 서버에서 올리기를 멈추고 키를 Mac의 안전한 저장소로 되돌린다. 앱 ID가 같으면 보호 규칙은 그대로다.
 

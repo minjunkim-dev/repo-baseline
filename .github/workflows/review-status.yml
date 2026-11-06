@@ -13,7 +13,8 @@ name: Review status
 # is the prefix plus the full head SHA. Do not edit an old approval. Post a new comment, then re-run this workflow
 # for that head by hand (gh run rerun) or post the gate again with tools/post_review_gate.py.
 # The checker counts a comment only when REST updated_at equals created_at. Timestamps are whole seconds, so a
-# same-second edit is not distinguished. It does not write review/independent, review/security, or review/gate.
+# same-second edit is not distinguished. It does not read or write review/independent or review/security.
+# Those statuses are advisory. It does not write review/gate.
 # review-status-policy.json may still allow issue_comment so an already installed policy stays valid. That allow
 # is not a subscription.
 on:
@@ -33,13 +34,12 @@ jobs:
       contents: read
       issues: read
       pull-requests: read
-      statuses: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
-      - name: Required review statuses on this head
+      - name: Evidence table and owner approval on this head
         run: python3 scripts/check_review_status.py
         env:
           GH_TOKEN: ${{ github.token }}

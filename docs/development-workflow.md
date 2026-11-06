@@ -28,8 +28,8 @@
 
 이 기준이 스킬에 더하는 것은 위 「트렁크」에서 `main`에 들어가는 경계, `POLICY.md` §5의 리뷰 도구, 아래 "역할 분담"의 누가·어디서·어느 모델, 그 아래 절의 pstack 배치다.
 
-- 모든 변경은 PR로 `main`에 들어가고 필수 CI가 통과해야 한다. 문 유형은 `POLICY.md` §10만 따른다. `review/gate`가 필수로 적용된 저장소에서는 Dependabot PR을 포함한 모든 PR(되돌리기 쉬움 포함)에 `review/independent`가 필요하다. 1인 프로필에서 status는 소유자만 올린다는 규칙이다. 에이전트가 status를 올리는 것은 금지지만 GitHub가 기술적으로 막지는 않는다. 1인 프로필에서 검사기는 `creator.login`이 저장소 소유자이거나 `STATUS_ACTORS`(지금은 비어 있음)인 status만 success로 센다(#34). 적용 전인 프로젝트의 되돌리기 쉬움(two-way door: 되돌리기 쉬운 결정)은 필수 CI·리뷰 뒤 맡은 에이전트가 병합할 수 있다. 되돌리기 어려움(one-way door: 되돌리기 어려운 결정)은 사람이 최종 head를 승인한다(셋업 프롬프트 §10은 그 판정의 병합 절차다). 1인 프로필의 게이트 경로 PR은 소유자 댓글이 `되돌리기 어려움 승인: <head sha>` 또는 deprecated인 `한쪽 문 승인: <head sha>`로 시작하고, 그 SHA가 현재 head와 같아야 한다. 편집한 댓글은 무효다. REST `updated_at`이 `created_at`과 같아야 한다. 같은 초 편집은 구분하지 않으므로 댓글을 고치지 말고 새 댓글을 단다. 댓글은 `Review status`를 자동으로 다시 돌리지 않는다. 새 댓글 뒤에 그 job을 직접 다시 돌리거나 `review/gate`를 다시 올린다. `Review status` job이 그 댓글을 검사한다. 그 job은 필수 체크가 아니다. 병합은 그 댓글과 그 head의 전용 앱 `review/gate` success가 있어야 한다(`POLICY.md` §5·§10, `docs/review-gate-app.md`). 팀 프로필은 모든 PR에 다른 팀원의 GitHub 승인이 필요하다(`POLICY.md` §9).
-- 리뷰·수정은 셋업 프롬프트 §5와 `POLICY.md` §5를 따른다. Security 리뷰와 외부 리뷰(공개 저장소는 CodeRabbit)를 더할 변경도 거기서 정한다. Standards·Spec의 독립 리뷰 이름은 `/matt-code-review` 하나다. `/implement` 안의 리뷰는 `review/independent`로 세지 않는다.
+- 모든 변경은 PR로 `main`에 들어가고 필수 CI가 통과해야 한다. 문 유형은 `POLICY.md` §10만 따른다. `review/gate`가 필수로 적용된 저장소에서도 Dependabot PR을 포함해 `review/independent`와 `review/security`는 병합 조건이 아니다. 없어도 게이트는 성공한다. 검사기는 그 status를 읽지 않는다. 앱은 `review/gate`만 올린다. 근거 표와, 게이트 경로면 승인 댓글이 조건이다. 적용 전인 프로젝트의 되돌리기 쉬움(two-way door: 되돌리기 쉬운 결정)은 필수 CI·리뷰 뒤 맡은 에이전트가 병합할 수 있다. 되돌리기 어려움(one-way door: 되돌리기 어려운 결정)은 사람이 최종 head를 승인한다(셋업 프롬프트 §10은 그 판정의 병합 절차다). 1인 프로필의 게이트 경로 PR은 소유자 댓글이 `되돌리기 어려움 승인: <head sha>` 또는 deprecated인 `한쪽 문 승인: <head sha>`로 시작하고, 그 SHA가 현재 head와 같아야 한다. 편집한 댓글은 무효다. REST `updated_at`이 `created_at`과 같아야 한다. 같은 초 편집은 구분하지 않으므로 댓글을 고치지 말고 새 댓글을 단다. 댓글은 `Review status`를 자동으로 다시 돌리지 않는다. 새 댓글 뒤에 그 job을 직접 다시 돌리거나 `review/gate`를 다시 올린다. `Review status` job이 그 댓글을 검사한다. 그 job은 필수 체크가 아니다. 병합은 그 댓글과 그 head의 전용 앱 `review/gate` success가 있어야 한다(`POLICY.md` §5·§10, `docs/review-gate-app.md`). 팀 프로필은 모든 PR에 다른 팀원의 GitHub 승인이 필요하다(`POLICY.md` §9).
+- 리뷰·수정은 셋업 프롬프트 §5와 `POLICY.md` §5를 따른다. Security 리뷰와 외부 리뷰(공개 저장소는 CodeRabbit)를 더할 변경도 거기서 정한다. Standards·Spec의 독립 리뷰 이름은 `/matt-code-review` 하나다. `/implement` 안의 리뷰는 근거 표의 독립 리뷰로 세지 않는다.
 - 에이전트 환경 개선은 사용자가 `/retro`를 실행할 때 한다(`POLICY.md` §6). 에이전트는 실행을 요청만 한다.
 
 ## 역할 분담
@@ -116,7 +116,7 @@ P0와 P1은 지적마다 아래 셋 중 하나로 끝낸다. 어느 것도 아�
 
 P2는 이 절에서 병합을 막지 않는다. P2의 처리 방식은 셋업 프롬프트 §5를 따른다.
 
-`review/independent`와 `review/security`를 누가 남기는지는 아래 "리뷰 status를 남기는 사람"을 따른다. 근거 표를 쓴 에이전트는 그 status를 찍지 않는다. status description의 도구·모델·지적 수는 `POLICY.md` §5를 따른다.
+`review/independent`와 `review/security`는 게이트 조건이 아니다. 참고로 남기는 사람은 아래 "리뷰 status를 남기는 사람"을 따른다. 근거 표를 쓴 에이전트는 그 status를 찍지 않는다. 게이트가 보는 기록은 근거 표다.
 
 PR이 열린 뒤의 루프는 Grok Bot이 맡는다. 사람이 연 세션이 같은 일을 해도 된다. 일정을 이 저장소에 두지 않는다(`POLICY.md` §8). 별도 상시 감시 서비스를 이 저장소에 만들었다고 보고하지 않는다. 주간 점검(`prompts/weekly-check.md`)은 읽기 전용이다. 점검으로 고칠 것이 생기면 코드를 쓰는 쪽이 PR로 반영한다.
 
@@ -125,7 +125,7 @@ PR이 열린 뒤의 루프는 Grok Bot이 맡는다. 사람이 연 세션이 같
 - 관리자(Grok Bot)는 근거 표의 모델 이름, P0·P1·P2 수, P1 기각 이유가 사실인지를 본다. CI는 패밀리가 같은지만 실패시킨다(#25).
 - Dependabot PR을 매주 처리한다(`POLICY.md` §2). 문 유형은 `POLICY.md` §10, 리뷰는 §5를 따른다.
 - 외부 리뷰 대상 PR은 CodeRabbit 리뷰가 끝날 때까지 기다린다. 병합 전에 달린 CodeRabbit 스레드는 PR 종류와 관계없이 답하고 해결한다. 병합 뒤에 달린 지적은 후속 PR로 처리한다. CodeRabbit check가 SKIPPED이거나 `Review paused`이면 외부 리뷰는 끝나지 않았고, `@coderabbitai full review`를 요청한다. 예외는, CodeRabbit 리뷰가 끝난 head와 견줘 바뀐 것이 이미 리뷰된 PR들 사이의 충돌을 푼 main 병합뿐인 head다. 소유자는 그 사실을 승인에 적고 외부 리뷰를 다시 받지 않고 승인할 수 있다.
-- 1인 프로필에서 `review/independent`와 `review/security`는 아래 "리뷰 status를 남기는 사람"대로 소유자가 남긴 뒤에 `Review status`를 다시 돌린다. 수단은 Mac의 `gh`다. 서버의 앱은 `review/gate`만 올린다. 에이전트는 자기 PR에 그 status를 찍지 않는다. 1인 되돌리기 어려움은 소유자가 새 승인 댓글을 단 뒤에 `Review status`를 직접 다시 돌리거나 `review/gate`를 다시 올린다. 댓글은 그 job을 자동으로 다시 돌리지 않는다. 편집한 댓글은 무효다. `updated_at`이 `created_at`과 다르면 무효다. 같은 초 편집은 시각이 같아 구분하지 않으므로 댓글을 고치지 말고 새 댓글을 단다. 기준 브랜치 갱신으로 멈춘 PR과, 병합 뒤의 main CI를 확인한다.
+- 1인 프로필에서 근거 표가 이 head를 덮으면 `Review status`를 다시 돌린다. `review/independent`와 `review/security`를 남기지 않아도 그 job은 그 이유로 실패하지 않는다. 참고로 남긴다면 아래 "리뷰 status를 남기는 사람"대로 소유자가 남긴다. 수단은 Mac의 `gh`다. 서버의 앱은 `review/gate`만 올린다. 에이전트는 자기 PR에 그 status를 찍지 않는다. 1인 되돌리기 어려움은 소유자가 새 승인 댓글을 단 뒤에 `Review status`를 직접 다시 돌리거나 `review/gate`를 다시 올린다. 댓글은 그 job을 자동으로 다시 돌리지 않는다. 편집한 댓글은 무효다. `updated_at`이 `created_at`과 다르면 무효다. 같은 초 편집은 시각이 같아 구분하지 않으므로 댓글을 고치지 말고 새 댓글을 단다. 기준 브랜치 갱신으로 멈춘 PR과, 병합 뒤의 main CI를 확인한다.
 - 병합 가능이라고 알리기 전에 근거를 본다. 테스트 결과가 요청한 검사와 맞는지, UI를 바꾼 PR이면 전후 스크린샷이 요청한 화면과 맞는지를 본다. 안 맞으면 병합 가능이라고 하지 않고 그 에이전트에게 돌려보낸다.
 
 ## pstack을 함께 쓸 때
@@ -178,7 +178,7 @@ pstack이 Cursor 클라우드 에이전트에서 실행되는지는 확인하지
 리뷰가 보는 것과 남기는 것은 런타임과 상관없이 같다.
 
 - 본다: 그 PR의 diff, 기준 커밋(PR base SHA), `POLICY.md` §5의 언제와 신뢰 경계. 문 유형은 §10만 정한다.
-- 남긴다: 지적 목록과 결과(통과 또는 열린 지적). PR 본문의 근거 표 열은 "역할 분담"을 따른다. 그 기록의 status 이름은 `review/independent`이고, Security를 실행했으면 `review/security`다. 누가 그 status를 쓰는지는 아래 "리뷰 status를 남기는 사람"이 정한다. 리뷰를 돌린 에이전트가 통과를 찍는 것이 아니다. status description의 도구·모델·지적 수는 `POLICY.md` §5를 따른다.
+- 남긴다: 지적 목록과 결과(통과 또는 열린 지적). PR 본문의 근거 표 열은 "역할 분담"을 따른다. 그 기록은 근거 표다. `review/independent`와, Security를 실행했으면 `review/security`는 참고 status다. 게이트 조건이 아니다. 누가 그 status를 쓰는지는 아래 "리뷰 status를 남기는 사람"이 정한다. 리뷰를 돌린 에이전트가 통과를 찍는 것이 아니다.
 
 런타임 표는 그 기준을 각 런타임에서 어떻게 돌리는지만 적는다. 칸을 확인됨으로 바꾸려면 그 런타임으로 실제 PR을 한 번 돌린 뒤, 확인한 날짜와 그 PR 링크를 이 표 아래에 적는다. 문서로만 읽은 기능은 확인됨이 아니다.
 
@@ -196,7 +196,8 @@ Cursor 공식 문서(2026-11-04 읽음, 이 저장소 PR에서 실행하지 않�
 
 ## 리뷰 status를 남기는 사람
 
-1인 프로필에서 `review/independent`와 `review/security`는 Grok Bot이 근거를 확인한 뒤에 소유자가 남긴다. 수단은 Mac의 `gh`다. 서버의 앱은 `review/gate`만 올리고 이 status는 올리지 않는다. 근거는 리뷰 결과, 리뷰한 모델 이름, 그 status를 남길 head SHA다. 팀 프로필에서는 그 PR을 구현하지 않은 사람이 남긴다. 코드를 쓴 에이전트는 자기 PR에 통과를 찍지 않는다. `Review status` workflow는 이 status를 쓰지 않고, 그 head에 있는지만 읽는다(`POLICY.md` §5). 이 저장소의 `.github/repository-settings.json`은 `Review status`를 필수 체크로 두지 않는다. 필수 체크는 Baseline checks 둘과 `review/gate`(`app_id` 5641238)다. 이 파일의 PR은 branch protection을 쓰지 않는다. 병합 뒤 소유자가 Mac에서 적용한다. 적용되면 Dependabot PR을 포함한 모든 PR(되돌리기 쉬움 포함)이 그 status 없이 병합되지 않는다. status는 소유자만 올린다는 규칙이다. 에이전트가 status를 올리는 것은 금지지만 GitHub가 기술적으로 막지는 않는다. smallnext, BGLike, mobile-runtime은 repo-baseline에 보호 규칙을 적용하고, 카나리 시험(같은 이름 체크 위장, 이전 실패 run이 남은 head의 병합 가능 여부)을 통과하고, status 작성자·편집된 승인 댓글 검사기 수정이 병합·재적용된 뒤에 카나리 결과는 Issue #32 댓글 하나에 적는다. 그 기록이 없으면 멈춘다. 이 PR은 그 세 저장소의 `.github/repository-settings.json`을 바꾸지 않는다. `Review status`를 필수로 넣지 않는다. 그 세 저장소의 `Review status` workflow는 그대로 둔다. 검사기는 `creator.login`이 저장소 소유자이거나 `scripts/check_review_status.py`의 `STATUS_ACTORS`에 있을 때만 그 status를 success로 센다. `STATUS_ACTORS`는 이 저장소에서만 바꾼 뒤 다시 복사한다. 소비 프로젝트의 복사본을 직접 고치지 않는다. 지금은 비어 있다. 다른 작성자의 status는 실패다. 다른 SHA의 success도 이 head의 근거가 아니다. 팀 프로필은 작성자를 보지 않는다. 1인 프로필의 승인 댓글은 편집하면 무효다. REST `updated_at`이 `created_at`과 같아야 한다. 같은 초 편집은 구분하지 않으므로 댓글을 고치지 말고 새 댓글을 단다. 그 다음 단계가 `review/gate`다. 권장: **게이트 전용 읽기 `GH_TOKEN` + Keychain에서 꺼낸 PEM + `origin/main`의 깨끗한 checkout**에서 `tools/post_review_gate.py`를 실행한다(상세는 `docs/review-gate-app.md`). 예전 **봉인 사본·reviewgate 전용 계정**은 레거시다. 먼저 `--dry-run`이다. 이 명령만 commit status `review/gate`를 올린다. 같은 UID에서 에이전트가 돌면 임시 PEM이 있는 순간 키가 노출될 수 있다. 저장소와 Actions에 두지 않는다. 에이전트는 이 명령을 실행하지 않는다. `Review status` 체크가 초록이어도 그 결론을 게이트의 근거로 쓰지 않는다.
+1인 프로필에서 `review/independent`와 `review/security`를 참고로 남긴다면 Grok Bot이 근거를 확인한 뒤에 소유자가 남긴다. 수단은 Mac의 `gh`다. 서버의 앱은 `review/gate`만 올리고 이 status는 올리지 않는다. 게이트가 보는 근거는 리뷰 결과, 리뷰한 모델 이름, 근거 표의 head SHA다. 팀 프로필에서 그 status를 남긴다면 그 PR을 구현하지 않은 사람이 남긴다. 코드를 쓴 에이전트는 자기 PR에 통과를 찍지 않는다. `Review status` workflow는 이 status를 쓰지도 읽지도 않는다(`POLICY.md` §5). 이 저장소의 `.github/repository-settings.json`은 `Review status`를 필수 체크로 두지 않는다. 필수 체크는 Baseline checks 둘과 `review/gate`(`app_id` 5641238)다. 이 파일의 PR은 branch protection을 쓰지 않는다. 병합 뒤 소유자가 Mac에서 적용한다. 적용되어도 그 두 status 없이 병합된다. 근거 표와, 게이트 경로일 때의 승인 댓글, 그리고 `review/gate`가 조건이다. smallnext, BGLike, mobile-runtime은 repo-baseline에 보호 규칙을 적용하고, 카나리 시험(같은 이름 체크 위장, 이전 실패 run이 남은 head의 병합 가능 여부)을 통과하고, status 작성자·편집된 승인 댓글 검사기 수정이 병합·재적용된 뒤에 카나리 결과는 Issue #32 댓글 하나에 적는다. 그 기록이 없으면 멈춘다. 이 PR은 그 세 저장소의 `.github/repository-settings.json`을 바꾸지 않는다. `Review status`를 필수로 넣지 않는다. 그 세 저장소의 `Review status` workflow는 그대로 둔다. 검사기는 그 두 status의 작성자를 보지 않는다. 다른 SHA의 근거 표도 이 head의 근거가 아니다. 1인 프로필의 승인 댓글은 편집하면 무효다. REST `updated_at`이 `created_at`과 같아야 한다. 같은 초 편집은 구분하지 않으므로 댓글을 고치지 말고 새 댓글을 단다. 그 다음 단계가 `review/gate`다. 권장: **게이트 전용 읽기 `GH_TOKEN` + Keychain에서 꺼낸 PEM + `origin/main`의 깨끗한 checkout**에서 `tools/post_review_gate.py`를 실행한다(상세는 `docs/review-gate-app.md`). 예전 **봉인 사본·reviewgate 전용 계정**은 레거시다. 먼저 `--dry-run`이다. 이 명령만 commit status `review/gate`를 올린다. 같은 UID에서 에이전트가 돌면 임시 PEM이 있는 순간 키가 노출될 수 있다. 저장소와 Actions에 두지 않는다. 에이전트는 이 명령을 실행하지 않는다. `Review status` 체크가 초록이어도 그 결론을 게이트의 근거로 쓰지 않는다.
+
 ## Mac Studio에서 팀으로 옮길 때
 
-서버가 생기기 전에는 키를 소유자의 Mac에만 둔다. 앱 등록, 설치 저장소, 0600 경로, 키 교체와 폐기, 서버로 옮기는 순서는 `docs/review-gate-app.md`다. 그 앱은 `review/gate`만 올린다. `review/independent`와 `review/security`는 사람 계정의 `gh`로 남긴다. `STATUS_ACTORS`에 앱 로그인을 넣지 않는다. 팀 프로필의 승인 수와 CODEOWNERS는 `POLICY.md` §9이고, 키를 옮기는 작업과 한 PR에 섞지 않는다.
+서버가 생기기 전에는 키를 소유자의 Mac에만 둔다. 앱 등록, 설치 저장소, 0600 경로, 키 교체와 폐기, 서버로 옮기는 순서는 `docs/review-gate-app.md`다. 그 앱은 `review/gate`만 올린다. `review/independent`와 `review/security`는 게이트 조건이 아니다. 참고로 남긴다면 사람 계정의 `gh`로 남긴다. 앱은 올리지 않는다. 팀 프로필의 승인 수와 CODEOWNERS는 `POLICY.md` §9이고, 키를 옮기는 작업과 한 PR에 섞지 않는다.
