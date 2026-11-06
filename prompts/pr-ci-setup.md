@@ -36,7 +36,7 @@ GitHub 설정 프롬프트나 이전 기록이 없으면 누락을 기록하고 
 3. 코딩·설계 기준과 P0/P1/P2 판단은 별도 코딩 규칙에 둬. 리뷰 입력·보고·수정·검증·병합은 별도 리뷰 문서에 둬. Issue·협업·검증 명령은 작업 문서에 둬. 실제 기존 파일을 재사용해. docs/coding-standards.md·docs/agents/review.md 등은 역할의 예시이며 고정 경로가 아니다.
 4. 원문·제품·보안·권리·접근성·기기 검증·작업 시작 preflight·위험별 승인 기준을 보존해. README·CONTRIBUTING·스크립트·테스트의 이동 경로와 anchor를 확인해.
 5. 도구별 지침이 중복돼 있으면 고유 내용을 보존하고 실제 로딩을 확인한 뒤 정리해. `AGENTS.md` 외의 지침 파일을 새로 만들지 마. 예외는 `repo-baseline`의 `docs/development-workflow.md`에 적은 검증 스킬 하나다. `.github/repo-baseline.json`이 관리하는 스킬 사본(`.agents/skills/`, `.claude/skills/`)은 지침 파일 정리 대상이 아니다. 지우거나 합치지 마. `.claude/settings.json` 같은 런타임 설정 파일은 지침 파일이 아니다. `@AGENTS.md` 한 줄만 있는 `CLAUDE.md`는 둬도 된다. 내용을 복제한 shim이나 symlink는 만들지 마. 개인·전역·관리자 지침은 보존해.
-6. 기존 피처 플래그·데이터 호환·OFF/ON·접근성 계약을 보존해. 브랜치와 병합은 `docs/development-workflow.md`의 트렁크다. `main` 하나, 짧은 브랜치, squash, 병합 후 삭제다. GitFlow의 `develop` 브랜치와 `release` 브랜치는 만들지 마. 미완성 기능을 병합하면 실제 진입점의 기본값을 OFF로 두고 담당자·완료 조건·제거 조건을 기록해. 사용처 없는 공통 플래그 체계를 만들지 마. 플래그 파일 CI는 검사기 기본이 켠다. `.github/workflow-policy.json`이 없으면 `config/feature-flags.json`을 본다. `feature_flags`가 `false`이거나 `null`이면 파일을 요구하지 마. repo-baseline은 `false`다. 값이 상대 경로면 그 파일을 본다.
+6. 기존 피처 플래그·데이터 호환·OFF/ON·접근성 계약을 보존해. 브랜치와 병합은 `docs/development-workflow.md`의 트렁크다. `main` 하나, 짧은 브랜치, squash, 병합 후 삭제다. GitFlow의 `develop` 브랜치와 `release` 브랜치는 만들지 마. 미완성 기능을 병합하면 실제 진입점의 기본값을 OFF로 두고 담당자·완료 조건·제거 조건을 기록해. 사용처 없는 공통 플래그 체계를 만들지 마. 플래그 파일 CI는 검사기 기본이 켠다. `.github/workflow-policy.json`이 없으면 `config/feature-flags.json`을 본다. 그 레지스트리가 없으면 검사는 실패한다. `feature_flags`가 `false`이거나 `null`이면 읽기를 건너뛰므로 파일을 요구하지 마. repo-baseline은 `false`다. 값이 상대 경로면 그 파일을 본다.
 7. 사용하는 도구의 AGENTS.md 로딩 지원을 확인해. 자동 로딩을 확인할 수 없으면 시작할 때 명시적으로 읽는 절차를 문서화해. 실제 실행하지 않은 로딩을 검증했다고 보고하지 마.
 
 ## 4. CI·보안 분석·설정 파일 구현
