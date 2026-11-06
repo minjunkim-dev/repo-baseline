@@ -364,6 +364,15 @@ class ApplyGitHubSettingsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "REPLACE|template"):
             tool.load(project)
         own = json.loads((ROOT / ".github/repository-settings.json").read_text(encoding="utf-8"))
+        required = own["expected"]["protection"]["required_status_checks"]["checks"]
+        self.assertEqual(
+            [(item["context"], item["app_id"]) for item in required],
+            [
+                ("Baseline checks (Python 3.11)", 15368),
+                ("Baseline checks (Python 3.13)", 15368),
+                ("review/gate", 5641238),
+            ],
+        )
         filled = copy.deepcopy(own)
         for item in filled["expected"]["protection"]["required_status_checks"]["checks"]:
             if item.get("context") == "review/gate" and not checker.review_gate_app_ok(item.get("app_id")):
