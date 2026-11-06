@@ -5,7 +5,7 @@
 ## 2026-11-06 합의와 이 문서의 역할
 
 - 승인 경계는 항상 **commit status** `review/gate`이고, 브랜치 보호에 **전용 App의 정수 `app_id`로 고정**한다. (`github-actions` 15368으로는 그 필수 context를 충족하지 못하게 한다.)
-- **1인·소규모 팀의 권장 일상 경로**는 아래 **Keychain + 개발자 `gh` + 기본 브랜치 checkout에서의 `post_review_gate.py`**다. 예전의 별도 `reviewgate` OS 계정, 봉인 트리(seal), sudoers, `git archive` 배포, 별도 읽기 전용 토큰 파일만 쓰는 방식은 **선택(레거시)**로 두었다.
+- **1인·소규모 팀의 권장 일상 경로**는 아래 **Keychain(앱 PEM) + 개발자 `gh`(증거 status) + 게이트 전용 읽기 `GH_TOKEN` + 기본 브랜치 checkout에서의 `post_review_gate.py`**다. 예전의 별도 `reviewgate` OS 계정, 봉인 트리(seal), sudoers, `git archive` 배포 중심 방식은 **선택(레거시)**로 두었다.
 - **코드 변경은 하지 않는다.** 이 PR은 문서만 고친다. 장기적으로는 `REPLACE` 자리표시자·필수 `Review status` 조정·carry 삭제 등이 후속 순서로 온다(합의 문서 순서).
 
 ## 무엇을 고정하나
@@ -26,54 +26,78 @@ Dependabot 버전 전용 예외는 `scripts/check_review_status.py`와 같다. �
 
 합의(증거-in-gate 방향): 장기적으로는 **별도 필수 `review/independent`·`review/security` status에 의존하지 않고**, PR 본문 근거·하드도어 승인 댓글만으로 게이트가 판정한 뒤 `review/gate`만 올리는 쪽으로 정리할 수 있다. **현재 구현**은 위 문단과 `tools/post_review_gate.py`가 읽는 검사기 그대로다.
 
-## 권장: Keychain + 개발자 gh + 기본 브랜치 checkout
+## 권장: Keychain(PEM) + 개발자 gh + 게이트 읽기 GH_TOKEN + 기본 브랜치 checkout
 
-1인·소규모 팀에서는 **에이전트가 읽을 수 있는 홈에 0600 PEM을 두지 않는다.** 앱 private key는 **개발자 macOS Keychain**에 넣고, 게이트를 올릴 때만 짧은 생명의 임시 파일로 꺼낸다. Touch ID·비밀번호 등 **사용자 확인(user presence)**으로 꺼낼 수 있는 저장 방식을 쓴다.
+1인·소규모 팀에서는 **에이전트가 읽을 수 있는 홈에 0600 PEM을 두지 않는다.** 앱 private key는 **개발자 macOS Keychain**에 넣고, 게이트를 올릴 때만 짧은 생명의 임시 파일로 꺼낸다. Keychain은 PEM을 **디스크에 남기지 않게** 하려는 저장소일 뿐이며, 기본 설정만으로 Touch ID나 하드웨어 보안 모듈 수준을 보장하지 않는다. `security`로 항목을 꺼낼 때(특히 `-w`) 자격·프롬프트 정책은 환경·항목 종류에 따라 다르다.
 
-### 무엇을 쓰나
+**같은 macOS 사용자(같은 UID)에서 돌아가는 에이전트는 개발자 세션과 격리되지 않는다.** 예전 레거시 경로의 별도 `reviewgate` OS 계정·sudoers 분리와 달리, 이 권장 경로는 **프로세스·권한 분리가 없다**. 에이전트가 해당 사용자로 실행 중이면 Keychain 항목을 읽거나 임시 PEM을 스캔할 수 있는지(항목 ACL·파일 타이밍)를 별도로 가정하지 않는다.
 
-- **리뷰 증거·승인**: 개발 계정의 `gh`(개발자 Keychain에 연결된 자격 증명). `GH_TOKEN`을 셸에 상시 두지 않는다.
-- **읽기**: 같은 `gh` 세션으로 API 읽기를 한다. 별도 gate 전용 읽기 토큰 파일은 필수가 아니다.
-- **쓰기(`review/gate` POST)**: Keychain에서 꺼낸 PEM 경로를 `REVIEW_GATE_APP_KEY`에 두고, `REVIEW_GATE_APP_ID`는 전용 앱의 정수 ID. `post_review_gate.py`는 이 저장소의 `tools/post_review_gate.py`를 **기본 브랜치(또는 검증한 릴리스)** checkout에서 실행한다. **검토 중인 PR head의 워크스페이스에서는 실행하지 않는다.**
+### 무엇을 쓰나 (현재 코드와 맞춤)
+
+`tools/post_review_gate.py`는 **항상** 환경 변수 `GH_TOKEN`에 **게이트 전용 읽기 토큰**(설치 스코프: 저장소 메타데이터·상태 등 읽기에 필요한 최소 권한)이 있어야 한다. 비어 있으면 `review gate refused: GH_TOKEN must be the gate account read-only token`로 끝난다. **개발자 `gh auth token`을 그대로 쓰지 않는다**(권한이 넓고, 게이트 읽기 주체와 섞인다).
+
+- **리뷰 증거 status·(하드도어일 때) 승인 댓글**: 개발 계정의 `gh`(OAuth/PAT, Keychain에 연결된 자격 증명). 증거용 `gh api`는 이 토큰으로 한다.
+- **`post_review_gate.py`의 읽기**: 위와 **별도**인 **읽기 전용** 토큰을 `GH_TOKEN`으로 **서브셸에만** 내보낸다. PEM 경로·내용은 `GH_TOKEN`에 넣지 않는다.
+- **쓰기(`review/gate` POST)**: Keychain에서 꺼낸 PEM 경로를 `REVIEW_GATE_APP_KEY`에 두고, `REVIEW_GATE_APP_ID`는 전용 앱의 정수 ID. `post_review_gate.py`는 이 저장소의 `tools/post_review_gate.py`를 **기본 브랜치(또는 검증한 릴리스)의 깨끗한 트리**에서 실행한다. **검토 중인 PR head의 워크스페이스에서는 실행하지 않는다.**
+
+게이트 읽기 토큰 발급 예(한 번만): GitHub에서 **Fine-grained PAT** 또는 별도 **기계용 GitHub 사용자 + PAT**를 두고, 위 넷 저장소만 읽기로 제한한다. 값은 Keychain 항목 `review-gate-read-token` 등에만 두고, 셸 프로파일에 넣지 않는다.
+
+**후속 코드 변경 아이디어:** 개발자 `gh` 자격 증명 하나로 읽기까지 하게 바꾸는 것은 가능하지만, **지금 릴리스의 스크립트는 그렇게 동작하지 않는다.**
 
 ### 체크아웃
 
-게이트 스크립트는 `scripts/check_review_status.py`를 가져온다. **파일 한두 개만 복사하면 실패**한다. 항상 깨끗한 **원격 `main`(또는 고정 태그)** clone에서 실행한다.
+게이트 스크립트는 `scripts/check_review_status.py`를 가져온다. **파일 한두 개만 복사하면 실패**한다. 고정 디렉터리의 clone(예: `$HOME/src/repo-baseline-gate`)에서 **`main`의 깨끗한 트리**로 맞춘 뒤 실행한다.
 
 ```bash
-# 예: 검증한 main을 고정 디렉터리에 둔다
-GATE_TREE="$HOME/src/repo-baseline-gate"   # PR head가 아닌 곳
-git -C "$GATE_TREE" fetch origin main
-git -C "$GATE_TREE" checkout origin/main
+GATE_TREE="$HOME/src/repo-baseline-gate"   # PR head 워크스페이스가 아님
+cd "$GATE_TREE" || exit 1
+git fetch origin main
+# 작업 트리가 깨끗한지 확인 — 로컬 커밋·수정이 있으면 게이트 스크립트가 읽는 검사기와 어긋날 수 있다
+if [ -n "$(git status --porcelain)" ]; then
+  echo "GATE_TREE has local changes; fix or use a fresh tree" >&2
+  exit 1
+fi
+git reset --hard "origin/main"
 ```
+
+대안: 검증한 **`main`의 전체 SHA**를 알고 있다면 `git fetch origin <SHA>` 후 `git reset --hard <SHA>`로 고정하거나, 깨끗한 디렉터리에 `git archive <SHA> ... | tar -x`로 풀어 쓴다.
 
 ### 승인 시 Mac에서 하는 일 (권장 흐름)
 
 소유자가 직접 한다. 에이전트 셸이 아니다.
 
-1. 증거 status(`review/independent`, 필요 시 `review/security`)는 **개발 계정 `gh api`**로 올린다.
-2. 되돌리기 어려움만: PR 댓글 `되돌리기 어려움 승인: <현재 head의 전체 SHA>` (한 줄, 전체 SHA). 편집하지 말고 새 댓글을 단다(`POLICY.md` §5).
-3. Keychain에서 PEM을 임시 파일로 꺼내 `--dry-run` 후 실제 실행한다.
+1. **검토한 head SHA를 변수에 고정**한다(아래 `SHA`). PR이 갱신되면 다시 읽어 바꾼다.
+2. 증거 status(`review/independent`, 필요 시 `review/security`)는 **개발 계정 `gh api`**로 그 `SHA`에 올린다.
+3. **1인 프로필이고 되돌리기 어려움(PR)일 때만**: PR 댓글 `되돌리기 어려움 승인: <SHA>` (한 줄, 위와 **동일한** 전체 SHA). 편집하지 말고 새 댓글을 단다(`POLICY.md` §5). 되돌리기 쉬움이면 이 댓글은 필요 없다.
+4. 위 **체크아웃**으로 `GATE_TREE`를 깨끗이 맞춘다.
+5. Keychain에서 PEM을 임시 파일로 꺼내 **`GH_TOKEN`(게이트 읽기 전용)** 과 함께 `--dry-run` 후 실제 실행한다.
 
 ```bash
 set -euo pipefail
-unset GH_TOKEN
 REPO="minjunkim-dev/repo-baseline"
 PR="<번호>"
-SHA="$(gh pr view "$PR" --repo "$REPO" --json headRefOid -q .headRefOid)"
+# 리뷰를 마친 head — PR이 바뀌었는지 확인할 때까지 이 값을 고정해 쓴다
+SHA="<검토를 마친 head의 전체 40자 SHA>"
 GATE_TREE="$HOME/src/repo-baseline-gate"
-git -C "$GATE_TREE" fetch origin main
-git -C "$GATE_TREE" checkout -q origin/main
 
-# 1·2: 증거와 승인 댓글 (개발자 gh — 예시, 본문 description은 실제에 맞게)
+cd "$GATE_TREE"
+git fetch origin main
+if [ -n "$(git status --porcelain)" ]; then
+  echo "GATE_TREE has local changes" >&2
+  exit 1
+fi
+git reset --hard origin/main
+
+# 2: 증거 (개발자 gh — description은 실제에 맞게)
 gh api "repos/${REPO}/statuses/${SHA}" -f state=success -f context=review/independent \
   -f description="<도구> <모델> 지적 <수>"
 # Security를 실행했을 때만
 # gh api "repos/${REPO}/statuses/${SHA}" -f state=success -f context=review/security ...
 
-gh pr comment "$PR" --repo "$REPO" --body "되돌리기 어려움 승인: ${SHA}"
+# 3: 1인 프로필 + 되돌리기 어려움(PR)일 때만
+# gh pr comment "$PR" --repo "$REPO" --body "되돌리기 어려움 승인: ${SHA}"
 
-# 3: Keychain → 임시 PEM → post_review_gate (서브셸 끝나면 키 파일 제거)
+# 5: 게이트 — 읽기 토큰 + 설치 토큰 발급용 PEM (PEM은 GH_TOKEN에 넣지 않는다)
 (
   set -euo pipefail
   KEY=$(mktemp -t review-gate-key)
@@ -82,6 +106,8 @@ gh pr comment "$PR" --repo "$REPO" --body "되돌리기 어려움 승인: ${SHA}
   security find-generic-password -a "$USER" -s review-gate-app-key -w > "$KEY"
   export REVIEW_GATE_APP_KEY="$KEY"
   export REVIEW_GATE_APP_ID="<전용 앱 정수 ID>"
+  # 게이트 전용 읽기 토큰 (예: Keychain에 저장해 둔 PAT)
+  export GH_TOKEN="$(security find-generic-password -a "$USER" -s review-gate-read-token -w)"
   cd "$GATE_TREE"
   set +e
   dry=$(python3 -I tools/post_review_gate.py --repo "$REPO" --pr "$PR" --sha "$SHA" --dry-run)
@@ -95,19 +121,23 @@ gh pr comment "$PR" --repo "$REPO" --body "되돌리기 어려움 승인: ${SHA}
     exit 1
   fi
 )
+# 서브셸이 끝나면 GH_TOKEN·임시 PEM이 이 셸에 남지 않는다
 ```
 
-`--dry-run`은 근거를 읽고 올릴 state를 출력한다. 토큰을 만들지 않고 POST하지 않는다. 표준 출력의 마지막 줄은 JSON이다. `kind`가 `success` 또는 `failure`이면 같은 인자로 dry-run 없이 실행한다. `failure`는 그 SHA에 failure를 올려 이 앱의 이전 success를 지운다. `set -e`만 두면 dry-run의 종료 코드 1이 그 갱신을 건너뛴다. `skip`과 `unverified`는 POST하지 않는다. 실실행이 끝나기 전에는 병합하지 않는다.
+`--dry-run`은 근거를 읽고 올릴 state를 출력한다. **설치 토큰(POST용 JWT)은 만들지 않고**, commit status POST도 하지 않는다. 표준 출력의 마지막 줄은 JSON이다. `kind`가 `success` 또는 `failure`이면 같은 인자로 dry-run 없이 실행한다. `failure`는 그 SHA에 failure를 올려 이 앱의 이전 success를 지운다. `set -e`만 두면 dry-run의 종료 코드 1이 그 갱신을 건너뛴다. `skip`과 `unverified`는 POST하지 않는다. 실실행이 끝나기 전에는 병합하지 않는다.
 
 스크립트는 저장소 밖 0600 파일만 키로 받는다. symlink, 저장소 안의 경로, 다른 모드는 거부한다. `GITHUB_ACTIONS`가 있으면 거부한다.
 
 ### Keychain에 넣기
 
-GitHub App 설정에서 받은 PEM은 **한 번만** Keychain 항목으로 넣는다. 예:
+**PEM 내용을 명령 줄 argv로 넣지 않는다** (`-w "$(cat file.pem)"`는 프로세스 목록에 노출될 수 있다). 아래 중 하나를 쓴다.
 
-```bash
-security add-generic-password -a "$USER" -s review-gate-app-key -w -U "$(cat /path/to/downloaded.pem)"
-```
+- **대화형:** `security add-generic-password -a "$USER" -s review-gate-app-key -w` 만 실행하고, 프롬프트가 뜨면 PEM **전체**를 붙여 넣는다(끝에 개행 포함 여부는 GitHub PEM 형식에 맞출 것).
+- **GUI:** **Keychain Access**에서 generic password 항목을 추가하고, 값 필드에 PEM 전체를 붙여 넣는다.
+
+`cat`·`$(< file)`로 PEM을 **명령 줄에 펼쳐 넣지 않는다**. 잠시 파일에 둔 뒤 GUI로 옮기는 방식이면, 옮긴 뒤 그 파일을 바로 지운다.
+
+`review-gate-read-token` 항목에는 **게이트 읽기 전용 PAT 문자열만** 넣는다. 넣은 뒤 디스크에 남긴 원본을 지운다.
 
 다운로드한 원본 PEM은 Keychain에 넣은 뒤 **디스크에서 지운다.** 개발 홈에 서 있는 `review-gate.pem`을 두지 않는다.
 
