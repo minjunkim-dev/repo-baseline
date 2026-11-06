@@ -8,7 +8,7 @@
 - 구독은 Claude Code Pro와 X 구독 $30(Cursor, Grok Bot)뿐이다. Cursor 선불 크레딧으로 고르는 Cursor 호스트 Claude, GPT, Codex, Gemini는 활성 로스터가 아니다. GPT는 Cursor 안에서 그 크레딧으로만 고를 수 있고, 이 소유자는 쓰지 않는다.
 - 작성 모델: Haiku는 트리아지·초안·작은 문서, Sonnet은 일상 구현, Opus는 어려운 설계·구현, Grok은 무거운 구현, Composer는 작은 수정·테스트·문서다. effort는 제품 기본값만 쓰고 설정에서 고정하지 않는다. 근거 허용 값에는 `설정 없음`이 그대로다.
 - 비밀이 없는 작업을 정보가 부족하다는 이유로 Cursor 클라우드만 고르거나 작성 모델을 Grok으로 고정하지 않는다. Claude 클라우드와 Cursor 클라우드 에이전트 둘 다 유효하다.
-- 리뷰 패밀리는 작성 패밀리와 다르다. 활성 리뷰 패밀리는 Composer, Grok, Claude다. 인식 표의 Gemini·GPT 행은 CI 별칭으로 남고 활성 후보는 아니다. 되돌리기 쉬움은 다른 패밀리 모델 하나로 Standards·Spec·버그 찾기를 본다. 되돌리기 어려움의 첫 버그 찾기·Security는 작성 패밀리가 Claude가 아니면 Opus이고, 수정 뒤 델타는 Sonnet 한 번이다. Opus와 Gemini를 한 쌍으로 요구하지 않는다. 작성 패밀리가 Claude이면 Standards·Spec은 Composer다. Composer가 부족하면 다음 라운드는 Grok이고 근거에 적는다. 한도 대체 순서는 Opus, Sonnet, Composer, Grok이다.
+- 리뷰 패밀리는 작성 패밀리와 다르다. 활성 리뷰 패밀리는 Composer, Grok, Claude다. 인식 표의 Gemini·GPT 행은 CI 별칭으로 남고 활성 후보는 아니다. 되돌리기 쉬움은 다른 패밀리 모델 하나로 Standards·Spec·버그 찾기를 본다. 되돌리기 어려움의 첫 버그 찾기는 작성 패밀리가 Claude가 아니면 Opus다. 신뢰 경계를 건드릴 때만 그 패스가 Security도 본다. 수정 뒤 델타는 Sonnet 한 번이고, Security는 첫 패스가 그 축을 실행했을 때만 그 한 번에 넣는다. Opus와 Gemini를 한 쌍으로 요구하지 않는다. 작성 패밀리가 Claude이면 Standards·Spec은 Composer다. Composer가 부족하면 다음 라운드는 Grok이고 근거에 적는다. 한도 대체 순서는 Opus, Sonnet, Composer, Grok이다.
 - Matt 스파인(`/ask-matt` 다음 `/grill-with-docs`, `/to-spec`, `/to-tickets`, `/implement`. Standards·Spec은 `/matt-code-review`. pstack은 `interrogate`, `blast-radius`, `create-verification-skill`, `correct`만)은 그대로다. 이 절은 누가·어디서·어느 모델인지만 정한다.
 - `POLICY.md`는 작성 주체를 이 절로 넘기고 있어 고치지 않았다. 게이트 파일과 CI workflow는 안 바꿨다.
 
@@ -77,7 +77,7 @@
 ## 2026-11-05 — 작성 도구와 리뷰 모델
 
 - `docs/development-workflow.md` 역할 분담: 구독은 Claude Code와 X 구독(Cursor, Grok Bot)뿐이다. 별도의 GPT·Codex 구독은 없다. Cursor 안의 GPT는 쓸 수 있다. PR을 쓰는 도구는 로컬·비밀·대화로 따라가는 작업이면 Claude Code(Mac)이고, 이슈 하나로 클라우드에서 끝까지 검사되면 Cursor 클라우드 에이전트다. 애매하면 Cursor 클라우드 에이전트이고, 로컬·비밀에서 막히면 Claude Code로 넘긴다. PR 본문에 작성 도구와 작성 모델을 적는다.
-- 당시 규칙(현행 아님. 현행은 위 「리뷰는 패밀리가 다르면 된다」): 리뷰 모델을 작성 도구의 반대쪽으로 두었고, 약한 모델만으로 끝나면 병합 가능이 아니라고 적었다. 그 두 문장은 위 절이 바꾼다.
+- 당시 규칙(그 커밋 당시의 현행은 「리뷰는 패밀리가 다르면 된다」였고, 그 절이 아래 두 문장을 바꿨다. 이 파일 맨 위의 현행은 2026-11-06 절이다): 리뷰 모델을 작성 도구의 반대쪽으로 두었고, 약한 모델만으로 끝나면 병합 가능이 아니라고 적었다.
 - 근거 표의 열은 축, 모델, effort, head SHA, P0, P1, P2다. P0·P1은 수정, 기각, 또는 소유자가 한계로 수용한다.
 - `POLICY.md` §5·§10과 셋업 프롬프트 §5: 모델·effort·근거 표·P0·P1 처리는 위 절을 따른다. 예전의 되돌리기 쉬움 `low`·되돌리기 어려움 `high` 깊이 문장은 뺐다. 게이트 파일과 CI workflow는 안 바꿨다. 소비 프로젝트 재적용은 필요 없다.
 

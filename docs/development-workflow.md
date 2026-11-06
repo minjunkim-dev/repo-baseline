@@ -85,9 +85,9 @@ PR 본문에 `작성 도구`와 `작성 모델`이 없으면 리뷰를 시작하
 - 되돌리기 쉬움: Standards, Spec, 버그 찾기를 작성 패밀리와 다른 모델 하나로 하면 된다. 세 축의 모델이 같아도 된다. Security는 신뢰 경계를 건드릴 때만 한다. 그 하나의 모델은 활성 로스터의 반대쪽이다. 작성 패밀리가 Claude이면 Composer다. 작성 패밀리가 Grok 또는 Composer이면 Sonnet이다. Haiku로 그 셋을 보지 않는다.
 - 되돌리기 어려움은 `POLICY.md` §10이 정한다. 거기에는 CI, 게이트, 보안 경계가 들어 있다. 돈·migration·권한처럼 §10이 되돌리기 어려움이라고 한 다른 변경도 되돌리기 어려움이다. 버그 찾기와 Security에 패밀리 둘을 요구하지 않는다. Opus와 Gemini를 한 쌍으로 요구하지 않는다.
 
-이 소유자의 활성 순서는 Opus, Sonnet, Composer, Grok이다. Gemini와 GPT는 이 순서에 없다. 작성 패밀리의 모델은 뺀다. 되돌리기 어려움의 첫 버그 찾기·Security는 그 순서에서 지금 쓸 수 있는 첫 모델이다. Opus를 쓸 수 있으면 Sonnet은 그 첫 모델이 아니다. 작성 패밀리가 Grok이거나 Composer이면 그 첫 모델은 Opus(Claude Code)다. 그 패스가 버그 찾기와 Security를 함께 본다. Standards·Spec도 그 Opus의 `/matt-code-review`다. 작성 패밀리가 Claude이면 Opus와 Sonnet은 리뷰가 아니다. 그 첫 모델은 Composer다. 지금 쿼터에서 Claude가 쓴 PR의 Standards·Spec은 Composer다.
+이 소유자의 활성 순서는 Opus, Sonnet, Composer, Grok이다. Gemini와 GPT는 이 순서에 없다. 작성 패밀리의 모델은 뺀다. 되돌리기 어려움의 첫 버그 찾기는 그 순서에서 지금 쓸 수 있는 첫 모델이다. Opus를 쓸 수 있으면 Sonnet은 그 첫 모델이 아니다. 작성 패밀리가 Grok이거나 Composer이면 그 첫 모델은 Opus(Claude Code)다. 그 패스는 버그 찾기를 본다. 신뢰 경계를 건드리면 같은 패스가 Security도 본다. 건드리지 않으면 Security는 `해당 없음: 신뢰 경계 변경 아님`이고, 그 패스가 Security를 열지 않는다. Standards·Spec도 그 Opus의 `/matt-code-review`다. 작성 패밀리가 Claude이면 Opus와 Sonnet은 리뷰가 아니다. 그 첫 모델은 Composer다. 지금 쿼터에서 Claude가 쓴 PR의 Standards·Spec은 Composer다.
 
-수정 라운드 뒤의 델타 재리뷰는 한 번이다. 첫 모델이 Opus이면 그 한 번은 Sonnet이고, 버그 찾기와 Security를 그 한 번에 본다. 첫 모델이 Composer이면 델타도 Composer다. Composer로 부족하면 다음 라운드는 Grok 한 번이다. 근거에 `보강: Composer → Grok, 이유: 되돌리기 어려움`을 적는다.
+수정 라운드 뒤의 델타 재리뷰는 한 번이다. 첫 모델이 Opus이면 그 한 번은 Sonnet이다. 그 한 번은 버그 찾기를 본다. 첫 패스가 Security를 실행했으면 그 축도 같은 한 번에 본다. Security가 `해당 없음`이면 델타도 그 축을 열지 않는다. 첫 모델이 Composer이면 델타도 Composer다. Composer로 부족하면 다음 라운드는 Grok 한 번이다. 그 보강도 버그 찾기를 보고, 첫 패스가 Security를 실행했을 때만 Security를 같은 한 번에 본다. 근거에 `보강: Composer → Grok, 이유: 되돌리기 어려움`을 적는다.
 
 지정 모델이 사용 한도면 활성 순서의 다음 모델 가운데 작성 패밀리와 다른 것을 쓴다. Opus가 한도면 작성 패밀리가 Claude가 아닐 때의 다음은 Sonnet이다. Opus와 Sonnet이 둘 다 한도면 작성 패밀리가 Grok일 때 Composer, 작성 패밀리가 Composer일 때 Grok이다. 작성 패밀리가 Claude이고 Composer가 한도면 Grok이다. 근거에 `대체: <막힌 모델> → <쓴 모델>, 이유: 사용 한도`를 적는다. 한도 때문에 병합을 멈추지 않는다. 되돌리기 어려움에서 더 강한 모델로 다시 보는 일은 후속 Issue에 적는다. 그 재리뷰를 할지는 소유자가 정한다. 그 Issue가 없어도 병합을 막지 않는다.
 
