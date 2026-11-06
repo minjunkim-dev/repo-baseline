@@ -5,7 +5,7 @@
 ## 2026-11-06 — 트렁크와 선택적 피처 플래그
 
 - `docs/development-workflow.md`: 트렁크를 적었다. 기준 브랜치는 `main` 하나다. 작업 브랜치는 짧다. 병합은 squash만이고 병합하면 브랜치를 지운다. GitFlow의 `develop` 브랜치와 `release` 브랜치는 두지 않는다. 끝나지 않은 작업은 꺼진 피처 플래그로 `main`에 둔다.
-- `POLICY.md` §4·§5, `prompts/github-repository-settings.md`, `prompts/pr-ci-setup.md`, README: 플래그 파일 검사는 `.github/workflow-policy.json`의 `feature_flags`로 저장소마다 고른다. 이 저장소는 `false`다. 그 검사는 이 저장소의 필수 체크가 아니다. 설정 파일이 없거나 경로면 소비 저장소는 켤 수 있다. 서버 보호와 `.github/repository-settings.json`은 이 변경이 쓰지 않는다.
+- `POLICY.md` §4·§5, `prompts/github-repository-settings.md`, `prompts/pr-ci-setup.md`, README: 플래그 파일 검사는 `.github/workflow-policy.json`의 `feature_flags`로 저장소마다 고른다. 이 저장소는 `false`다. 그 검사는 이 저장소의 필수 체크가 아니다. 설정 파일이 없으면 검사기 기본이 플래그 파일을 본다. `false`와 `null`은 끈다. 문자열 경로면 그 파일을 본다. 서버 보호와 `.github/repository-settings.json`은 이 변경이 쓰지 않는다.
 
 ## 2026-11-06 — Review status는 이전 SHA의 success를 이어받지 않는다
 
