@@ -364,7 +364,14 @@ class ApplyGitHubSettingsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "REPLACE|template"):
             tool.load(project)
         own = json.loads((ROOT / ".github/repository-settings.json").read_text(encoding="utf-8"))
-        checker.validate_profile(own)
+        filled = copy.deepcopy(own)
+        gate_check = next(item for item in filled["expected"]["protection"]["required_status_checks"]["checks"]
+                          if item["context"] == "review/gate")
+        self.assertEqual(gate_check["app_id"], "REPLACE:<APP_ID>")
+        gate_check["app_id"] = 424242
+        checker.validate_profile(filled)
+        with self.assertRaisesRegex(ValueError, "template values"):
+            tool.load(Path(self.project(own)))
         for profile in (template, own):  # identity, verified checks and third-party actions are per project
             del profile["expected"]["repository"]["visibility"]
             del profile["expected"]["protection"]["required_status_checks"]["checks"]

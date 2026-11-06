@@ -20,7 +20,7 @@ name: Review status
 # the previous success green. The job does not read the comment body.
 # The run is chosen by its own head_sha. pull_requests[].head.sha can change to the current head and point at an older run.
 # If that run cannot be listed, the job posts a failing check named Review status on the current head.
-# It does not write review/independent or review/security. review-status-policy.json allows only these two events.
+# It does not write review/independent, review/security, or review/gate. review-status-policy.json allows only these two events.
 on:
   pull_request_target:
     branches: [main]

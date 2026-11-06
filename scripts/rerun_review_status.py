@@ -4,7 +4,7 @@
 An issue_comment run is not a pull request check. The previous success stays
 until the pull_request_target run for this head is re-run, or until a newer
 failing check named Review status is posted on that head. This does not write
-review/independent or review/security, and it does not read the comment body.
+review/independent, review/security, or review/gate, and it does not read the comment body.
 created, edited, and deleted all re-run. An edited comment is not approval:
 the checker counts a comment only when updated_at equals created_at and
 lastEditedAt is null, so a same-second edit is dropped too. This re-run

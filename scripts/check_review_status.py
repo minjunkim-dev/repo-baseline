@@ -67,6 +67,7 @@ COMMON_PATHS = (
     ".github/dependabot.yaml", ".github/CODEOWNERS", ".github/repo-baseline.json", ".github/workflow-policy.json",
     PROJECT_PATHS, "scripts/check_*.py",
     "scripts/workflow_policy.py", "scripts/pr_author.py", "scripts/rerun_review_status.py",
+    "tools/post_review_gate.py",
     ".claude/settings.json", ".claude/hooks/**", ".claude/agents/**", ".claude/commands/**", ".agents/skills/**",
     ".claude/skills/**", ".mcp.json", "Dockerfile", ".env*",
 )
@@ -75,7 +76,7 @@ COMMON_PATHS = (
 ONE_WAY_PATHS = (
     ".github/workflows/**", "templates/review-status.yml", "templates/pr-policy.yml",
     "scripts/check_review_status.py", "scripts/workflow_policy.py", "scripts/pr_author.py",
-    "scripts/rerun_review_status.py", ".github/workflow-policy.json",
+    "scripts/rerun_review_status.py", "tools/post_review_gate.py", ".github/workflow-policy.json",
     "templates/review-status-policy.json", ".github/repository-settings.json", "templates/repository-settings.json",
 )
 # Dependency manifests and lockfiles; a project adds other ecosystems to PROJECT_PATHS.

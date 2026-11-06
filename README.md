@@ -24,6 +24,7 @@
 | `vendor/mattpocock-skills/matt-code-review/` | 리뷰 관문 스킬(Matt Pocock `code-review`, 이름만 바꿈, MIT) | 예. manifest대로 `.agents/skills/`와 `.claude/skills/`에 복사한다 |
 | `tools/apply_baseline.py` | manifest대로 `scripts/`와 `vendor/`의 스킬을 프로젝트에 복사하고 해시를 기록 | 아니요 |
 | `tools/apply_github_settings.py` | 설정 기준선과 다른 GitHub 서버 설정을 계획·적용 | 아니요 |
+| `tools/post_review_gate.py` | Mac에서 전용 앱으로 commit status `review/gate`를 게시. 비밀키는 저장소에 없다 | 아니요 |
 
 `scripts/`의 파일과 생성한 `.github/dependabot.yml`은 프로젝트에서 직접 고치지 않는다. 이 저장소에서 고친 뒤 다시 적용한다.
 프로젝트의 `scripts/check_repo_baseline.py`가 복사본이 기록된 해시와 다르면 CI를 실패시킨다.
@@ -166,7 +167,7 @@
 2. 변경을 PR로 올려 `main`에 병합한 뒤, 최신 `main`을 받아 각 프로젝트에 다시 적용하고 프로젝트별 PR을 올린다. `apply_baseline.py`는 commit하지 않은 변경이 있으면 멈춘다. 병합 전 브랜치에서 적용하면 squash 병합 뒤 `main`에 없는 커밋이 출처로 기록된다. `.github/repository-settings.json`의 `Review status` 기록은 복사 대상이 아니다. smallnext, BGLike, mobile-runtime은 repo-baseline에 보호 규칙을 적용하고, 카나리 시험(같은 이름 체크 위장, 이전 실패 run이 남은 head의 병합 가능 여부, Dependabot 예외)을 통과하고, status 작성자·편집된 승인 댓글 검사기 수정이 병합·재적용된 뒤에 카나리 결과는 Issue #32 댓글 하나에 적는다. 그 기록이 없으면 멈춘다. 각자 별도 PR로 같은 체크를 적는다. 그 세 저장소도 기본 브랜치에 workflow가 있고 job이 한 번 성공한 뒤에 적는다.
 3. `CHANGELOG.md`에 바뀐 점과 다시 적용할 프로젝트를 적는다.
 
-이 저장소 자신의 GitHub 설정 기준선은 `.github/repository-settings.json`이다. `python3 tools/apply_github_settings.py .`로 차이를 확인한다.
+이 저장소 자신의 GitHub 설정 기준선은 `.github/repository-settings.json`이다. `review/gate`의 `app_id`가 `REPLACE:<APP_ID>`인 동안 `python3 tools/apply_github_settings.py .`는 조회 전에 멈춘다. 앱을 만들고 그 문자열을 정수로 바꾼 뒤에만 계획을 본다(`docs/review-gate-app.md`). 그 전에 이 명령으로 보호를 적용하지 않는다.
 
 ## 적용 중인 프로젝트
 

@@ -13,6 +13,13 @@
 - `POLICY.md`는 작성 주체를 이 절로 넘기고 있어 고치지 않았다. 게이트 파일과 CI workflow는 안 바꿨다.
 - 같은 도구가 모델을 바꿔 커밋해도 `이전 작성 모델`에 이름을 모두 적는다. 검사기는 그 줄만 패밀리에 넣는다. 사람이 이전 작성자이면 `이전 작성 모델`에 `없음`을 넣지 않는다. 사람은 어느 PR에든 Security를 더 요청할 수 있다. 첫 패스·델타·한도 대체는 최종 작성과 `이전 작성 모델`의 패밀리를 모두 뺀다. 이전에 Composer가 있고 마지막이 Claude이면 Composer는 건너뛰고 Grok이다. 델타 전에 고친 diff의 신뢰 경계를 다시 본다. 수정이 외부 입력이나 권한을 더하면 첫 패스가 `해당 없음`이어도 Security를 연다. Opus가 한도라 첫 모델이 Sonnet이면 델타는 그 다음 다른 패밀리다. Composer가 부족하면 델타는 Grok 한 번이다. 다른 패밀리를 우선한다. 한도로 다른 패밀리가 없으면 먼저 기다린다. 같은 패밀리의 다른 모델은 마지막 수단이고, 그 쌍은 Opus와 Sonnet뿐이다. 같은 모델이 그 축을 다시 보는 것은 금지다. 검사기는 그 마지막 수단도 거절하므로 병합은 다른 패밀리를 기다린다.
 
+## 2026-11-06 — review/gate는 전용 GitHub App만 충족한다
+
+- 카나리 E(PR #39)는 필수 체크 `Review status`(`app_id` 15368)를 workflow 토큰의 같은 이름 체크 run으로 위조할 수 있음을 보였다. 승인 경계는 commit status `review/gate`다. 전용 앱은 Commit statuses 쓰기와 Metadata 읽기만 가지고, 키는 Mac의 0600 경로에만 둔다. `Review status` job은 증거 검사로 남고 `review/gate`를 쓰지 않는다. `strict`는 true다.
+- `tools/post_review_gate.py`가 그 SHA의 근거를 확인하고 앱 설치 토큰으로 `review/gate`만 올린다. `--dry-run`은 POST하지 않는다. `GITHUB_ACTIONS`에서는 거부한다. Dependabot 버전 전용 예외는 검사기와 같다. 테스트는 모의 HTTP다.
+- `.github/repository-settings.json`의 `review/gate` `app_id`는 `REPLACE:<APP_ID>`다. 적용 도구는 이 문자열이 남아 있으면 조회 전에 멈춘다. 이 변경은 branch protection을 쓰지 않는다. 저장소별 적용 전후와 앱 등록·키 교체·E 재시험은 `docs/review-gate-app.md`다.
+- 다시 적용할 프로젝트: smallnext, BGLike, mobile-runtime. `scripts/check_review_status.py`와 `scripts/rerun_review_status.py`는 `tools/apply_baseline.py`로 다시 복사한다. `templates/review-status.yml`의 주석도 `.github/workflows/review-status.yml`로 다시 복사한다. `tools/post_review_gate.py`는 복사하지 않는다. 소유자가 repo-baseline에서 `--repo`로 실행한다. `.github/repository-settings.json`의 `review/gate` 한 줄은 각 저장소 PR에서 기존 체크와 `strict: true`를 유지한 채 더한다. E 재시험 기록이 Issue #32에 있기 전에는 그 셋을 적용하지 않는다.
+
 ## 2026-11-06 — feature flag 파일 오류는 FAIL로 보고한다
 
 - `scripts/workflow_policy.py`: feature flag 파일을 읽다 `UnicodeDecodeError`나 `RecursionError`가 나면 traceback으로 끝나지 않는다. `FAIL: Feature flags:`를 출력하고 종료 코드 1로 끝난다. 설정 파일의 `RecursionError`도 `FAIL: workflow policy config:`로 끝난다. 이전에도 프로세스는 0이 아니어서 검사는 통과하지 않았다. 통과하는 트리와 symlink 거부는 그대로다. `--root`가 없으면 검사기 옆 트리를 읽고, symlink는 파일로 세지 않는다. (#26)

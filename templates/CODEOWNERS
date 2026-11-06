@@ -14,6 +14,7 @@
 /scripts/workflow_policy.py @REPLACE-OWNERS
 /scripts/pr_author.py @REPLACE-OWNERS
 /scripts/rerun_review_status.py @REPLACE-OWNERS
+/tools/post_review_gate.py @REPLACE-OWNERS
 /.github/trust-boundary-paths @REPLACE-OWNERS
 /.claude/settings.json @REPLACE-OWNERS
 /.claude/hooks/ @REPLACE-OWNERS
