@@ -13,11 +13,20 @@
 
 완료 조건: `AGENTS.md`의 `## Agent skills` 블록에서 tracker·도메인 문서에 도달할 수 있다. `triage`가 설치돼 있으면 라벨 문서도 포함한다. 이미 설정된 프로젝트는 바뀐 항목만 갱신한다. 초기 셋업을 이유로 제품 기능 구현을 새로 시작하지 않는다.
 
+## 트렁크
+
+기준 브랜치는 `main` 하나다. GitFlow의 `develop` 브랜치와 `release` 브랜치는 두지 않는다. GitHub Release의 불변성과는 다른 말이다. 긴 작업을 장기 브랜치에 쌓지 않는다.
+
+- 작업 브랜치는 짧게 산다. 이름은 `<type>/<이슈>-<slug>`다. `docs`/`build`/`ci`/`chore`는 이슈 번호를 생략할 수 있다. PR 제목은 Conventional Commits다. 설명은 소문자 라틴 또는 한글로 시작하고, 72자 이하이며, 마침표로 끝나지 않는다(`POLICY.md` §5).
+- 병합은 squash만 한다. merge commit과 rebase merge는 꺼져 있다. squash 메시지는 PR 제목과 본문이다. 병합하면 브랜치를 지운다. 기대값의 `required_linear_history`는 켜 둔다. 2026-11-06에 이 저장소의 병합 설정은 `default_branch` `main`, `allow_squash_merge` true, `allow_merge_commit` false, `allow_rebase_merge` false, `delete_branch_on_merge` true였다. 같은 날 `branches/main` 보호 요약의 필수 체크는 `Baseline checks (Python 3.11)`, `Baseline checks (Python 3.13)`, `review/gate`(`app_id` 5641238)였다. 그 요약에는 `required_linear_history`가 없었다. 보호 전체 조회는 403이었다.
+- 끝나지 않은 기능은 꺼진 피처 플래그 뒤에 두고 `main`에 넣는다. 다음 PR에서 이어서 켠다. 사용자에게 보이는 진입점의 기본값은 OFF다. 담당자, 완료 조건, 제거 조건을 적는다. 쓰는 곳이 없으면 플래그 체계를 새로 만들지 않는다(`prompts/pr-ci-setup.md` §3).
+- 플래그 파일 검사는 저장소마다 고른다. repo-baseline의 공통 하드 요구가 아니다. `scripts/workflow_policy.py`의 기본은 `config/feature-flags.json`을 읽는 것이다. `.github/workflow-policy.json`의 `feature_flags`가 `false`이거나 `null`이면 그 파일을 읽지 않는다. 경로면 그 파일을 읽는다. `.github/workflow-policy.json`이 없거나 `feature_flags` 키가 없으면 `config/feature-flags.json`을 읽는다. 그 레지스트리가 없으면 검사는 실패한다. `false`나 `null`은 읽기를 건너뛴다. `apply_baseline.py`는 `.github/workflow-policy.json`을 복사하지 않는다. 이 저장소는 `feature_flags`가 `false`다. `config/feature-flags.json`이 없어도 그 이유로 실패하지 않는다. `PR conventions`는 제목·브랜치·본문을 본다. 위 필수 체크에 그 job은 없다. 같은 날 smallnext는 `.github/workflow-policy.json`이 없고 `config/feature-flags.json`이 있다. 그 저장소의 `pr-policy.yml` job 이름은 `PR conventions`이고, 보호 요약의 필수 체크에 그 이름이 있다. 검사기 기본이 켜져 있으므로 그 필수 체크가 플래그 파일을 본다. BGLike와 mobile-runtime은 `feature_flags`가 `false`다.
+
 ## 일상 개발
 
 어떤 스킬로 시작할지는 사용자가 `/ask-matt`를 실행해 정한다. `disable-model-invocation: true`인 Matt 스킬은 사용자가 실행한다. 에이전트는 실행을 요청만 하고, 스킬의 질문에는 사용자가 답한다. v1.3.2에서 이 플래그가 있는 스킬은 `/ask-matt`, `/setup-matt-pocock-skills`, `/grill-with-docs`, `/to-spec`, `/to-tickets`, `/triage`, `/implement`, `/retro`, `/wayfinder`다. 태그를 올리면 플래그를 다시 보고 이 목록을 고친다. 각 스킬의 단계는 설치된 원문대로 따른다.
 
-이 기준이 스킬에 더하는 것은 `main`에 들어가는 경계, `POLICY.md` §5의 리뷰 도구, 아래 "역할 분담"의 누가·어디서·어느 모델, 그 아래 절의 pstack 배치다.
+이 기준이 스킬에 더하는 것은 위 「트렁크」에서 `main`에 들어가는 경계, `POLICY.md` §5의 리뷰 도구, 아래 "역할 분담"의 누가·어디서·어느 모델, 그 아래 절의 pstack 배치다.
 
 - 모든 변경은 PR로 `main`에 들어가고 필수 CI가 통과해야 한다. 문 유형은 `POLICY.md` §10만 따른다. `review/gate`가 필수로 적용된 저장소에서는 Dependabot 버전 전용 PR을 뺀 모든 PR(되돌리기 쉬움 포함)에 `review/independent`가 필요하다. 1인 프로필에서 status는 소유자만 올린다는 규칙이다. 에이전트가 status를 올리는 것은 금지지만 GitHub가 기술적으로 막지는 않는다. 1인 프로필에서 검사기는 `creator.login`이 저장소 소유자이거나 `STATUS_ACTORS`(지금은 비어 있음)인 status만 success로 센다(#34). 적용 전인 프로젝트의 되돌리기 쉬움(two-way door: 되돌리기 쉬운 결정)은 필수 CI·리뷰 뒤 맡은 에이전트가 병합할 수 있다. 되돌리기 어려움(one-way door: 되돌리기 어려운 결정)은 사람이 최종 head를 승인한다(셋업 프롬프트 §10은 그 판정의 병합 절차다). 1인 프로필의 게이트 경로 PR은 소유자 댓글이 `되돌리기 어려움 승인: <head sha>` 또는 deprecated인 `한쪽 문 승인: <head sha>`로 시작하고, 그 SHA가 현재 head와 같아야 한다. 편집한 댓글은 무효다. `updated_at`이 `created_at`과 같고 `lastEditedAt`이 null이어야 한다. 같은 초 편집도 무효라 새 댓글을 단다. `Review status` job이 그 댓글을 검사한다. 그 job은 필수 체크가 아니다. 병합은 그 댓글과 그 head의 전용 앱 `review/gate` success가 있어야 한다(`POLICY.md` §5·§10, `docs/review-gate-app.md`). 팀 프로필은 모든 PR에 다른 팀원의 GitHub 승인이 필요하다(`POLICY.md` §9).
 - 리뷰·수정은 셋업 프롬프트 §5와 `POLICY.md` §5를 따른다. Security 리뷰와 외부 리뷰(공개 저장소는 CodeRabbit)를 더할 변경도 거기서 정한다. Standards·Spec의 독립 리뷰 이름은 `/matt-code-review` 하나다. `/implement` 안의 리뷰는 `review/independent`로 세지 않는다.
