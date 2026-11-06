@@ -198,8 +198,10 @@ def main(argv=None):
     try:
         config = load_config(ROOT)
         tree = checked_tree(args.root)
-    except (OSError, json.JSONDecodeError, ValueError) as error:
-        print(f"FAIL: workflow policy config: {error}")
+    except (OSError, json.JSONDecodeError, ValueError, RecursionError) as error:
+        # RecursionError is not a JSONDecodeError. Report it. Exit stays 1.
+        detail = f"{type(error).__name__}: {error}" if isinstance(error, RecursionError) else error
+        print(f"FAIL: workflow policy config: {detail}")
         return 1
     errors = []
     if config["reject_claude_md"]:
@@ -218,8 +220,13 @@ def main(argv=None):
                 if flag_file is None:
                     raise OSError("missing")
                 errors.extend(validate_flags(json.loads(flag_file.read_text(encoding="utf-8"))))
-            except (OSError, json.JSONDecodeError) as error:
-                errors.append(f"Feature flags: {error}")
+            except (OSError, json.JSONDecodeError, UnicodeDecodeError, RecursionError) as error:
+                # UnicodeDecodeError and RecursionError are not OSError or JSONDecodeError.
+                # A traceback would still exit non-zero, and would not print FAIL.
+                if isinstance(error, (UnicodeDecodeError, RecursionError)):
+                    errors.append(f"Feature flags: {type(error).__name__}: {error}")
+                else:
+                    errors.append(f"Feature flags: {error}")
     if args.pr:
         # The event file is JSON. The body is untrusted text and is only parsed.
         event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text(encoding="utf-8"))

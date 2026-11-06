@@ -69,6 +69,64 @@ class SharedInstructionsTest(unittest.TestCase):
         self.assertEqual(1, result)
         self.assertIn("AGENTS.md is required", output)
 
+    def test_no_root_reads_the_checker_tree_and_refuses_symlinks(self):
+        """No --root reads the tree beside the checker. Symlinks are not files there."""
+        agents = self.root / "AGENTS.md"
+        agents.unlink()
+        agents.symlink_to("config/feature-flags.json")
+        # is_file() follows the link. The checker must not.
+        self.assertTrue(agents.is_file())
+        result, output = self.run_policy()
+        self.assertEqual(1, result)
+        self.assertIn("AGENTS.md is required", output)
+        self.assertNotIn("PASS", output)
+        agents.unlink()
+        agents.write_text("Shared project instructions\n", encoding="utf-8")
+        flags = self.root / "config" / "feature-flags.json"
+        flags.rename(self.root / "config" / "real.json")
+        flags.symlink_to("real.json")
+        result, output = self.run_policy()
+        self.assertEqual(1, result)
+        self.assertIn("refusing to follow a symlink", output)
+        self.assertNotIn("PASS", output)
+        flags.unlink()
+        flags.write_text('{"version": 1, "flags": []}\n', encoding="utf-8")
+        self.assertEqual(0, self.run_policy()[0])
+
+    def test_unreadable_flags_fail_closed_with_and_without_root(self):
+        head = self.root / "head"
+        (head / "config").mkdir(parents=True)
+        (head / "AGENTS.md").write_text("head copy\n", encoding="utf-8")
+        cases = (
+            ("utf-8", b"\xff", "UnicodeDecodeError"),
+            ("recursion", ("[" * 30000 + "]" * 30000).encode("ascii"), "RecursionError"),
+        )
+        previous = Path.cwd()
+        try:
+            os.chdir(self.root)
+            for kind, payload, name in cases:
+                for root_arg in (None, "head"):
+                    with self.subTest(kind=kind, root=root_arg):
+                        tree = head if root_arg else self.root
+                        (tree / "config" / "feature-flags.json").write_bytes(payload)
+                        argv = ["workflow_policy.py"] if root_arg is None else ["workflow_policy.py", "--root", root_arg]
+                        result, output = self.run_policy(argv)
+                        self.assertEqual(1, result)
+                        self.assertIn(f"FAIL: Feature flags: {name}:", output)
+                        self.assertNotIn("Traceback", output)
+                        self.assertNotIn("PASS", output)
+        finally:
+            os.chdir(previous)
+
+    def test_recursive_config_fails_closed(self):
+        github = self.root / ".github"
+        github.mkdir()
+        (github / "workflow-policy.json").write_text("[" * 30000 + "]" * 30000, encoding="ascii")
+        result, output = self.run_policy()
+        self.assertEqual(1, result)
+        self.assertIn("FAIL: workflow policy config: RecursionError:", output)
+        self.assertNotIn("Traceback", output)
+
     def test_config_can_turn_repo_specific_checks_off(self):
         (self.root / "AGENTS.md").unlink()
         (self.root / "config/feature-flags.json").unlink()
