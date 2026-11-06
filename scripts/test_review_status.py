@@ -3,7 +3,7 @@
 import base64
 from contextlib import redirect_stdout
 import hashlib
-from io import StringIO
+from io import BytesIO, StringIO, TextIOWrapper
 import os
 from pathlib import Path
 import subprocess
@@ -801,6 +801,142 @@ jobs:
             self.assertIsNone(tool.diff_identity(diff, {"new.json": BLOB}))
         self.assertIsNone(tool.diff_identity("diff --git a/svc b/old.json b/svc b/new.json\n"))
         self.assertIsNone(tool.diff_identity("diff --git a/left b/right\n@@ -1 +1 @@\n-a\n+b\n"))
+
+    def test_an_unchanged_embedded_b_slash_carries_through_changed_blobs(self):
+        # B30: rfind(" b/") inside changed_blobs still passed the header tests, because those
+        # diffs were not carried. The root package.json id differs, so that split cannot carry either.
+        def old_split(line):
+            rest = line[len("diff --git a/"):]
+            return rest[rest.rfind(" b/") + 3:]
+
+        path = "svc b/package.json"
+        diff = (
+            f"diff --git a/{path} b/{path}\n"
+            "index 1111111..2222222 100644\n"
+            f"--- a/{path}\n"
+            f"+++ b/{path}\n"
+            "@@ -1 +1 @@\n"
+            "-a\n"
+            "+b\n"
+        )
+        self.assertEqual(old_split(diff.split("\n", 1)[0]), "package.json")
+        root_old, root_new = OTHER, "d" * 40
+        read = api([{"filename": path}], commit_shas=["OLD", HEAD],
+                   extra_status={"OLD": [OK, (tool.SECURITY, "success")]}, force_pushes=[],
+                   blobs={"OLD": {path: BLOB, "package.json": root_old},
+                          HEAD: {path: BLOB, "package.json": root_new}})
+        self.assertEqual(tool.changed_blobs("o/n", "OLD", diff, read), {path: BLOB})
+        self.assertEqual(tool.changed_blobs("o/n", HEAD, diff, read), {path: BLOB})
+        self.assertEqual(tool.diff_identity(diff, {path: BLOB}),
+                         tool.diff_identity(diff, tool.changed_blobs("o/n", HEAD, diff, read)))
+        self.assertIsNone(tool.diff_identity(diff, {"package.json": BLOB}))
+        self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", read, diffs({"OLD": diff, HEAD: diff})), [])
+
+    def test_an_injected_rename_to_does_not_reuse_another_files_blob(self):
+        # B27: read_diff_api turns "+b\\rrename to package.json" into its own header line.
+        # Dropping the rename-to mismatch check lets that line select package.json.
+        raw = (
+            "diff --git a/src/app.py b/src/app.py\n"
+            "@@ -1 +1 @@\n"
+            "-a\n"
+            "+b\rrename to package.json\n"
+        )
+        injected = (
+            "diff --git a/src/app.py b/src/app.py\n"
+            "@@ -1 +1 @@\n"
+            "-a\n"
+            "+b\n"
+            "rename to package.json\n"
+        )
+        # text=True on read_diff_api uses universal newlines, so the CR becomes its own line.
+        normalized = TextIOWrapper(BytesIO(raw.encode("utf-8")), encoding="utf-8", newline=None).read()
+        self.assertEqual(normalized, injected)
+        self.assertNotIn("\r", normalized)
+        stable = "e" * 40
+        read = api([{"filename": "src/app.py"}], commit_shas=["OLD", HEAD], extra_status={"OLD": [OK]},
+                   force_pushes=[],
+                   blobs={"OLD": {"src/app.py": BLOB, "package.json": stable},
+                          HEAD: {"src/app.py": OTHER, "package.json": stable}})
+        self.assertEqual(tool.changed_blobs("o/n", HEAD, raw, read), {"src/app.py": OTHER})
+        self.assertIsNotNone(tool.diff_identity(raw, {"src/app.py": OTHER}))
+        self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", read, diffs({"OLD": raw, HEAD: raw})),
+                         [tool.INDEPENDENT])
+        self.assertIsNone(tool.diff_identity(normalized, {"src/app.py": OTHER, "package.json": stable}))
+        self.assertRaises(ValueError, tool.changed_blobs, "o/n", HEAD, normalized, read)
+        self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", read,
+                                      diffs({"OLD": normalized, HEAD: normalized})),
+                         [tool.INDEPENDENT])
+
+    def test_a_copy_carries_only_when_changed_blobs_reads_copy_to(self):
+        copied = (
+            "diff --git a/src/app.py b/src/next.py\n"
+            "similarity index 100%\n"
+            "copy from src/app.py\n"
+            "copy to src/next.py\n"
+        )
+        same = api([{"filename": "src/next.py"}], commit_shas=["OLD", HEAD], extra_status={"OLD": [OK]},
+                   force_pushes=[], blobs={"OLD": {"src/next.py": BLOB}, HEAD: {"src/next.py": BLOB}})
+        self.assertEqual(tool.changed_blobs("o/n", HEAD, copied, same), {"src/next.py": BLOB})
+        self.assertEqual(tool.diff_identity(copied, {"src/next.py": BLOB}),
+                         tool.diff_identity(copied, tool.changed_blobs("o/n", "OLD", copied, same)))
+        self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", same, diffs({"OLD": copied, HEAD: copied})), [])
+        moved = api([{"filename": "src/next.py"}], commit_shas=["OLD", HEAD], extra_status={"OLD": [OK]},
+                    force_pushes=[], blobs={"OLD": {"src/next.py": BLOB}, HEAD: {"src/next.py": OTHER}})
+        self.assertEqual(tool.changed_blobs("o/n", HEAD, copied, moved), {"src/next.py": OTHER})
+        self.assertNotEqual(tool.diff_identity(copied, {"src/next.py": BLOB}),
+                            tool.diff_identity(copied, {"src/next.py": OTHER}))
+        self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", moved, diffs({"OLD": copied, HEAD: copied})),
+                         [tool.INDEPENDENT])
+
+    def test_a_dev_null_marker_inside_a_hunk_keeps_the_blob(self):
+        # B27: "+++ /dev/null" after @@ is an added line. Treating it as a deletion drops the blob id.
+        body = (
+            "diff --git a/src/app.py b/src/app.py\n"
+            "--- a/src/app.py\n"
+            "+++ b/src/app.py\n"
+            "@@ -1 +1,2 @@\n"
+            " keep\n"
+            "+++ /dev/null\n"
+        )
+        same = api([{"filename": "src/app.py"}], commit_shas=["OLD", HEAD], extra_status={"OLD": [OK]},
+                   force_pushes=[], blobs={"OLD": {"src/app.py": BLOB}, HEAD: {"src/app.py": BLOB}})
+        self.assertEqual(tool.changed_blobs("o/n", HEAD, body, same), {"src/app.py": BLOB})
+        self.assertEqual(tool.diff_identity(body, {"src/app.py": BLOB}),
+                         tool.diff_identity(body, tool.changed_blobs("o/n", HEAD, body, same)))
+        self.assertIsNone(tool.diff_identity(body, {"src/app.py": None}))
+        self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", same, diffs({"OLD": body, HEAD: body})), [])
+        moved = api([{"filename": "src/app.py"}], commit_shas=["OLD", HEAD], extra_status={"OLD": [OK]},
+                    force_pushes=[], blobs={"OLD": {"src/app.py": BLOB}, HEAD: {"src/app.py": OTHER}})
+        self.assertEqual(tool.changed_blobs("o/n", HEAD, body, moved), {"src/app.py": OTHER})
+        self.assertNotEqual(tool.diff_identity(body, {"src/app.py": BLOB}),
+                            tool.diff_identity(body, {"src/app.py": OTHER}))
+        self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", moved, diffs({"OLD": body, HEAD: body})),
+                         [tool.INDEPENDENT])
+
+    def test_a_slash_in_a_tree_entry_name_blocks_carry(self):
+        # B27: a tree name containing "/" is not a path component. The real src/app.py blob is present.
+        base = api([{"filename": "src/app.py"}], commit_shas=["OLD", HEAD], extra_status={"OLD": [OK]},
+                   force_pushes=[], blobs={"OLD": {"src/app.py": BLOB}, HEAD: {"src/app.py": BLOB}})
+
+        def slash(endpoint):
+            data = base(endpoint)
+            if "/git/trees/" not in endpoint or not isinstance(data, dict):
+                return data
+            tree = data.get("tree")
+            if not isinstance(tree, list) or not any(item.get("path") == "src" for item in tree):
+                return data
+            planted = list(tree)
+            planted.append({"path": "src/app.py", "mode": "100644", "type": "blob", "sha": OTHER})
+            return {"truncated": False, "tree": planted}
+
+        self.assertEqual(tool.path_oids("o/n", HEAD, ["src/app.py"], base)["src/app.py"], BLOB)
+        clean = tool.changed_blobs("o/n", HEAD, ADDED, base)
+        self.assertEqual(clean, {"src/app.py": BLOB})
+        self.assertEqual(tool.diff_identity(ADDED, clean), tool.diff_identity(ADDED, {"src/app.py": BLOB}))
+        self.assertRaises(ValueError, tool.path_oids, "o/n", HEAD, ["src/app.py"], slash)
+        self.assertRaises(ValueError, tool.changed_blobs, "o/n", HEAD, ADDED, slash)
+        self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", slash, diffs({"OLD": ADDED, HEAD: ADDED})),
+                         [tool.INDEPENDENT])
 
     def test_tree_reads_follow_changed_paths_and_ignore_other_gitlinks(self):
         prior = "1" * 40
