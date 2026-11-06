@@ -2,6 +2,12 @@
 
 리뷰 모델의 현행은 「리뷰는 패밀리가 다르면 된다」만이다. 그 아래의 리뷰 모델 절은 그 커밋 당시의 기록이다.
 
+## 2026-11-06 — feature flag 파일 오류는 FAIL로 보고한다
+
+- `scripts/workflow_policy.py`: feature flag 파일을 읽다 `UnicodeDecodeError`나 `RecursionError`가 나면 traceback으로 끝나지 않는다. `FAIL: Feature flags:`를 출력하고 종료 코드 1로 끝난다. 설정 파일의 `RecursionError`도 `FAIL: workflow policy config:`로 끝난다. 이전에도 프로세스는 0이 아니어서 검사는 통과하지 않았다. 통과하는 트리와 symlink 거부는 그대로다. `--root`가 없으면 검사기 옆 트리를 읽고, symlink는 파일로 세지 않는다. (#26)
+- `scripts/test_workflow_policy.py`: `--root` 없이 symlink `AGENTS.md`와 symlink flag 파일을 거절하는 동작을 고정한다. 잘못된 UTF-8과 깊이 제한을 넘는 JSON도 `--root`가 있을 때와 없을 때 FAIL로 본다.
+- 다시 적용할 프로젝트: smallnext, BGLike, mobile-runtime. `scripts/workflow_policy.py`와 `scripts/test_workflow_policy.py`를 `tools/apply_baseline.py`로 다시 복사한다. 스크립트 해시는 적용할 때 `.github/repo-baseline.json`에 다시 기록된다. 바뀐 복사 파일의 sha256은 이 변경의 PR 본문에 있다.
+
 ## 2026-11-05 — 1인 프로필은 다른 계정의 리뷰 status와 편집된 승인 댓글을 받지 않는다
 
 - `scripts/check_review_status.py`: 1인 프로필에서 `review/independent`와 `review/security`는 `creator.login`이 저장소 소유자이거나 `STATUS_ACTORS`에 있을 때만 success다. `STATUS_ACTORS`는 `scripts/check_review_status.py`의 설정이고 지금은 비어 있다. 서버 앱의 로그인은 이 저장소에서 넣은 뒤 다시 복사한다. 소비 프로젝트의 복사본을 직접 고치지 않는다. 다른 작성자(`github-actions[bot]` 포함)의 status는 실패다. 없는 status로 보지 않는다. 목록은 `commits/{sha}/statuses`이고 최신순이다. context마다 첫 항목을 쓴다. combined status에는 `creator`가 없어 쓰지 않는다. 이어받기 해시는 diff와 바뀐 파일의 변경 후 blob id 전체다. `index` 줄의 축약 SHA는 쓰지 않는다. id는 바뀐 경로의 상위 디렉터리 tree만 읽는다. 다른 gitlink는 열지 않고, 바뀐 경로가 gitlink이면 그 커밋 id를 넣는다. 잘리거나 읽지 못하면 이어받지 않는다. 같은 경로의 `diff --git` 헤더는 가운데에서 자른다. `svc b/package.json`의 ` b/`를 구분자로 쓰지 않는다. 경로가 다르면 `rename to`·`copy to`를 읽고, 없으면 이어받지 않는다. 삭제·이름 변경·바이너리를 본다. `@@`의 함수 이름은 남긴다. 이름이 없는 파일은 그 헤더만으로 구분되지 않고, blob id가 그 이동을 가른다. 기준 브랜치가 다른 파일만 바꾸면 이어받는다. 같은 파일을 바꾸면 줄만 밀려도 다시 리뷰받는다. YAML, JSON, 같은 함수 안의 이동, CR을 넣은 줄도 이어받지 않는다. `prompts/pr-ci-setup.md`의 이어받기 문장도 같다. 이어받기의 이전 SHA도 같다. 팀 프로필은 작성자를 보지 않는다. (#34)
