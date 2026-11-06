@@ -6,8 +6,8 @@
 
 - 승인 경계는 항상 **commit status** `review/gate`이고, 브랜치 보호에 **전용 App의 정수 `app_id`로 고정**한다. (`github-actions` 15368으로는 그 필수 context를 충족하지 못하게 한다.)
 - **1인·소규모 팀의 권장 일상 경로**는 아래 **Keychain(앱 PEM) + 개발자 `gh`(증거 status) + 게이트 전용 읽기 `GH_TOKEN` + 기본 브랜치 checkout에서의 `post_review_gate.py`**다. 예전의 별도 `reviewgate` OS 계정, 봉인 트리(seal), sudoers, `git archive` 배포 중심 방식은 **선택(레거시)**로 두었다.
-- **코드 변경은 하지 않는다.** 이 PR은 문서만 고친다. 장기적으로는 `REPLACE` 자리표시자·필수 `Review status` 조정·carry 삭제 등이 후속 순서로 온다(합의 문서 순서).
-- repo-baseline의 기대값 `checks`에서 `Review status`(`app_id` 15368)를 뺐다. 남은 필수 체크는 Baseline checks 둘(`app_id` 15368)과 `review/gate`(`app_id` 5641238)다. workflow와 검사기는 남긴다. carry 삭제·증거-in-gate·Dependabot 코드는 이 변경에 없다. 보호 적용은 병합 뒤 소유자가 한다.
+- **코드 변경은 하지 않는다.** 이 PR은 문서만 고친다. 장기적으로는 `REPLACE` 자리표시자·증거-in-gate 등 남은 정리가 후속이다. 검사기의 diff identity 이어받기는 그 뒤에 빠졌다.
+- repo-baseline의 기대값 `checks`에서 `Review status`(`app_id` 15368)를 뺐다. 남은 필수 체크는 Baseline checks 둘(`app_id` 15368)과 `review/gate`(`app_id` 5641238)다. workflow와 검사기는 남긴다. 증거-in-gate·Dependabot 코드는 그 변경에 없다. 검사기는 그 뒤 diff identity로 status를 이어받지 않는다. 보호 적용은 병합 뒤 소유자가 한다.
 
 ## 무엇을 고정하나
 
@@ -23,7 +23,7 @@
 
 Dependabot 버전 전용 예외는 `scripts/check_review_status.py`와 같다. 브랜치 보호는 작성자별로 빼지 못하므로 `review/gate`는 그 PR에도 필요하다. 버전·해시·Action SHA만 바꾼 Dependabot PR이면 스크립트는 두 리뷰 status 없이 success를 올린다. 다른 줄이 있으면 올리지 않고 failure다. 면제를 켜는 별도 플래그는 없다. 신뢰 경계 파일은 `uses:`의 40자 SHA 또는 `v` 태그 pin만 버전 전용이다. 짧은 해시, `\r`, 그 밖의 제어 문자, U+2028, U+2029가 있으면 버전 전용이 아니다. `previous_filename`이 있거나 `status`가 `modified`가 아니면 버전 전용이 아니다. 워크플로 밖으로 이름을 바꾸는 pin-only diff도 면제가 아니다. 작성자 쪽(REST나 web-flow로 Dependabot처럼 만든 커밋)은 아직 증명되지 않았다. 그 면제를 쓰기 전에 카나리로 확인한다.
 
-근거 status의 이어받기는 이 게이트에 쓰지 않는다. `review/independent`와 `review/security`는 이 head에 success여야 한다. 1인 프로필에서 작성자는 저장소 소유자 또는 `STATUS_ACTORS`다. `STATUS_ACTORS`는 비어 있다. 이 앱의 로그인을 거기에 넣지 않는다. 앱은 `review/gate`만 올린다. 로그인이 `[bot]`으로 끝나면 1인·팀 모두 그 status를 받지 않는다. `github-actions[bot]`이 올린 리뷰 status는 실패다. 승인 댓글의 작성자가 `[bot]`이면 그 댓글도 승인이 아니다.
+검사기와 이 게이트 모두 이전 SHA의 status를 이어받지 않는다. `review/independent`와 `review/security`는 이 head에 success여야 한다. 1인 프로필에서 작성자는 저장소 소유자 또는 `STATUS_ACTORS`다. `STATUS_ACTORS`는 비어 있다. 이 앱의 로그인을 거기에 넣지 않는다. 앱은 `review/gate`만 올린다. 로그인이 `[bot]`으로 끝나면 1인·팀 모두 그 status를 받지 않는다. `github-actions[bot]`이 올린 리뷰 status는 실패다. 승인 댓글의 작성자가 `[bot]`이면 그 댓글도 승인이 아니다.
 
 합의(증거-in-gate 방향): 장기적으로는 **별도 필수 `review/independent`·`review/security` status에 의존하지 않고**, PR 본문 근거·하드도어 승인 댓글만으로 게이트가 판정한 뒤 `review/gate`만 올리는 쪽으로 정리할 수 있다. **현재 구현**은 위 문단과 `tools/post_review_gate.py`가 읽는 검사기 그대로다.
 

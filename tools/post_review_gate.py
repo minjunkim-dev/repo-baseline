@@ -158,18 +158,12 @@ class Reader:
         return (json.loads(text) if text else None), headers
 
     def read(self, endpoint):
-        if endpoint.startswith(review.FORCE_PUSHES):
-            return self._force_pushes(endpoint[len(review.FORCE_PUSHES):])
         comments = review.comment_list_target(endpoint)
         if comments is not None:
             return self._comments(*comments)
         if "per_page" in endpoint:
             return self._pages("/" + endpoint)
         payload, _ = self._json("GET", "/" + endpoint)
-        return payload
-
-    def read_diff(self, endpoint):
-        payload, _ = self._json("GET", "/" + endpoint, accept="application/vnd.github.diff")
         return payload
 
     def _pages(self, path):
@@ -209,25 +203,6 @@ class Reader:
                 raise ValueError("approval comments")
         raise ValueError("approval comments")
 
-    def _force_pushes(self, suffix):
-        repo, number = suffix.rsplit("/", 1)
-        owner, name = repo.split("/", 1)
-        query = (
-            "query($owner:String!,$name:String!,$number:Int!){"
-            "repository(owner:$owner,name:$name){pullRequest(number:$number){"
-            "timelineItems(last:20,itemTypes:[HEAD_REF_FORCE_PUSHED_EVENT]){"
-            "nodes{... on HeadRefForcePushedEvent{createdAt beforeCommit{oid}}}}}}}"
-        )
-        payload, _ = self._json(
-            "POST", "/graphql",
-            {"query": query, "variables": {"owner": owner, "name": name, "number": int(number)}})
-        try:
-            nodes = payload["data"]["repository"]["pullRequest"]["timelineItems"]["nodes"]
-        except (TypeError, KeyError):
-            raise ValueError("force pushes") from None
-        return review.force_push_events(nodes)
-
-
     def _next_link(self, header):
         if not isinstance(header, str):
             return None
@@ -259,7 +234,7 @@ def _security_row_needs_status(body):
 
 
 def _on_head(repo, head, base, pull, read):
-    """Review statuses that must be success on this SHA. A carried status is not enough.
+    """Review statuses that must be success on this SHA.
     A version-only Dependabot bump is the checker's exemption and needs neither."""
     pinned, commits = review.pinned_change(repo, base, head, read)
     bump = pinned is not None and commits is not None and review.dependabot_bump(pull, commits, pinned)
@@ -291,19 +266,19 @@ def _on_head(repo, head, base, pull, read):
     return gaps
 
 
-def decide(repo, number, sha, read, read_diff):
+def decide(repo, number, sha, read):
     """Evidence for this owner/repo/PR/SHA. skip and unverified must not POST."""
     notes = io.StringIO()
     try:
         with redirect_stdout(notes):
-            return _decide(repo, number, sha, read, read_diff)
+            return _decide(repo, number, sha, read)
     finally:
         text = notes.getvalue()
         if text:
             print(text, file=sys.stderr, end="" if text.endswith("\n") else "\n")
 
 
-def _decide(repo, number, sha, read, read_diff):
+def _decide(repo, number, sha, read):
     try:
         pull = read(f"repos/{repo}/pulls/{number}")
         if not isinstance(pull, dict):
@@ -316,7 +291,7 @@ def _decide(repo, number, sha, read, read_diff):
         base = (pull.get("base") or {}).get("sha")
         if not isinstance(base, str) or not review.full_oid(base):
             raise ValueError("base")
-        absent = review.missing(repo, number, head, base, read, read_diff)
+        absent = review.missing(repo, number, head, base, read)
         if review.BASE_REF in absent:
             return Decision("skip", "base", head)
         gaps = [item for item in absent if item != review.BASE_REF]
@@ -386,7 +361,7 @@ def run(argv, env, request, now=None, sign=None):
         return 2
     base = (env.get("REVIEW_GATE_API") or API).rstrip("/")
     reader = Reader(base, token, request)
-    decision = decide(args.repo, args.pr, args.sha, reader.read, reader.read_diff)
+    decision = decide(args.repo, args.pr, args.sha, reader.read)
     report = {"result": "dry-run" if args.dry_run else "post", "kind": decision.kind,
               "state": decision.state if decision.posts else None, "context": CONTEXT,
               "repo": args.repo, "sha": decision.sha, "detail": decision.detail}
