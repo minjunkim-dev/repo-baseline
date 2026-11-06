@@ -2,6 +2,11 @@
 
 리뷰 모델의 현행은 「2026-11-06 — 역할 분담: 클라우드 기본, 활성 로스터」다. 그 아래의 리뷰 모델 절은 그 커밋 당시의 기록이다.
 
+## 2026-11-06 — 게이트 문서: Keychain 우선·합의(문서만)
+
+- `docs/review-gate-app.md`: 1인·소규모 팀의 **권장 경로**를 **개발자 macOS Keychain의 앱 PEM**(실행 시에만 임시 파일로 꺼냄) + **개발자 `gh`로 증거·승인** + **기본 브랜치 checkout에서 `tools/post_review_gate.py` 실행**으로 다시 썼다. 예전 **reviewgate 전용 UID·봉인(seal)·sudoers·git archive·별도 읽기 토큰 파일** 중심 절차는 **레거시(선택)**로 낮추고, 요지만 남겼다.
+- `POLICY.md` §5·§9, `README.md`, `docs/github-settings-profile.md`: repo-baseline의 `review/gate` `app_id` 기록이 **5641238**(#44)이므로, `REPLACE:<APP_ID>`는 **다른 저장소·채우기 전**의 자리표시자로만 쓴다고 고쳤다. 합의의 나머지(증거-in-gate·Dependabot·편집 댓글 규칙·코드 삭제 순서)는 **후속 PR**이다. Python 게이트 로직·`.github/repository-settings.json` 필수 목록 변경은 이 PR에 없다.
+
 ## 2026-11-06 — 역할 분담: 클라우드 기본, 활성 로스터
 
 - `docs/development-workflow.md` 역할 분담. 코드는 Claude Code와 Cursor가 쓴다. Grok Bot은 쓰지 않는다. 기본 머신은 클라우드다. Claude Code는 `claude --cloud` 또는 claude.ai/code이고, Cursor는 클라우드 에이전트다. Mac은 시뮬레이터·Xcode·실기기·Keychain·장기 비밀(`gh`, review-gate pem, Claude 로그인)만이다. 장기 비밀은 Cursor AWS VM, Claude Anthropic VM, Grok Bot 공유 컴퓨터에 두지 않는다. 넘기기는 양방향이다. Mac의 Cursor IDE도 작성 경로다. 같은 모델의 사용량은 로컬과 클라우드가 같다.
@@ -44,7 +49,7 @@
 
 - 카나리 E(PR #39)는 필수 체크 `Review status`(`app_id` 15368)를 workflow 토큰의 같은 이름 체크 run으로 위조할 수 있음을 보였다. 승인 경계는 commit status `review/gate`다. 전용 앱은 Commit statuses 쓰기와 Metadata 읽기만 가지고, 키는 `reviewgate` 홈의 0600 일반 파일이거나, 같은 UID Keychain에서 그 실행만 꺼낸 임시 파일이다. 개발 홈의 서 있는 pem이 아니다. `Review status` job은 증거 검사로 남고 `review/gate`를 쓰지 않는다. `strict`는 true다.
 - `tools/post_review_gate.py`가 그 SHA의 근거를 확인하고 앱 설치 토큰으로 `review/gate`만 올린다. `--dry-run`은 POST하지 않는다. `GITHUB_ACTIONS`에서는 거부한다. Dependabot 버전 전용 예외는 검사기와 같다. 테스트는 모의 HTTP다.
-- `.github/repository-settings.json`의 `review/gate` `app_id`는 `REPLACE:<APP_ID>`다. 적용 도구는 이 문자열이 남아 있으면 조회 전에 멈춘다. 이 변경은 branch protection을 쓰지 않는다. 저장소별 적용 전후와 앱 등록·키 교체·E 재시험은 `docs/review-gate-app.md`다.
+- repo-baseline의 `.github/repository-settings.json`은 `review/gate`의 `app_id`를 **5641238**로 기록한다(#44). 다른 프로젝트나 채우기 전에는 `REPLACE:<APP_ID>`가 남을 수 있고, 그동안 적용 도구는 조회 전에 멈춘다. 이 변경은 branch protection을 쓰지 않는다. 저장소별 적용 전후와 앱 등록·키 교체·E 재시험은 `docs/review-gate-app.md`다.
 - 다시 적용할 프로젝트: smallnext, BGLike, mobile-runtime. `scripts/check_review_status.py`와 `scripts/rerun_review_status.py`는 `tools/apply_baseline.py`로 다시 복사한다. `templates/review-status.yml`의 주석도 `.github/workflows/review-status.yml`로 다시 복사한다. `tools/post_review_gate.py`는 복사하지 않는다. 소유자가 repo-baseline에서 `--repo`로 실행한다. `.github/repository-settings.json`의 `review/gate` 한 줄은 각 저장소 PR에서 기존 체크와 `strict: true`를 유지한 채 더한다. E 재시험 기록이 Issue #32에 있기 전에는 그 셋을 적용하지 않는다.
 
 ## 2026-11-06 — feature flag 파일 오류는 FAIL로 보고한다
