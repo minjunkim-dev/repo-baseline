@@ -46,13 +46,13 @@ gh api "repos/${REPO}/statuses/${SHA}" -f state=success -f context=review/securi
 gh pr comment "$PR" --repo "$REPO" --body "되돌리기 어려움 승인: ${SHA}"
 
 # 키와 읽기 토큰은 이 셸에 들어오지 않는다. 래퍼가 reviewgate의 홈에서만 읽는다.
+# -H가 HOME을 reviewgate 홈으로 둔다. env를 끼우지 않는다.
 # 에이전트 셸에서 이 sudo를 실행하지 않는다. bash -s는 허용하지 않는다.
 # NOPASSWD가 없으므로 암호를 묻는다. timestamp_timeout=0이라 캐시되지 않는다.
-sudo -u "$GATE_USER" -H env HOME="$GATE_HOME" \
-  "$GATE_HOME/.config/repo-baseline/review-gate-run" "$SHA" "$REPO" "$PR"
+sudo -u "$GATE_USER" -H "$GATE_HOME/.config/repo-baseline/review-gate-run" "$SHA" "$REPO" "$PR"
 ```
 
-이 `sudo`는 소유자가 직접 실행한다. 개발 계정에 `NOPASSWD`가 있거나 sudo 암호가 캐시되어 있으면, 같은 UID의 에이전트가 `reviewgate` 홈의 pem을 `cat`한다. `bash -s`는 임의의 코드라 sudoers로 한 명령으로 좁힐 수 없다. 허용 명령은 그 래퍼 파일 하나다. 조건은 「첫 키를 넣기 전에」다.
+이 `sudo`는 소유자가 직접 실행한다. `-H`가 `HOME`을 `reviewgate`의 홈으로 둔다. `env`를 앞에 두면 sudo가 실행하는 파일은 `/usr/bin/env`이고, 허용 목록은 거절한다. 거절되면 `env`, `ALL`, `bash`로 넓히지 않는다. 비관리자 개발 계정의 허용 목록은 그 래퍼 파일 하나다. `admin` 계정은 `%admin ALL=(ALL) ALL`의 암호 장벽에 남고, 에이전트는 sudo하지 않는다. 개발 계정에 `NOPASSWD`가 있거나 sudo 암호가 캐시되어 있으면, 같은 UID의 에이전트가 `reviewgate` 홈의 pem을 `cat`한다. `bash -s`는 임의의 코드라 허용 목록으로 좁힐 수 없다. 조건은 「첫 키를 넣기 전에」다.
 
 같은 UID의 Keychain만 쓸 때(두 번째 계정 전)는 위 `sudo` 대신 아래 서브셸을 쓴다. Keychain은 원본이고, 스크립트에 넘기는 값은 그 실행의 일반 파일이다. 서브셸이 끝나면 `GH_TOKEN`은 개발 셸에 남지 않는다. 앞뒤의 `gh`는 개발 계정의 키링으로 남는다. `trap`은 서브셸이 끝날 때 임시 파일을 지운다. `rm -P`는 APFS에서 덮어쓰기를 보장하지 않는다. 보호는 파일을 지우는 것과, 그 파일이 살아있는 시간이 짧은 것이다. 서 있는 pem을 개발 홈에 두지 않는다. 그 파일이 있는 동안 같은 UID의 에이전트는 Keychain과 임시 파일을 읽는다. 봉인 트리를 그 UID가 소유하면 스크립트와 해시를 같이 고쳐 `shasum -c`가 의미가 없다. 첫 번째 배치와 같지 않다.
 
@@ -95,7 +95,7 @@ sudo -u "$GATE_USER" -H env HOME="$GATE_HOME" \
 2. Webhook은 끈다. Active를 끄면 Webhook URL이 필요 없다.
 3. 권한은 저장소의 Commit statuses: Read and write, Metadata: Read(앱의 기본값)만 켠다. Checks, Contents, Pull requests, Administration, Actions는 끄다. 계정 권한은 비운다.
 4. 설치 위치는 Only on this account. 설치가 끝나면 App ID(정수의 앱 ID, 설치 ID가 아니다)를 앱 설정 페이지에서 적는다.
-5. Private key를 하나 생성한다. 브라우저 세션은 `reviewgate`의 것이다. 개발 계정의 다운로드 폴더, 개발 홈, `/tmp`, iCloud로 받지 않는다.
+5. Private key를 하나 생성한다. 브라우저 세션은 `reviewgate`의 것이다. 개발 계정의 다운로드 폴더, 개발 홈, `/tmp`, iCloud로 받지 않는다. 키를 만든 뒤 그 브라우저에서 로그아웃하고, 세션과 다운로드를 지운다.
 
 ## 설치하는 저장소
 
@@ -125,14 +125,14 @@ sudo chmod 0700 /Users/reviewgate
 
 홈은 `0700`이고 소유자는 `reviewgate`다. 개발 UID는 그 디렉터리를 열지 못한다. 그 말은 sudo가 없을 때다.
 
-sudo 조건은 이렇다. 개발 계정에 `NOPASSWD`를 주지 않는다. `/etc/sudoers`의 `timestamp_timeout`은 0이다. 에이전트 셸에서 sudo하지 않는다. `sudo -u reviewgate bash -s`는 임의의 코드라 한 줄로 좁힐 수 없다. 허용하는 명령은 `reviewgate`가 소유한 래퍼 하나다. 같은 UID의 에이전트가 sudo를 쓸 수 있으면 pem을 읽는다.
+sudo 조건은 이렇다. 개발 계정에 `NOPASSWD`를 주지 않는다. `timestamp_timeout`은 0이다. 규칙은 `/etc/sudoers.d/review-gate`에 둔다. `sudo visudo -f /etc/sudoers.d/review-gate`로 쓰고, 모드는 `0440`이다. 에이전트 셸에서 sudo하지 않는다. `sudo -u reviewgate bash -s`는 임의의 코드라 한 줄로 좁힐 수 없다. 비관리자 개발 계정의 허용 목록은 그 래퍼 하나다. `admin`은 그 목록이 아니라 암호 장벽이다. 같은 UID의 에이전트가 sudo를 쓸 수 있으면 pem을 읽는다.
 
 ```
 Defaults timestamp_timeout=0
 <개발 계정> ALL=(reviewgate) /Users/reviewgate/.config/repo-baseline/review-gate-run
 ```
 
-`NOPASSWD:`를 붙이지 않는다. `ALL`이나 `bash`를 허용하지 않는다. 봉인을 풀 때의 `tar`는 설치할 때 소유자가 직접 실행한다. 그 줄도 `bash`가 아니다. 개발 계정이 `admin`이면 `%admin ALL=(ALL) ALL`이 따로 있다. 암호가 있으면 그 줄로 pem을 읽는다. 이 절차는 그 관리자 권한을 지우지 않는다. 막는 조건은 `NOPASSWD`가 없는 것, `timestamp_timeout=0`, 에이전트 셸에서 sudo하지 않는 것이다.
+`NOPASSWD:`를 붙이지 않는다. 그 파일에 `ALL`, `env`, `bash`를 넣지 않는다. 봉인을 풀 때의 `tar`는 설치할 때 소유자가 관리자 암호로 직접 실행한다. 그 명령을 매일의 허용 목록에 넣지 않는다. 개발 계정이 `admin`이면 `%admin ALL=(ALL) ALL`이 따로 있다. 암호가 있으면 그 줄로 pem을 읽는다. 이 절차는 그 관리자 권한을 지우지 않는다. 막는 조건은 `NOPASSWD`가 없는 것, `timestamp_timeout=0`, 에이전트 셸에서 sudo하지 않는 것이다.
 
 게이트는 체크아웃에서 실행하지 않는다. `post_review_gate.py`는 자기 파일의 상위 디렉터리 `scripts/`를 `sys.path` 앞에 넣는다. 파일 하나만 복사하면 그 경로에 `check_review_status.py`가 없어 실패하고, 체크아웃 안에서 `python3 -I tools/post_review_gate.py`를 실행하면 같은 이유로 체크아웃의 검사기를 읽는다. `python3 -I`는 `PYTHONPATH`와 스크립트 디렉터리를 `sys.path`에 넣지 않는다. 격리는 봉인 트리가 체크아웃 밖에 있고, 그 트리의 `tools/`와 `scripts/`만 있는 데서 온다.
 
@@ -237,7 +237,7 @@ chmod 0600 "$HOME/.config/repo-baseline/read-token" "$HOME/.config/repo-baseline
 
 `cat`은 토큰을 붙여 넣고 Ctrl-D로 끝낸다. 소유자는 `reviewgate`다. sudo가 없으면 개발 UID는 이 홈을 읽지 못한다. `NOPASSWD`이거나 sudo 암호가 캐시되어 있으면 그 분리는 없다. 에이전트 셸의 sudo가 pem을 읽는다. iCloud, 동기화 폴더, 저장소, Grok Bot이 쓰는 컴퓨터, 클라우드 에이전트 환경에는 복사하지 않는다. 키 내용을 환경 변수나 argv에 넣지 않는다.
 
-개발 홈을 경유하지 않는 것이 기본이다. `/Users/Shared`는 그 브라우저를 쓸 수 없을 때만 쓴다. `reviewgate`의 `rm`은 개발 계정의 `~/Downloads`를 지우지 못한다. 각 원본은 그 파일을 소유한 계정이 지운다. 복사가 끝난 뒤 둘 다 없어야 한다.
+개발 홈을 경유하지 않는 것이 기본이다. `/Users/Shared`는 그 브라우저를 쓸 수 없을 때만 쓴다. 그 경우 pem은 `rm -P` 전까지 개발 계정에 있다. 그 동안 같은 UID가 읽는다. `rm -P`는 APFS에서 덮어쓰기를 보장하지 않는다. 이 경로는 에이전트가 돌고 있지 않을 때, 소유자가 바로 지울 때만 쓴다. `reviewgate`의 `rm`은 개발 계정의 `~/Downloads`를 지우지 못한다. 각 원본은 그 파일을 소유한 계정이 지운다. 복사가 끝난 뒤 둘 다 없어야 한다.
 
 ```bash
 # 개발 셸. 소유자가 직접 한다. 에이전트 셸이 아니다.

@@ -13,11 +13,15 @@
 - `POLICY.md`는 작성 주체를 이 절로 넘기고 있어 고치지 않았다. 게이트 파일과 CI workflow는 안 바꿨다.
 - 같은 도구가 모델을 바꿔 커밋해도 `이전 작성 모델`에 이름을 모두 적는다. 검사기는 그 줄만 패밀리에 넣는다. 사람이 이전 작성자이면 `이전 작성 모델`에 `없음`을 넣지 않는다. 사람은 어느 PR에든 Security를 더 요청할 수 있다. 첫 패스·델타·한도 대체는 최종 작성과 `이전 작성 모델`의 패밀리를 모두 뺀다. 이전에 Composer가 있고 마지막이 Claude이면 Composer는 건너뛰고 Grok이다. 델타 전에 고친 diff의 신뢰 경계를 다시 본다. 수정이 외부 입력이나 권한을 더하면 첫 패스가 `해당 없음`이어도 Security를 연다. Opus가 한도라 첫 모델이 Sonnet이면 델타는 그 다음 다른 패밀리다. Composer가 부족하면 델타는 Grok 한 번이다. 다른 패밀리를 우선한다. 한도로 다른 패밀리가 없으면 먼저 기다린다. 같은 패밀리의 다른 모델은 마지막 수단이고, 그 쌍은 Opus와 Sonnet뿐이다. 같은 모델이 그 축을 다시 보는 것은 금지다. 검사기는 그 마지막 수단도 거절하므로 병합은 다른 패밀리를 기다린다.
 
+## 2026-11-06 — 게이트 sudo는 래퍼 파일을 직접 실행한다
+
+- 승인 명령은 `sudo -u reviewgate -H /Users/reviewgate/.config/repo-baseline/review-gate-run`이다. `env`를 끼우면 sudo가 `/usr/bin/env`를 실행하고 허용 목록이 거절한다. 규칙은 `sudo visudo -f /etc/sudoers.d/review-gate`로 두고 모드는 `0440`이다. 그 목록은 비관리자 개발 계정에 적용된다. `admin`은 암호 장벽이다(`docs/review-gate-app.md`).
+
 ## 2026-11-06 — 게이트 키를 reviewgate 세션으로 받고 sudo는 래퍼만 허용한다
 
 - pem은 `reviewgate` 브라우저로 받는다. 개발 홈을 경유하지 않는다. `/Users/Shared`를 쓸 때만 개발 `~/Downloads` 원본과 Shared 원본을 각자 지운다(`docs/review-gate-app.md`).
 - 두 번째 배치의 봉인 트리는 `root:wheel`이다. 개발 UID가 소유하면 해시 검사는 의미가 없다. 그 임시 파일이 있는 동안 같은 UID의 에이전트는 키를 읽는다.
-- `sudo -u reviewgate bash -s`는 쓰지 않는다. sudoers는 `review-gate-run`만 허용하고 `NOPASSWD`는 없다. `timestamp_timeout=0`이다. 에이전트 셸에서 sudo하지 않는다. sudo가 있으면 같은 UID 에이전트가 pem을 읽는다.
+- `sudo -u reviewgate bash -s`는 쓰지 않는다. 비관리자 개발 계정의 sudoers는 `review-gate-run`만 허용하고 `NOPASSWD`는 없다. `admin`은 암호 장벽이다. `timestamp_timeout=0`이다. 에이전트 셸에서 sudo하지 않는다. sudo가 있으면 같은 UID 에이전트가 pem을 읽는다.
 - `git archive`는 개발 UID로 한다. `sudo git`은 쓰지 않는다. Keychain 배치의 `GH_TOKEN`은 서브셸 안 명령에만 둔다. `rm -P`는 APFS에서 덮어쓰기를 보장하지 않는다. 해시는 `/usr/bin/shasum -a 256`이다.
 
 ## 2026-11-06 — 게이트 키는 reviewgate 홈의 일반 파일이거나 Keychain에서 꺼낸 임시 파일이다
