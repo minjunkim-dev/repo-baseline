@@ -14,24 +14,23 @@
 
 `strict`는 true다. 새 head에는 `review/gate`가 없다. 인자 SHA가 열린 PR의 현재 head와 다르면 스크립트는 올리지 않는다. 조회 실패, 키가 0600 일반 파일이 아님, `GITHUB_ACTIONS`가 설정됨은 아무것도 올리지 않는다. 근거가 실패하면 그 SHA에 `failure`를 올려 이 앱이 이전에 올린 success를 지운다. 닫힌 PR, head 불일치, 기본 브랜치가 아닌 base에는 올리지 않는다.
 
-Dependabot 버전 전용 예외는 `scripts/check_review_status.py`와 같다. 브랜치 보호는 작성자별로 빼지 못하므로 `review/gate`는 그 PR에도 필요하다. 버전·해시·Action SHA만 바꾼 Dependabot PR이면 스크립트는 두 리뷰 status 없이 success를 올린다. 다른 줄이 있으면 올리지 않고 failure다. 면제를 켜는 별도 플래그는 없다. 신뢰 경계 파일은 `uses:`의 40자 SHA 또는 `v` 태그 pin만 버전 전용이다. 짧은 해시, `\r`, 그 밖의 제어 문자, U+2028, U+2029가 있으면 버전 전용이 아니다. 작성자 쪽(REST나 web-flow로 Dependabot처럼 만든 커밋)은 아직 증명되지 않았다. 그 면제를 쓰기 전에 카나리로 확인한다.
+Dependabot 버전 전용 예외는 `scripts/check_review_status.py`와 같다. 브랜치 보호는 작성자별로 빼지 못하므로 `review/gate`는 그 PR에도 필요하다. 버전·해시·Action SHA만 바꾼 Dependabot PR이면 스크립트는 두 리뷰 status 없이 success를 올린다. 다른 줄이 있으면 올리지 않고 failure다. 면제를 켜는 별도 플래그는 없다. 신뢰 경계 파일은 `uses:`의 40자 SHA 또는 `v` 태그 pin만 버전 전용이다. 짧은 해시, `\r`, 그 밖의 제어 문자, U+2028, U+2029가 있으면 버전 전용이 아니다. `previous_filename`이 있거나 `status`가 `modified`가 아니면 버전 전용이 아니다. 워크플로 밖으로 이름을 바꾸는 pin-only diff도 면제가 아니다. 작성자 쪽(REST나 web-flow로 Dependabot처럼 만든 커밋)은 아직 증명되지 않았다. 그 면제를 쓰기 전에 카나리로 확인한다.
 
 근거 status의 이어받기는 이 게이트에 쓰지 않는다. `review/independent`와 `review/security`는 이 head에 success여야 한다. 1인 프로필에서 작성자는 저장소 소유자 또는 `STATUS_ACTORS`다. `STATUS_ACTORS`는 비어 있다. 이 앱의 로그인을 거기에 넣지 않는다. 앱은 `review/gate`만 올린다. 로그인이 `[bot]`으로 끝나면 1인·팀 모두 그 status를 받지 않는다. `github-actions[bot]`이 올린 리뷰 status는 실패다. 승인 댓글의 작성자가 `[bot]`이면 그 댓글도 승인이 아니다.
 
 ## 승인 때 Mac에서 하는 일
 
-오늘 `/tmp/approve.sh`는 `review/independent`와 `review/security`를 올리고, 되돌리기 어려움이면 댓글 `되돌리기 어려움 승인: <SHA>`를 단다. 그 다음에 이 저장소의 검토한 커밋에서 게이트를 올린다. 에이전트는 세 가지 모두를 실행하지 않는다. PR 브랜치의 스크립트 사본을 실행하지 않는다. 키를 읽는 사본은 소유자가 읽은 커밋이다.
+오늘 `/tmp/approve.sh`는 `review/independent`와 `review/security`를 올리고, 되돌리기 어려움이면 댓글 `되돌리기 어려움 승인: <SHA>`를 단다. 그 다음에 봉인 사본으로 게이트를 올린다. 체크아웃의 `python3 tools/post_review_gate.py`는 실행 경로가 아니다. 에이전트는 세 가지 모두를 실행하지 않는다.
 
-읽기 토큰은 Mac의 `gh`다. 앱 토큰은 status POST 한 번에만 쓴다.
+증거 status와 승인 댓글은 소유자 `gh` 키링으로 올린다. 그 명령 앞에 `GH_TOKEN`을 두지 않는다. 게이트 프로세스의 `GH_TOKEN`은 그 키링이 아니라, 게이트 계정의 읽기 전용 토큰이다. 앱 토큰은 status POST 한 번에만 쓴다.
 
 ```bash
 set -euo pipefail
-export GH_TOKEN="$(gh auth token)"
-export REVIEW_GATE_APP_ID="<앱 설정의 App ID>"
-export REVIEW_GATE_APP_KEY="$HOME/.config/repo-baseline/review-gate.pem"
+unset GH_TOKEN
 SHA="<현재 head의 전체 SHA>"
 REPO="minjunkim-dev/repo-baseline"
 PR="<번호>"
+SEAL="${HOME}/.config/repo-baseline/review-gate-seal"
 
 gh api "repos/${REPO}/statuses/${SHA}" -f state=success -f context=review/independent \
   -f description="<도구> <모델> 지적 <수>"
@@ -41,13 +40,27 @@ gh api "repos/${REPO}/statuses/${SHA}" -f state=success -f context=review/securi
 # 되돌리기 어려움만. 댓글을 고치지 말고 새로 단다.
 gh pr comment "$PR" --repo "$REPO" --body "되돌리기 어려움 승인: ${SHA}"
 
+# 아래 해시는 봉인 사본을 만들 때 적어 둔 값이다. 다르면 올리지 않는다.
+cd "$SEAL"
+sha256sum -c <<'EOF'
+<64자>  tools/post_review_gate.py
+<64자>  scripts/check_review_status.py
+<64자>  scripts/pr_author.py
+EOF
+
 set +e
-dry=$(python3 tools/post_review_gate.py --repo "$REPO" --pr "$PR" --sha "$SHA" --dry-run)
+dry=$(GH_TOKEN="<게이트 계정의 읽기 전용 토큰>" \
+  REVIEW_GATE_APP_ID="<앱 설정의 App ID>" \
+  REVIEW_GATE_APP_KEY="${HOME}/.config/repo-baseline/review-gate.pem" \
+  python3 -I "$SEAL/tools/post_review_gate.py" --repo "$REPO" --pr "$PR" --sha "$SHA" --dry-run)
 set -e
 printf '%s\n' "$dry"
 kind=$(printf '%s\n' "$dry" | python3 -c 'import json,sys; print(json.loads(sys.stdin.read().splitlines()[-1])["kind"])')
 if [ "$kind" = success ] || [ "$kind" = failure ]; then
-  python3 tools/post_review_gate.py --repo "$REPO" --pr "$PR" --sha "$SHA"
+  GH_TOKEN="<게이트 계정의 읽기 전용 토큰>" \
+  REVIEW_GATE_APP_ID="<앱 설정의 App ID>" \
+  REVIEW_GATE_APP_KEY="${HOME}/.config/repo-baseline/review-gate.pem" \
+  python3 -I "$SEAL/tools/post_review_gate.py" --repo "$REPO" --pr "$PR" --sha "$SHA"
 else
   echo "review gate not posted: $kind" >&2
   exit 1
@@ -83,10 +96,30 @@ fi
 
 ## 첫 키를 넣기 전에
 
-아래 둘은 첫 비밀키를 설치하기 전의 조건이다. 이 PR은 스크립트를 다시 설계하지 않는다.
+아래는 첫 비밀키를 설치하기 전의 조건이다.
 
-- `0600` 파일은 같은 UID의 로컬 프로세스가 읽는다. 키는 Keychain에 두거나, 개발 계정과 다른 macOS 계정에 둔다. 근거를 읽는 `GH_TOKEN`은 그 계정의 읽기 전용 토큰이다.
-- `tools/post_review_gate.py`는 저장소 체크아웃에서 실행하지 않는다. 저장소 밖에 둔 고정 사본을 쓰고, 그 파일의 sha256을 맞춰 둔 뒤 `python3 -I`로 실행한다. 사본의 해시를 런북에 적기 전에는 키를 연결하지 않는다.
+`0600` 파일은 같은 UID의 로컬 프로세스가 읽는다. 키는 Keychain에 두거나, 개발 계정과 다른 macOS 계정에 둔다. 게이트 프로세스가 근거를 읽는 `GH_TOKEN`은 그 계정의 읽기 전용 토큰이다. 개발 계정의 `gh auth token`을 게이트에 넘기지 않는다.
+
+게이트는 체크아웃에서 실행하지 않는다. `post_review_gate.py`는 자기 파일의 상위 디렉터리 `scripts/`를 `sys.path` 앞에 넣는다. 파일 하나만 복사하면 그 경로에 `check_review_status.py`가 없어 실패하고, 체크아웃 안에서 `python3 -I tools/post_review_gate.py`를 실행하면 같은 이유로 체크아웃의 검사기를 읽는다. `python3 -I`는 `PYTHONPATH`와 스크립트 디렉터리를 `sys.path`에 넣지 않는다. 격리는 봉인 트리가 체크아웃 밖에 있고, 그 트리의 `tools/`와 `scripts/`만 있는 데서 온다.
+
+봉인 집합은 이 세 파일이다. 경로는 저장소와 같게 둔다.
+
+| 봉인 경로 | 하는 일 |
+| --- | --- |
+| `tools/post_review_gate.py` | 토큰을 만들고 `review/gate`를 올린다 |
+| `scripts/check_review_status.py` | 근거 판정. 게이트가 이 파일만 가져온다 |
+| `scripts/pr_author.py` | 검사기가 `from pr_author import parse_author`로 읽는다 |
+
+```bash
+SEAL="${HOME}/.config/repo-baseline/review-gate-seal"
+install -d -m 0700 "$SEAL"
+git -C /path/to/repo-baseline archive <검토한 커밋> \
+  tools/post_review_gate.py scripts/check_review_status.py scripts/pr_author.py \
+  | tar -C "$SEAL" -x
+( cd "$SEAL" && sha256sum tools/post_review_gate.py scripts/check_review_status.py scripts/pr_author.py )
+```
+
+세 해시를 이 런북 밖에, 키와 같은 계정에 적는다. 실행 전에 `sha256sum -c`가 맞아야 한다. 하나라도 다르면 키를 연결하지 않는다. 해시가 적히기 전에는 키를 연결하지 않는다.
 
 ## 키를 Mac에 두기
 

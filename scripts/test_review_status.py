@@ -118,7 +118,14 @@ def api(files, statuses=(), author="alice", commits=("alice",), project=None, ch
                        "committer": {"date": f"2020-01-{(index + 1):02d}T00:00:00Z"}},
         } for index, sha in enumerate(commit_shas)]
         routes[f"repos/o/n/pulls/{number}/commits?per_page=100"] = [commit_rows]
-    pinned = list(files if compare_files is None else compare_files)
+    pinned = []
+    for entry in files if compare_files is None else compare_files:
+        entry = dict(entry)
+        # Compare always names a status. Fixtures that omit it are ordinary edits.
+        # A rename keeps previous_filename and is not rewritten into modified.
+        if "status" not in entry and not entry.get("previous_filename"):
+            entry["status"] = "modified"
+        pinned.append(entry)
     routes[f"repos/o/n/compare/{base_sha}...{head}"] = {
         "files": pinned, "commits": commit_rows if compare_commits is None else compare_commits}
     if default_branch and base_status is not None and f"{base_sha}...{default_branch}" != f"{base_sha}...{head}":
@@ -325,8 +332,31 @@ class ReviewStatusTests(unittest.TestCase):
         self.assertFalse(tool.only_versions(script[0]))
         clean = ("@@\n-  uses: actions/checkout@" + pin + " # v4.2.1\n"
                  "+  uses: actions/checkout@" + other + " # v4.2.1")
-        self.assertEqual(run(api([{"filename": ".github/workflows/ci.yml", "patch": clean}],
+        self.assertEqual(run(api([{"filename": ".github/workflows/ci.yml", "patch": clean, "status": "modified"}],
                                  author=bot, commits=[bot])), [])
+
+    def test_a_rename_with_dependabot_identity_is_not_version_only(self):
+        bot = tool.DEPENDABOT
+        renamed = {
+            "filename": "docs/ci.yml",
+            "previous_filename": ".github/workflows/ci.yml",
+            "status": "renamed",
+            "patch": BUMP,
+        }
+        self.assertFalse(tool.only_versions(renamed))
+        self.assertEqual(run(api([renamed], author=bot, commits=[bot])),
+                         [tool.INDEPENDENT, tool.SECURITY, tool.OWNER])
+        kept = {
+            "filename": ".github/workflows/ci.yml",
+            "previous_filename": ".github/workflows/old.yml",
+            "status": "renamed",
+            "patch": BUMP,
+        }
+        self.assertFalse(tool.only_versions(kept))
+        self.assertFalse(tool.only_versions({
+            "filename": ".github/workflows/ci.yml", "status": "added", "patch": BUMP}))
+        self.assertFalse(tool.only_versions({
+            "filename": ".github/workflows/ci.yml", "patch": BUMP}))
 
     def test_a_bot_login_is_not_owner_evidence(self):
         def read(endpoint):

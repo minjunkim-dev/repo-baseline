@@ -169,7 +169,7 @@ class DecideTests(unittest.TestCase):
             "-        uses: actions/checkout@" + "a" * 40 + " # v4.2.1",
             "+        uses: actions/checkout@" + "b" * 40 + " # v4.2.1",
         ])
-        files = [{"filename": ".github/workflows/check.yml", "patch": patch}]
+        files = [{"filename": ".github/workflows/check.yml", "status": "modified", "patch": patch}]
         commits = [{
             "sha": HEAD,
             "author": {"login": "dependabot[bot]"},

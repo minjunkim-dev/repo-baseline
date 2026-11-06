@@ -477,12 +477,16 @@ def _workflow_pin_only(changed):
 
 
 def only_versions(entry):
-    """True when a file's diff replaces lines with the same lines apart from version and hash values.
-    A trust-boundary file passes only as a workflow whose changed lines are uses: pins."""
+    """True when a modified file's diff replaces lines with the same lines apart from version and hash values.
+    A rename (previous_filename) or any status other than modified is not version-only, even when the
+    patch is only a uses: pin. A trust-boundary file passes only as a workflow whose changed lines are uses: pins."""
+    if entry.get("previous_filename"):
+        return False
+    if entry.get("status") != "modified":
+        return False
     name = entry.get("filename") or ""
-    previous = entry.get("previous_filename") or ""
-    is_workflow = name.startswith(".github/workflows/") or previous.startswith(".github/workflows/")
-    if (_on_trust_boundary(name) or _on_trust_boundary(previous)) and not is_workflow:
+    is_workflow = name.startswith(".github/workflows/")
+    if _on_trust_boundary(name) and not is_workflow:
         return False
     if not is_workflow and not matches(name, DEPENDENCY_FILES):
         return False
