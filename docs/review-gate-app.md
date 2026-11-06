@@ -83,7 +83,7 @@ ls -l "$HOME/.config/repo-baseline/review-gate.pem"
 
 모드는 `0600`이고 소유자는 로그인 사용자다. iCloud, 동기화 폴더, 저장소, Grok Bot이 쓰는 컴퓨터, 클라우드 에이전트 환경에는 복사하지 않는다. `REVIEW_GATE_APP_KEY`만 경로를 받는다. 키 내용을 환경 변수나 argv에 넣지 않는다.
 
-확인: 버린 브랜치의, 어떤 PR head도 아닌 커밋 SHA에 `--dry-run`이 아닌 실행으로 `failure`를 올려 앱 이름으로 보이는지 보고, 그 SHA는 그대로 둔다. 기본 브랜치에는 올리지 않는다.
+확인: 버린 브랜치에 열린 Draft PR을 만든다. 본문에 리뷰 근거를 채우지 않는다. 그 PR의 현재 head에 `--dry-run` 없이 실행하면 스크립트가 그 SHA에 `failure`를 올린다. 앱 이름으로 보이는지 본 뒤 PR을 닫는다. 기본 브랜치와, 리뷰 근거가 있는 PR에는 이 확인을 하지 않는다. head가 아닌 SHA에는 스크립트가 올리지 않는다.
 
 ## 기준선에 App ID 넣기
 
@@ -112,7 +112,7 @@ python3 tools/apply_github_settings.py .
 
 앱 ID는 키를 바꿔도 그대로다. 보호의 `app_id`는 키 교체만으로 바꾸지 않는다.
 
-교체: 앱 설정에서 새 private key를 만든다. 새 파일을 서버 또는 Mac의 0600 경로에 넣는다. `post_review_gate.py --dry-run` 뒤 버린 커밋에 failure를 올려 새 키가 동작하는지 본다. 그 다음 앱 설정에서 이전 키를 지우고, 디스크의 이전 pem을 지운다. 이전 키로 만든 installation token은 만료된다. 이미 올라가 있는 status는 지워지지 않는다.
+교체: 앱 설정에서 새 private key를 만든다. 새 파일을 서버 또는 Mac의 0600 경로에 넣는다. 위 확인과 같이, 근거가 없는 열린 Draft PR의 현재 head에 `failure`를 올려 새 키가 동작하는지 본다. 그 다음 앱 설정에서 이전 키를 지우고, 디스크의 이전 pem을 지운다. 이전 키로 만든 installation token은 만료된다. 이미 올라가 있는 status는 지워지지 않는다.
 
 폐기: 게이트를 올리는 일을 멈춘다. pem을 지운다. GitHub에서 키를 지우고, 필요하면 앱 설치를 제거한다. 설치를 빼면 새 `review/gate`를 올리지 못한다. 필수 체크로 남아 있으면 병합은 막힌다. 그것이 실패 닫힘이다. 보호에서 `review/gate`를 빼려면 기준선의 정수를 유지한 채 그 항목을 삭제한 별도 PR을 병합하고, 소유자가 계획을 본 뒤 적용한다. 15368이 `review/gate`를 충족하게 바꾸지 않는다.
 
