@@ -411,19 +411,20 @@ class ReviewStatusTests(unittest.TestCase):
             tool.missing("o/n", "1", HEAD, "BASE", old_gate),
             [tool.INDEPENDENT, tool.SECURITY, tool.OWNER])
 
-    def test_comment_edit_fields_come_from_graphql(self):
-        self.assertIsNone(tool.comment_list_target("repos/o/n"))
-        self.assertEqual(tool.comment_list_target("repos/o/n/issues/12/comments?per_page=100"), ("o/n", "12"))
-        node = {"author": {"login": "Owner"}, "body": "x", "createdAt": "t", "updatedAt": "t",
-                "lastEditedAt": None, "includesCreatedEdit": False}
-        self.assertEqual(tool.comment_record(node)["last_edited_at"], None)
-        self.assertFalse(tool.comment_record(node)["includes_created_edit"])
-        edited = dict(node, lastEditedAt="t", includesCreatedEdit=True)
-        self.assertEqual(tool.comment_record(edited)["last_edited_at"], "t")
-        self.assertTrue(tool.comment_record(edited)["includes_created_edit"])
-        for broken in ({}, {"lastEditedAt": None}, {"includesCreatedEdit": False}):
-            with self.assertRaises(ValueError):
-                tool.comment_record(broken)
+    def test_owner_approval_uses_rest_timestamps_only(self):
+        fresh = "2020-01-01T00:00:00Z"
+        body = f"되돌리기 어려움 승인: {HEAD}"
+        self.assertTrue(tool.comment_unedited(comment(body, created_at=fresh, updated_at=fresh)))
+        self.assertTrue(tool.comment_unedited(
+            comment(body, last_edited_at=fresh, includes_created_edit=True)))
+        self.assertTrue(tool.comment_unedited(comment(body, omit_edit=True)))
+        self.assertFalse(tool.comment_unedited(comment(body, updated_at="2020-01-02T00:00:00Z")))
+        self.assertFalse(tool.comment_unedited(comment(body, omit_times=True)))
+        self.assertFalse(tool.comment_unedited(comment(body, updated_at="2020-01-01T00:00:00+00:00")))
+        source = Path(tool.__file__).read_text(encoding="utf-8")
+        self.assertNotIn("graphql", source)
+        self.assertNotIn("lastEditedAt", source)
+        self.assertFalse(hasattr(tool, "approval_comment_pages"))
 
     def test_owner_comment_matches_only_this_head(self):
         head = "a" * 40
@@ -440,9 +441,9 @@ class ReviewStatusTests(unittest.TestCase):
         check([comment(f"되돌리기 어려움 승인: {head}", created_at=fresh, updated_at=fresh)], [])
         check([comment(f"한쪽 문 승인: {head}", created_at=fresh, updated_at=fresh)], [])
         check([comment(f"되돌리기 어려움 승인: {head}", updated_at="2020-01-02T00:00:00Z")], [tool.OWNER])
-        check([comment(f"되돌리기 어려움 승인: {head}", last_edited_at=fresh)], [tool.OWNER])
-        check([comment(f"한쪽 문 승인: {head}", includes_created_edit=True)], [tool.OWNER])
-        check([comment(f"되돌리기 어려움 승인: {head}", omit_edit=True)], [tool.OWNER])
+        check([comment(f"되돌리기 어려움 승인: {head}", last_edited_at=fresh)], [])
+        check([comment(f"한쪽 문 승인: {head}", includes_created_edit=True)], [])
+        check([comment(f"되돌리기 어려움 승인: {head}", omit_edit=True)], [])
         check([comment(f"한쪽 문 승인: {head}", updated_at="2020-01-01T00:00:00+00:00")], [tool.OWNER])
         check([comment(f"되돌리기 어려움 승인: {head}", omit_times=True)], [tool.OWNER])
         check([

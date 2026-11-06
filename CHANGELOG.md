@@ -2,6 +2,14 @@
 
 리뷰 모델의 현행은 「2026-11-06 — 역할 분담: 클라우드 기본, 활성 로스터」다. 그 아래의 리뷰 모델 절은 그 커밋 당시의 기록이다.
 
+## 2026-11-06 — 승인 댓글 편집 감지와 댓글 재실행을 줄인다
+
+- `scripts/check_review_status.py`: 승인 댓글은 REST `updated_at`이 `created_at`과 같은 문자열일 때만 인정한다. GraphQL `lastEditedAt`·`includesCreatedEdit`는 보지 않는다. REST 시각은 초 단위라 같은 초 편집은 구분하지 않는다. 하드 도어의 SHA 전체 댓글 요구는 그대로다. 댓글을 고치지 말고 새 댓글을 단다.
+- `templates/review-status.yml`과 `.github/workflows/review-status.yml`: `issue_comment` 트리거와 재실행 job을 뺐다. `scripts/rerun_review_status.py`는 삭제했다. 승인 댓글은 `Review status`와 `review/gate`를 자동으로 다시 돌리지 않는다. 새 댓글 뒤에 그 head의 `Review status`를 직접 다시 돌리거나 `tools/post_review_gate.py`로 게이트를 다시 올린다.
+- `tools/post_review_gate.py`: 승인 댓글은 REST GET으로 읽는다. `POST /graphql`은 쓰지 않는다.
+- 이벤트 정책 템플릿은 `issue_comment` 허용을 남겨 둔다. 그 허용은 구독이 아니다. 필수 체크와 `.github/repository-settings.json`은 바꾸지 않는다. 이 변경은 branch protection을 쓰지 않는다.
+- 다시 적용할 프로젝트: smallnext, BGLike, mobile-runtime. `scripts/check_review_status.py`, `scripts/test_review_status.py`를 `tools/apply_baseline.py`로 다시 복사한다. `templates/review-status.yml`을 `.github/workflows/review-status.yml`로 다시 복사한다. 소비 저장소의 `scripts/rerun_review_status.py`는 지운다. `tools/post_review_gate.py`는 복사하지 않는다. 카나리 E는 다시 열지 않는다. `.github/repository-settings.json`의 필수 체크는 그대로다.
+
 ## 2026-11-06 — 트렁크와 선택적 피처 플래그
 
 - `docs/development-workflow.md`: 트렁크를 적었다. 기준 브랜치는 `main` 하나다. 작업 브랜치는 짧다. 병합은 squash만이고 병합하면 브랜치를 지운다. GitFlow의 `develop` 브랜치와 `release` 브랜치는 두지 않는다. 끝나지 않은 작업은 꺼진 피처 플래그로 `main`에 둔다.

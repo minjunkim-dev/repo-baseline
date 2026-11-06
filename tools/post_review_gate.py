@@ -138,7 +138,7 @@ def _headers(token, accept=ACCEPT, json_body=False):
 
 
 class Reader:
-    """GET/GraphQL with the read token. 404 and 406 raise CalledProcessError so the checker can branch."""
+    """REST GET with the read token. 404 and 406 raise CalledProcessError so the checker can branch."""
 
     def __init__(self, base, token, request):
         self.base = base.rstrip("/")
@@ -158,9 +158,6 @@ class Reader:
         return (json.loads(text) if text else None), headers
 
     def read(self, endpoint):
-        comments = review.comment_list_target(endpoint)
-        if comments is not None:
-            return self._comments(*comments)
         if "per_page" in endpoint:
             return self._pages("/" + endpoint)
         payload, _ = self._json("GET", "/" + endpoint)
@@ -175,33 +172,6 @@ class Reader:
             pages.append(payload)
             path = self._next_link(headers.get("Link") or headers.get("link"))
         return pages
-
-    def _comments(self, repo, number):
-        owner, name = repo.split("/", 1)
-        query = (
-            "query($owner:String!,$name:String!,$number:Int!,$cursor:String){"
-            "repository(owner:$owner,name:$name){pullRequest(number:$number){"
-            "comments(first:100,after:$cursor){nodes{author{login} body createdAt updatedAt "
-            "lastEditedAt includesCreatedEdit}pageInfo{hasNextPage endCursor}}}}}"
-        )
-        pages = []
-        cursor = None
-        for _ in range(20):
-            variables = {"owner": owner, "name": name, "number": int(number), "cursor": cursor}
-            payload, _ = self._json("POST", "/graphql", {"query": query, "variables": variables})
-            try:
-                connection = payload["data"]["repository"]["pullRequest"]["comments"]
-                nodes = connection["nodes"]
-                info = connection["pageInfo"]
-            except (TypeError, KeyError):
-                raise ValueError("approval comments") from None
-            pages.append([review.comment_record(node) for node in nodes])
-            if not info.get("hasNextPage"):
-                return pages
-            cursor = info.get("endCursor")
-            if not isinstance(cursor, str) or cursor == "":
-                raise ValueError("approval comments")
-        raise ValueError("approval comments")
 
     def _next_link(self, header):
         if not isinstance(header, str):
