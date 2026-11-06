@@ -3,7 +3,7 @@
 import base64
 from contextlib import redirect_stdout
 import hashlib
-from io import StringIO
+from io import BytesIO, StringIO, TextIOWrapper
 import os
 from pathlib import Path
 import subprocess
@@ -848,6 +848,10 @@ jobs:
             "+b\n"
             "rename to package.json\n"
         )
+        # text=True on read_diff_api uses universal newlines, so the CR becomes its own line.
+        normalized = TextIOWrapper(BytesIO(raw.encode("utf-8")), encoding="utf-8", newline=None).read()
+        self.assertEqual(normalized, injected)
+        self.assertNotIn("\r", normalized)
         stable = "e" * 40
         read = api([{"filename": "src/app.py"}], commit_shas=["OLD", HEAD], extra_status={"OLD": [OK]},
                    force_pushes=[],
@@ -855,10 +859,12 @@ jobs:
                           HEAD: {"src/app.py": OTHER, "package.json": stable}})
         self.assertEqual(tool.changed_blobs("o/n", HEAD, raw, read), {"src/app.py": OTHER})
         self.assertIsNotNone(tool.diff_identity(raw, {"src/app.py": OTHER}))
-        self.assertIsNone(tool.diff_identity(injected, {"src/app.py": OTHER, "package.json": stable}))
-        self.assertRaises(ValueError, tool.changed_blobs, "o/n", HEAD, injected, read)
+        self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", read, diffs({"OLD": raw, HEAD: raw})),
+                         [tool.INDEPENDENT])
+        self.assertIsNone(tool.diff_identity(normalized, {"src/app.py": OTHER, "package.json": stable}))
+        self.assertRaises(ValueError, tool.changed_blobs, "o/n", HEAD, normalized, read)
         self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", read,
-                                      diffs({"OLD": injected, HEAD: injected})),
+                                      diffs({"OLD": normalized, HEAD: normalized})),
                          [tool.INDEPENDENT])
 
     def test_a_copy_carries_only_when_changed_blobs_reads_copy_to(self):
@@ -924,6 +930,9 @@ jobs:
             return {"truncated": False, "tree": planted}
 
         self.assertEqual(tool.path_oids("o/n", HEAD, ["src/app.py"], base)["src/app.py"], BLOB)
+        clean = tool.changed_blobs("o/n", HEAD, ADDED, base)
+        self.assertEqual(clean, {"src/app.py": BLOB})
+        self.assertEqual(tool.diff_identity(ADDED, clean), tool.diff_identity(ADDED, {"src/app.py": BLOB}))
         self.assertRaises(ValueError, tool.path_oids, "o/n", HEAD, ["src/app.py"], slash)
         self.assertRaises(ValueError, tool.changed_blobs, "o/n", HEAD, ADDED, slash)
         self.assertEqual(tool.missing("o/n", "1", HEAD, "BASE", slash, diffs({"OLD": ADDED, HEAD: ADDED})),
