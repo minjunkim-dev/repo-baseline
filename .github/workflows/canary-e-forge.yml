@@ -1,0 +1,136 @@
+# CANARY E — DO NOT MERGE
+# This workflow exists only to test whether GITHUB_TOKEN can create a check run
+# named "Review status". It does not change review-status.yml or the gate scripts.
+name: Canary E forge
+
+on:
+  pull_request:
+
+permissions:
+  checks: write
+  contents: read
+
+jobs:
+  forge-after:
+    name: forge-after
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Forge Review status after the real check completes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import time
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+
+          token = os.environ["GH_TOKEN"]
+          repo = os.environ["REPO"]
+          head = os.environ["HEAD_SHA"]
+          pr = os.environ["PR_NUMBER"]
+          api = f"https://api.github.com/repos/{repo}"
+
+          def request(method, url, body=None):
+              data = None if body is None else json.dumps(body).encode()
+              req = urllib.request.Request(url, data=data, method=method)
+              req.add_header("Authorization", f"Bearer {token}")
+              req.add_header("Accept", "application/vnd.github+json")
+              req.add_header("X-GitHub-Api-Version", "2022-11-28")
+              if body is not None:
+                  req.add_header("Content-Type", "application/json")
+              try:
+                  with urllib.request.urlopen(req) as resp:
+                      return resp.status, resp.read().decode()
+              except urllib.error.HTTPError as err:
+                  return err.code, err.read().decode()
+
+          def list_runs(label):
+              query = urllib.parse.urlencode({
+                  "check_name": "Review status",
+                  "filter": "all",
+                  "per_page": "100",
+              })
+              status, raw = request("GET", f"{api}/commits/{head}/check-runs?{query}")
+              print(f"{label} http={status}")
+              if status != 200:
+                  print(raw[:4000])
+                  return []
+              runs = json.loads(raw).get("check_runs") or []
+              for run in runs:
+                  app = run.get("app") or {}
+                  print(
+                      "REVIEW_STATUS_RUN"
+                      f" id={run.get('id')}"
+                      f" app.id={app.get('id')}"
+                      f" app.slug={app.get('slug')}"
+                      f" status={run.get('status')}"
+                      f" conclusion={run.get('conclusion')}"
+                      f" completed_at={run.get('completed_at')}"
+                  )
+              return runs
+
+          print(f"head_sha={head}")
+          deadline = time.time() + 600
+          ready = False
+          while time.time() < deadline:
+              runs = list_runs("poll")
+              if any(run.get("status") == "completed" for run in runs):
+                  ready = True
+                  break
+              time.sleep(15)
+          if not ready:
+              print("timeout waiting for a completed Review status check run")
+              raise SystemExit(1)
+
+          now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+          payload = {
+              "name": "Review status",
+              "head_sha": head,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": now,
+              "completed_at": now,
+              "output": {
+                  "title": "CANARY E forged",
+                  "summary": "CANARY E — DO NOT MERGE. Forged Review status check run.",
+              },
+          }
+          status, raw = request("POST", f"{api}/check-runs", payload)
+          print(f"post_http={status}")
+          print(raw[:4000])
+          try:
+              data = json.loads(raw)
+          except json.JSONDecodeError:
+              data = {}
+          app = data.get("app") or {}
+          print(f"FORGED id={data.get('id')} app.id={app.get('id')} app.slug={app.get('slug')}")
+          message = data.get("message")
+          if message:
+              print(f"post_message={message}")
+
+          print("--- review status runs after post ---")
+          list_runs("after")
+
+          for _ in range(12):
+              pull_status, pull_raw = request("GET", f"{api}/pulls/{pr}")
+              print(f"pull_http={pull_status}")
+              if pull_status != 200:
+                  print(pull_raw[:2000])
+                  break
+              pull = json.loads(pull_raw)
+              state = pull.get("mergeable_state")
+              print(f"MERGEABLE mergeable={pull.get('mergeable')} mergeable_state={state}")
+              if state not in (None, "unknown"):
+                  break
+              time.sleep(10)
+
+          if status != 201:
+              raise SystemExit(1)
+          PY
