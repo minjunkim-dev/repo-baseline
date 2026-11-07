@@ -3,6 +3,8 @@
 1인 개발과 소규모 팀(2~6명) 저장소의 GitHub 설정·CI 기준을 한 곳에서 관리하는 원본 저장소다. 두 프로필의 차이는 `POLICY.md` §9에 있고, 기본은 1인 프로필이다.
 새 프로젝트를 셋업하거나 기존 프로젝트를 다시 맞출 때 같은 결과가 나오게 한다.
 
+언어와 스택이 달라도 바로 시작하는 경로는 [새 프로젝트 시작](docs/start.md)이다. 그때 복사하는 목록은 `templates/repo-baseline.core.json`이다. 이미 전체 manifest를 쓰는 저장소는 그 파일로 바꾸지 않는다. 이 저장소의 GitHub 보호, `review/gate`, 필수 체크는 그대로다.
+
 ## 구조
 
 | 경로 | 역할 | 프로젝트로 복사 |
@@ -12,7 +14,9 @@
 | `prompts/pr-ci-setup.md` | 문서·CI·리뷰·병합 절차 | 아니요. 에이전트 채팅에 첨부한다 |
 | `prompts/weekly-check.md` | 적용 중인 프로젝트의 주간 읽기 전용 점검 | 아니요. 이 저장소에서 에이전트에게 준다 |
 | `templates/dependabot.yml`, `templates/dependabot-ecosystem.yml` | Dependabot 설정 원본 | 예. manifest의 `ecosystems` 목록으로 `.github/dependabot.yml`을 생성한다 |
-| `templates/repo-baseline.json` | 복사 목록(manifest) 시작점 | 예. `.github/repo-baseline.json`으로 둔다 |
+| `templates/repo-baseline.json` | GitHub 프로필의 복사 목록(manifest) | 예. 그 프로필을 켤 때 `.github/repo-baseline.json`으로 둔다. 코어 목록으로 덮어쓰지 않는다 |
+| `templates/repo-baseline.core.json` | 해시 검사와 PR 본문 양식만 있는 첫 복사 목록 | 예. 새 프로젝트의 첫 manifest. 절차는 `docs/start.md` |
+| `docs/start.md` | 언어와 무관한 시작 절차 | 아니요. 읽고 따른다 |
 | `templates/repository-settings.json` | GitHub 설정 기준선 시작점(1인 프로필 값) | 예. `.github/repository-settings.json`으로 두고 `REPLACE` 값과 저장소 정보를 채운다. 팀 프로필은 `POLICY.md` §9의 값으로 바꾼다 |
 | `templates/review-status.yml` | 리뷰 status를 경로로 검사하는 workflow | 예. `.github/workflows/review-status.yml`로 둔다. 프로젝트 파일이라 해시로 검사하지 않고 Dependabot이 pin을 올린다 |
 | `templates/pr-policy.yml` | PR 제목·브랜치·본문 양식을 검사하는 workflow | 예. `.github/workflows/pr-policy.yml`로 둔다. 프로젝트 파일이라 해시로 검사하지 않는다 |
@@ -31,7 +35,9 @@
 
 ## 새 프로젝트에 적용
 
-1. `templates/repo-baseline.json`을 프로젝트의 `.github/repo-baseline.json`으로 복사한다.
+이 절은 GitHub 프로필이다. 언어만 맞추는 첫 복사는 `docs/start.md`의 `templates/repo-baseline.core.json`이다. 게이트, Actions 이벤트 정책, 전용 앱, 서버 설정 쓰기는 이 절에 있으며 소유자 승인 없이 적용하지 않는다. 이미 전체 manifest가 있으면 코어 파일로 바꾸지 않는다.
+
+1. `templates/repo-baseline.json`을 프로젝트의 `.github/repo-baseline.json`으로 복사한다. 코어 manifest를 이미 둔 프로젝트는 이 파일에만 있는 항목을 더한다. 통째로 교체해 해시 대상을 줄이지 않는다.
 2. `templates/claude-settings.json`을 프로젝트의 `.claude/settings.json`으로 둔다. 이미 있으면 합친다.
    공개 저장소는 `review-status.yml`을 기본 브랜치에 병합하기 전에 Actions 이벤트 정책을 만든다. 비공개 저장소는 이 단락을 건너뛴다. 이 저장소 루트에서, 대상 프로젝트의 `OWNER/NAME`으로 실행한다. 쓰기는 저장소 관리자 승인을 받는다. 먼저 조회하고, 같은 workflow 경로에 `pull_request_target`과 `issue_comment`만 허용하는 정책이 있으면 다시 만들지 않는다. PUT은 `source_type`이 Repository이고 `workflow_path.include`가 `.github/workflows/review-status.yml`뿐인 정책만 한다. 더 넓은 대상은 PUT하지 않는다. `include`의 glob이 그 파일에 맞으면 그 정책의 대상이다. `*`는 `/`를 넘지 않고 `**`는 넘는다. 그 파일을 `pull_request_target`만 허용하는 상위 정책이나 더 넓은 정책이 있으면 명령이 실패한다. 패턴을 판별할 수 없으면 POST하지 않고 멈춘다.
 

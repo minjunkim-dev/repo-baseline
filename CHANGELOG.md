@@ -17,6 +17,13 @@ Dependabot 현행은 「2026-11-06 — Dependabot PR은 다른 PR과 같다」�
 - Dependabot의 `scripts/workflow_policy.py` 본문 건너뜀은 근거 표의 작성 기록을 빼지 않는다. 버전 전용 예외는 없다.
 - 필수 체크와 `review/gate` `app_id` 5641238은 바꾸지 않는다.
 
+## 2026-11-07 — 언어와 무관한 시작과 코어 복사 목록
+
+- `docs/start.md`: 새 프로젝트의 공통 순서. 완료 기준은 Matt spec·ticket이다. `eval.md`를 요구하지 않는다. 검증자와 리뷰어를 나눈다. 명령 네 칸은 프로젝트 스택이고, 없으면 `N/A`다. 리뷰 라운드 상한 3은 유지한다. 병합 큐·단계 배포·상시 감시는 선택이다.
+- `templates/repo-baseline.core.json`: 해시 검사와 PR 본문 양식만 복사한다. `templates/repo-baseline.json` 전체는 GitHub 프로필로 남는다. 기존 manifest를 코어 파일로 바꾸지 않는다.
+- 게이트 파일, `.github/repository-settings.json`, `review/gate` `app_id` 5641238, 검사기 동작은 바꾸지 않는다. 서버 설정과 앱은 적용하지 않는다.
+- 다시 적용: 새 프로젝트만 코어 목록으로 시작할 수 있다. smallnext, BGLike, mobile-runtime은 기존 manifest를 유지한다. 이 변경은 그 저장소에 복사할 검사기 변경이 없다.
+
 ## 2026-11-06 — Security 근거는 경로로 정한다
 
 - `scripts/check_review_status.py`: 공통 경로, 의존성 파일 이름, 기준 브랜치의 `.github/trust-boundary-paths`에 걸리면 Security 칸의 `해당 없음`은 실패다. compare가 목록을 주지 않거나 경로 이름이 없으면 실패다. 그 파일 읽기가 404가 아닌 오류면 확인 불가다. 버그 찾기의 `해당 없음`은 그대로다. `review/independent`와 `review/security` status는 읽지 않는다.

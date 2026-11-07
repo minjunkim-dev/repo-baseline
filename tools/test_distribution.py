@@ -26,6 +26,94 @@ class DistributionTests(unittest.TestCase):
         template = (ROOT / "templates/dependabot.yml").read_text(encoding="utf-8").splitlines()
         self.assertEqual(own[1:], template[1:])
 
+    def test_core_manifest_is_a_subset_and_leaves_a_full_project_in_place(self):
+        full = json.loads((ROOT / "templates/repo-baseline.json").read_text(encoding="utf-8"))
+        core = json.loads((ROOT / "templates/repo-baseline.core.json").read_text(encoding="utf-8"))
+        self.assertEqual(set(core), {"files"})
+        self.assertTrue(core["files"])
+        self.assertLess(set(core["files"]), set(full["files"]))
+        for name, entry in core["files"].items():
+            self.assertEqual(full["files"][name], entry)
+            self.assertTrue((ROOT / entry["source"]).is_file())
+        for optional in (
+            "scripts/check_github_settings.py",
+            "scripts/check_review_status.py",
+            "scripts/workflow_policy.py",
+            "scripts/pr_author.py",
+            ".agents/skills/matt-code-review/SKILL.md",
+            ".claude/skills/matt-code-review/SKILL.md",
+            ".github/dependabot.yml",
+        ):
+            self.assertIn(optional, full["files"])
+            self.assertNotIn(optional, core["files"])
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        start = (ROOT / "docs/start.md").read_text(encoding="utf-8")
+        self.assertIn("docs/start.md", readme)
+        self.assertIn("templates/repo-baseline.core.json", readme)
+        self.assertIn("이미 전체 manifest가 있으면 코어 파일로 바꾸지 않는다.", readme)
+        self.assertIn("python3 tools/review_status_policy.py", readme)
+        self.assertIn("eval.md", start)
+        self.assertIn("라운드 상한은 3", start)
+        self.assertIn("코어 파일로 manifest를 바꾸지 않는다", start)
+
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            source = root / "source"
+            source.mkdir()
+            paths = self.run_command("git", "ls-files", "--cached", "--others", "--exclude-standard", "-z", cwd=ROOT)
+            for name in set(paths.split("\0")) - {""}:
+                path = ROOT / name
+                if path.is_file():
+                    target = source / name
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copyfile(path, target)
+            self.run_command("git", "init", "--quiet", cwd=source)
+            self.run_command("git", "add", ".", cwd=source)
+            self.run_command(
+                "git", "-c", "user.name=Baseline test", "-c", "user.email=test@example.invalid",
+                "-c", "core.hooksPath=/dev/null", "-c", "commit.gpgsign=false",
+                "commit", "--quiet", "-m", "Fixture snapshot", cwd=source)
+
+            def install(manifest_name, label):
+                project = root / label
+                (project / ".github").mkdir(parents=True)
+                shutil.copyfile(source / "templates" / manifest_name, project / ".github/repo-baseline.json")
+                apply = (sys.executable, str(source / "tools/apply_baseline.py"), str(project))
+                self.run_command(*apply, cwd=source)
+                return project, apply
+
+            core_project, core_apply = install("repo-baseline.core.json", "core")
+            for absent in (
+                "package.json", "Cargo.toml", "go.mod", "pyproject.toml", "requirements.txt",
+                "scripts/check_github_settings.py", "scripts/check_review_status.py",
+                "scripts/workflow_policy.py", ".github/workflows", ".github/dependabot.yml",
+                ".claude/settings.json",
+            ):
+                self.assertFalse((core_project / absent).exists(), absent)
+            self.run_command(sys.executable, "-m", "unittest", "discover", "-s", "scripts", "-p", "test_*.py", cwd=core_project)
+            self.run_command(sys.executable, str(core_project / "scripts/check_repo_baseline.py"), cwd=core_project)
+            (core_project / "docs").mkdir()
+            (core_project / "docs/checks.md").write_text(
+                "setup: N/A 도구 없음\ncheck: true\ntest: N/A 제품 테스트 없음\nbuild: N/A 산출물 없음\n",
+                encoding="utf-8")
+            self.run_command("true", cwd=core_project)
+            checked = self.run_command(*core_apply, "--check", cwd=source)
+            self.assertIn("SAME", checked)
+            checks = (core_project / "docs/checks.md").read_text(encoding="utf-8")
+            for label in ("setup: N/A", "check: true", "test: N/A", "build: N/A"):
+                self.assertIn(label, checks)
+
+            full_project, full_apply = install("repo-baseline.json", "full")
+            self.assertTrue((full_project / "scripts/check_github_settings.py").is_file())
+            self.assertTrue((full_project / "scripts/check_review_status.py").is_file())
+            (full_project / "KEEP.txt").write_text("project-local\n", encoding="utf-8")
+            self.run_command(*full_apply, cwd=source)
+            self.assertEqual((full_project / "KEEP.txt").read_text(encoding="utf-8"), "project-local\n")
+            manifest = json.loads((full_project / ".github/repo-baseline.json").read_text(encoding="utf-8"))
+            self.assertIn("scripts/check_review_status.py", manifest["files"])
+            self.assertIn("scripts/check_github_settings.py", manifest["files"])
+            self.assertIn(".github/dependabot.yml", manifest["files"])
+
     def test_fresh_install_copied_tests_provenance_drift_and_repair(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
