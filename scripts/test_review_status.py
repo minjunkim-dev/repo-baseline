@@ -764,6 +764,11 @@ class SameFamilyExceptionTests(unittest.TestCase):
         self.assertTrue(tool.proven_different("grok-4.7", "cursor-grok-4.6"))
         self.assertTrue(tool.proven_different("Sonnet 5.5", "Opus 5.5"))
         self.assertFalse(tool.proven_different("Haiku", "claude-haiku-4-5"))
+        self.assertEqual(tool.model_identity("Opus 4.5"), ("opus", (4, 5)))
+        self.assertEqual(tool.model_identity("claude-opus-4-5-20251101"), ("opus", (4, 5, 20251101)))
+        self.assertFalse(tool.proven_different("Opus 4.5", "claude-opus-4-5-20251101"))
+        self.assertTrue(tool.proven_different("Opus 4.5", "Opus 4.6"))
+        self.assertTrue(tool.proven_different("claude-opus-4-5-20251101", "claude-opus-4-6-20251101"))
         self.assertIsNone(tool.model_identity("not-a-model"))
 
     def test_a_different_model_in_the_same_family_passes_only_with_the_record(self):
@@ -796,6 +801,10 @@ class SameFamilyExceptionTests(unittest.TestCase):
 
     def test_the_same_model_or_the_same_agent_does_not_pass(self):
         head = HEAD
+        dated = same_family_body(head, author="Opus 4.5", review="claude-opus-4-5-20251101")
+        dated_problems = tool.evidence_problems(dated, head)
+        self.assertIn("same-model", dated_problems)
+        self.assertIn("same-family", dated_problems)
         renamed = same_family_body(head, author="Opus 5.5", review="claude-opus-5-5-high")
         self.assertIn("same-model", tool.evidence_problems(renamed, head))
         self.assertIn("same-family", tool.evidence_problems(renamed, head))

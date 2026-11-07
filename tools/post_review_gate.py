@@ -480,6 +480,7 @@ def evidence_snapshot(body, head, comment_pages, owner):
         "previous": list(previous),
         "rows": canonical,
         "exceptions": review.exception_blocks(text[:review.BODY_LIMIT]),
+        "door": review.door_kind(text[:review.BODY_LIMIT]),
         "approvals": approvals,
     }
     raw = json.dumps(payload, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode()

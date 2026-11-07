@@ -386,14 +386,18 @@ def proven_same(left, right):
 def proven_different(left, right):
     """True only when both names identify one line and those identities differ.
 
-    A missing identity, or the same line with a missing version, is not proof of a
-    different model. The checker does not fill in a version from anywhere else."""
+    A missing identity, a missing version, or a version tuple that is only a prefix
+    of the other is not proof of a different model. A date or build number appended
+    to the same components does not make a second model. The checker does not fill
+    in a version from anywhere else."""
     left_id, right_id = model_identity(left), model_identity(right)
     if left_id is None or right_id is None or left_id[0] != right_id[0]:
         return left_id is not None and right_id is not None and left_id[0] != right_id[0]
-    if not left_id[1] or not right_id[1]:
+    left_version, right_version = left_id[1], right_id[1]
+    if not left_version or not right_version:
         return False
-    return left_id[1] != right_id[1]
+    shared = min(len(left_version), len(right_version))
+    return left_version[:shared] != right_version[:shared]
 
 
 def family_label(value):

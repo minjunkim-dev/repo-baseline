@@ -191,6 +191,12 @@ class DecideTests(unittest.TestCase):
         second = gate.evidence_snapshot(other, HEAD, [], OWNER)
         self.assertNotEqual(first[0]["exceptions"], second[0]["exceptions"])
         self.assertNotEqual(first[1], second[1])
+        easy = body.replace("Door: 되돌리기 어려움", "Door: 되돌리기 쉬움", 1)
+        hard = gate.evidence_snapshot(body, HEAD, [], OWNER)
+        soft = gate.evidence_snapshot(easy, HEAD, [], OWNER)
+        self.assertEqual(hard[0]["door"], "hard")
+        self.assertEqual(soft[0]["door"], "easy")
+        self.assertNotEqual(hard[1], soft[1])
 
     def test_same_family_evidence_fails_and_an_actions_status_does_not(self):
         files = [{"filename": "README.md", "patch": "@@\n-a\n+b\n"}]
