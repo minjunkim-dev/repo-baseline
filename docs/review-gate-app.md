@@ -72,7 +72,7 @@ git reset --hard "origin/main"
 
 1. **검토한 head SHA를 변수에 고정**한다(아래 `SHA`). PR이 갱신되면 다시 읽어 바꾼다.
 2. `review/independent`와 `review/security`는 올리지 않아도 된다. 참고로 남기려면 **개발 계정 `gh api`**로 그 `SHA`에 올린다. 앱은 올리지 않는다.
-3. **1인 프로필이고 게이트 경로(되돌리기 어려움)일 때만**: PR 댓글 `되돌리기 어려움 승인: <SHA>` (한 줄, 위와 **동일한** 전체 SHA). 편집하지 말고 새 댓글을 단다(`POLICY.md` §5). 댓글은 `Review status`를 자동으로 다시 돌리지 않는다. 이 단계 다음의 게이트 실행이 그 댓글을 읽는다. 되돌리기 쉬움이면 이 댓글은 필요 없다. **팀 프로필**은 이 SHA 댓글을 요구하지 않는다. 사람 승인은 `POLICY.md` §9다.
+3. **1인 프로필이고 되돌리기 어려움(PR)일 때만**: PR 댓글 `되돌리기 어려움 승인: <SHA>` (한 줄, 위와 **동일한** 전체 SHA). 편집하지 말고 새 댓글을 단다(`POLICY.md` §10). 댓글은 `Review status`를 자동으로 다시 돌리지 않는다. 게이트 경로에서는 이 단계 다음의 게이트 실행이 그 댓글을 검사한다. 게이트 경로 밖은 검사기가 그 댓글을 보지 않으므로, 소유자가 이 댓글을 남긴 뒤에만 병합한다. 되돌리기 쉬움이면 이 댓글은 필요 없다. 그 밖의 검사 조건은 `POLICY.md` §5를 따른다. **팀 프로필**은 이 SHA 댓글을 요구하지 않는다. 사람 승인은 `POLICY.md` §9다.
 4. 위 **체크아웃**으로 `GATE_TREE`를 깨끗이 맞춘다.
 5. Keychain에서 PEM을 임시 파일로 꺼낸다. 읽기 `GH_TOKEN`은 그 서브셸에서만 `gh auth token`으로 채운다. `--dry-run` 후 실제 실행한다.
 
@@ -114,6 +114,8 @@ unset GH_TOKEN GITHUB_TOKEN
   export REVIEW_GATE_APP_KEY="$KEY"
   # repo-baseline의 핀. 다른 저장소는 그 저장소 설정의 양의 정수.
   export REVIEW_GATE_APP_ID="5641238"
+  # 상속된 REVIEW_GATE_API를 비운 뒤에 개발자 토큰을 넣는다. 남아 있으면 첫 읽기가 그 주소로 토큰을 보낸다. 비우면 기본 주소는 https://api.github.com 이다.
+  unset REVIEW_GATE_API
   export GH_TOKEN="$(gh auth token)"
   cd "$GATE_TREE"
   set +e
