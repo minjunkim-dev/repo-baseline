@@ -6,8 +6,13 @@ Only that App's app_id satisfies the pin. A workflow GITHUB_TOKEN posts as
 app 15368, so the same context name from Actions does not. This file runs on
 the owner's Mac (later the Mac Studio server). It refuses to run under
 GITHUB_ACTIONS. The private key path is REVIEW_GATE_APP_KEY and is never
-written here. Reads use GH_TOKEN, the gate account's read-only token, not the
-developer gh token. The installation token is used for the
+written here. Reads use GH_TOKEN. The daily path puts the developer
+gh auth token in that variable for this process only. This file does not
+call gh auth token and does not check that the token belongs to another
+account. An empty GH_TOKEN is refused. REST GET reads the pull request, diff,
+commits, and approval-comment timestamps. Readiness uses the same token for
+one GraphQL CheckRun query. Approval-comment edits stay on REST updated_at
+compared with created_at. That edit check is not the readiness query. The installation token is used for the
 single status POST and is requested only for this repository's statuses.
 
 --dry-run reads and does not mint a token, post a status, or merge.
@@ -321,7 +326,9 @@ def _headers(token, accept=ACCEPT, json_body=False):
 
 
 class Reader:
-    """REST GET with the read token. 404 and 406 raise CalledProcessError so the checker can branch."""
+    """REST GET with GH_TOKEN. 404 and 406 raise CalledProcessError so the checker can branch.
+
+    Readiness is fetch_readiness, a GraphQL CheckRun query, not this class."""
 
     def __init__(self, base, token, request):
         self.base = base.rstrip("/")
@@ -861,7 +868,10 @@ def developer_login(env, secrets):
 
 
 def run(argv, env, request, now=None, sign=None, merge=None, sleep=None, polls=POLL_LIMIT, poll_wait=POLL_WAIT, who=None):
-    parser = argparse.ArgumentParser(description="Post review/gate for one pull request head.")
+    parser = argparse.ArgumentParser(
+        description="Post review/gate for one pull request head. "
+        "Reads need GH_TOKEN in this process. The daily path uses the developer gh auth token there. "
+        "This command does not call gh auth token. Signing uses the App PEM.")
     parser.add_argument("--repo", required=True)
     parser.add_argument("--pr", required=True)
     parser.add_argument("--sha", required=True)
@@ -880,7 +890,7 @@ def run(argv, env, request, now=None, sign=None, merge=None, sleep=None, polls=P
         return 2
     token = env.get("GH_TOKEN") or ""
     if not token:
-        print("review gate refused: GH_TOKEN must be the gate account read-only token", file=sys.stderr)
+        print("review gate refused: GH_TOKEN must be set for reads", file=sys.stderr)
         return 2
     base = (env.get("REVIEW_GATE_API") or API).rstrip("/")
     reader = Reader(base, token, request)
