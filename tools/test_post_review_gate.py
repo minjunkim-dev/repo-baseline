@@ -12,6 +12,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -239,6 +240,11 @@ class FakeHub:
         self.wrong_success = False
         self.list_success = False
         self.after_success = None
+        self.settings_checks = [
+            {"context": "Baseline checks (Python 3.11)", "app_id": 15368},
+            {"context": "Baseline checks (Python 3.13)", "app_id": 15368},
+            {"context": "review/gate", "app_id": 424242},
+        ]
         self.calls = []
 
     def __call__(self, method, url, headers, body):
@@ -259,6 +265,10 @@ class FakeHub:
         if path == f"/repos/{REPO}/compare/{BASE}...{compare_head}":
             return self._json({"files": self.files, "commits": []})
         if path.startswith(f"/repos/{REPO}/contents/"):
+            if path.startswith(f"/repos/{REPO}/contents/.github/repository-settings.json?ref=main"):
+                raw = json.dumps({"expected": {"protection": {"required_status_checks": {
+                    "checks": self.settings_checks}}}}).encode()
+                return self._json({"encoding": "base64", "content": base64.b64encode(raw).decode()})
             return 404, {}, b""
         if path == f"/repos/{REPO}/commits/{compare_head}/statuses?per_page=100":
             return self._json(self.statuses)
@@ -456,7 +466,8 @@ class MergeTests(unittest.TestCase):
         sleeps = []
         code = gate.main(
             argv, self.env(key), hub, now=lambda: 1700000000, sign=lambda data, path: b"sig",
-            merge=merge, sleep=lambda seconds: sleeps.append(seconds), polls=polls, poll_wait=2)
+            merge=merge, sleep=lambda seconds: sleeps.append(seconds), polls=polls, poll_wait=2,
+            who=lambda env, secrets: OWNER)
         return code, sleeps
 
     def test_merge_posts_success_then_squash_merges_that_sha(self):
@@ -706,7 +717,8 @@ class MergeTests(unittest.TestCase):
         stopped = self.hub()
 
         def stop(argv, env):
-            self.assertIs(signal.getsignal(signal.SIGTERM), gate._on_signal)
+            handler = signal.getsignal(signal.SIGTERM)
+            self.assertIsInstance(getattr(handler, "__self__", None), gate._SignalGate)
             raise gate.CaughtSignal(signal.SIGTERM)
 
         with self.assertRaises(gate.CaughtSignal):
@@ -773,12 +785,275 @@ class MergeTests(unittest.TestCase):
         self.assertNotIn("GH_TOKEN", child)
         self.assertNotIn("GH_HOST", child)
         self.assertNotIn("GH_ENTERPRISE_TOKEN", child)
+        kept = gate.merge_child_env({"PATH": "/usr/bin", "GH_CONFIG_DIR": "/home/owner/.config/gh", "GH_HOST": "https://evil.example"}, [])
+        self.assertEqual(kept["GH_CONFIG_DIR"], "/home/owner/.config/gh")
+        self.assertNotIn("GH_HOST", kept)
         self.assertNotIn("REVIEW_GATE_API", child)
         self.assertNotIn("REVIEW_GATE_APP_KEY", child)
         opened = gate._allowed_env(
             {"PATH": "/usr/bin", "GH_TOKEN": "ghp_mac_read"}, gate.OPENSSL_ENV_KEYS, ["ghp_mac_read"])
         self.assertEqual(opened, {"PATH": "/usr/bin"})
         self.assertIsNone(gate._NoRedirect().redirect_request(None, None, 302, "found", {}, "https://evil.example"))
+
+
+class ReadinessTests(unittest.TestCase):
+    def test_attempt_order_is_start_time_and_a_tie_does_not_guess_success(self):
+        old = check_run("Baseline checks (Python 3.11)", conclusion="SUCCESS", when="2026-11-01T00:00:00Z")
+        old["completedAt"] = "2026-11-07T00:00:05Z"
+        newer = check_run("Baseline checks (Python 3.11)", conclusion=None, status="IN_PROGRESS", when="2026-11-07T00:00:01Z")
+        newer["completedAt"] = None
+        self.assertEqual(gate._check_state(gate._latest([old, newer])), "pending")
+        self.assertEqual(gate._check_state(gate._latest([newer, old])), "pending")
+        success = check_run("Baseline checks (Python 3.11)", conclusion="SUCCESS", when="2026-11-07T00:00:00Z")
+        failed = check_run("Baseline checks (Python 3.11)", conclusion="FAILURE", when="2026-11-07T00:00:00Z")
+        self.assertIsNone(gate._latest([success, failed]))
+        self.assertIsNone(gate._latest([failed, success]))
+        self.assertEqual(gate._check_state(gate._latest([success, dict(success)])), "ok")
+
+    def test_consumer_check_names_come_from_the_default_branch_file(self):
+        directory, key = _key()
+        self.addCleanup(directory.cleanup)
+        consumer = [
+            {"context": "mobile tests", "app_id": 15368},
+            {"context": "mobile lint", "app_id": 15368},
+            {"context": "review/gate", "app_id": 424242},
+        ]
+        hub = FakeHub(pull(), [{"filename": "README.md"}], [])
+        hub.settings_checks = consumer
+        hub.graphql = [ready_payload(contexts=[
+            check_run("mobile tests"),
+            check_run("mobile lint"),
+            {"__typename": "StatusContext", "context": "review/gate", "state": "PENDING",
+             "isRequired": True, "createdAt": "2026-11-07T00:00:00Z"},
+        ])]
+
+        def merge(argv, env):
+            self.assertEqual(env.get("GH_CONFIG_DIR"), "/audited/gh")
+            self.assertNotIn("GH_HOST", env)
+            hub.pull["state"] = "closed"
+            hub.pull["merged"] = True
+            return 0, ""
+
+        env = {
+            "GH_TOKEN": "ghp_mac_read", "REVIEW_GATE_APP_ID": "424242", "REVIEW_GATE_APP_KEY": str(key),
+            "REVIEW_GATE_API": API, "PATH": "/usr/bin", "GH_CONFIG_DIR": "/audited/gh",
+            "GH_HOST": "https://evil.example",
+        }
+        code = gate.main(
+            ["--repo", REPO, "--pr", "7", "--sha", HEAD, "--merge"], env, hub,
+            now=lambda: 1700000000, sign=lambda data, path: b"sig", merge=merge,
+            sleep=lambda _seconds: None, who=lambda _env, _secrets: OWNER)
+        self.assertEqual(code, 0)
+        urls = [url for _, url, _, _ in hub.calls]
+        self.assertTrue(any("repository-settings.json?ref=main" in url for url in urls))
+        self.assertFalse(any(f"ref={HEAD}" in url for url in urls))
+        missing = FakeHub(pull(), [{"filename": "README.md"}], [])
+        missing.settings_checks = consumer
+        missing.graphql = [ready_payload(contexts=[check_run("mobile tests")])]
+        code = gate.main(
+            ["--repo", REPO, "--pr", "7", "--sha", HEAD, "--merge"], env, missing,
+            now=lambda: 1700000000, sign=lambda data, path: b"sig",
+            merge=lambda argv, env: (_ for _ in ()).throw(AssertionError("merge")),
+            sleep=lambda _seconds: None, who=lambda _env, _secrets: OWNER)
+        self.assertEqual(code, 1)
+        self.assertFalse(any("/statuses/" in url for _, url, _, _ in missing.calls))
+        recorded = json.loads(Path(gate.ROOT, ".github/repository-settings.json").read_text(encoding="utf-8"))
+        checks = recorded["expected"]["protection"]["required_status_checks"]["checks"]
+        self.assertEqual([(item["context"], item["app_id"]) for item in checks], [
+            ("Baseline checks (Python 3.11)", 15368),
+            ("Baseline checks (Python 3.13)", 15368),
+            ("review/gate", 5641238),
+        ])
+
+
+class SignalCleanupTests(unittest.TestCase):
+    def test_a_second_catchable_signal_does_not_abort_the_failure_post(self):
+        from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+        class Handler(BaseHTTPRequestHandler):
+            protocol_version = "HTTP/1.1"
+
+            def log_message(self, _format, *_args):
+                return
+
+            def _json(self, payload, code=200):
+                raw = json.dumps(payload).encode()
+                self.server.codes.append((code, self.path))
+                self.send_response(code)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(raw)))
+                self.end_headers()
+                self.wfile.write(raw)
+
+            def do_GET(self):
+                self.server.seen.append(("GET", self.path))
+                if "/contents/" in self.path and "repository-settings.json?ref=main" not in self.path:
+                    self.send_error(404)
+                    return
+                if (self.path.endswith("/pulls/7") and self.server.states and self.server.mode == "reread"
+                        and not self.server.signalled):
+                    self.server.signalled = True
+                    os.kill(self.server.child, signal.SIGTERM)
+                self._json(self.server.get(self.path))
+
+            def do_POST(self):
+                try:
+                    self._post()
+                except Exception:
+                    import traceback
+                    self.server.boom = traceback.format_exc()
+                    self.send_error(500)
+
+            def _post(self):
+                length = int(self.headers.get("Content-Length") or 0)
+                body = json.loads(self.rfile.read(length).decode() or "{}")
+                self.server.seen.append(("POST", self.path))
+                if self.path.endswith("/statuses/" + HEAD):
+                    state = body.get("state")
+                    self.server.states.append(state)
+                    if state == "failure" and self.server.mode == "during-cleanup":
+                        os.kill(self.server.child, signal.SIGTERM)
+                        time.sleep(0.2)
+                    self._json({"context": "review/gate", "state": state}, 201)
+                    return
+                if self.path.endswith("/access_tokens"):
+                    self._json({"token": "ghs_dummy"})
+                    return
+                if self.path == "/graphql":
+                    self._json(ready_payload())
+                    return
+                self._json({})
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        port = server.server_address[1]
+        settings = {"expected": {"protection": {"required_status_checks": {"checks": [
+            {"context": "Baseline checks (Python 3.11)", "app_id": 15368},
+            {"context": "Baseline checks (Python 3.13)", "app_id": 15368},
+            {"context": "review/gate", "app_id": 424242},
+        ]}}}}
+        encoded = base64.b64encode(json.dumps(settings).encode()).decode()
+        pull_body = {
+            "state": "open", "merged": False, "draft": False,
+            "body": evidence(HEAD), "user": {"login": OWNER},
+            "head": {"sha": HEAD}, "base": {"sha": BASE, "ref": "main"}, "commits": 1,
+        }
+
+        def get(path):
+            if path.endswith("/pulls/7"):
+                return pull_body
+            if path.endswith("/installation"):
+                return {"id": 99}
+            if path.endswith("/repo-baseline") and "/repos/" in path and "/contents/" not in path and "/pulls/" not in path:
+                return {"default_branch": "main", "owner": {"login": OWNER}}
+            if "/compare/" in path:
+                if path.endswith("...main"):
+                    return {"status": "identical"}
+                return {"files": [{"filename": "README.md", "status": "modified"}], "commits": []}
+            if "repository-settings.json?ref=main" in path:
+                return {"encoding": "base64", "content": encoded}
+            if path.endswith("/comments?per_page=100"):
+                return []
+            if "/statuses" in path:
+                return []
+            return {}
+
+        server.get = get
+        server.states = []
+        server.seen = []
+        server.codes = []
+        server.mode = "double"
+        server.child = None
+        thread = __import__("threading").Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(server.shutdown)
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        key = Path(directory.name) / "app.pem"
+        subprocess.run(
+            ["openssl", "genpkey", "-algorithm", "RSA", "-pkeyopt", "rsa_keygen_bits:2048", "-out", str(key)],
+            check=True, capture_output=True)
+        os.chmod(key, 0o600)
+        bindir = tempfile.TemporaryDirectory()
+        self.addCleanup(bindir.cleanup)
+        gh_path = Path(bindir.name) / "gh"
+        gh_path.write_text(
+            "#!/bin/sh\n"
+            "if [ \"$1\" = api ]; then printf '%s\\n' minjunkim-dev; exit 0; fi\n"
+            "mode=$(cat \"$(dirname \"$0\")/mode\")\n"
+            "if [ \"$mode\" = fail ]; then exit 1; fi\n"
+            "if [ \"$mode\" = ok ]; then exit 0; fi\n"
+            "sleep 30\nexit 1\n",
+            encoding="utf-8")
+        mode_path = Path(bindir.name) / "mode"
+        gh_path.chmod(0o755)
+        runner = Path(bindir.name) / "run_gate.py"
+        runner.write_text(
+            "import os, sys\n"
+            f"sys.path.insert(0, {str(gate.ROOT)!r})\n"
+            "from tools import post_review_gate as gate\n"
+            "raise SystemExit(gate.main(["
+            f"{'--repo'!r}, {REPO!r}, {'--pr'!r}, {'7'!r}, {'--sha'!r}, {HEAD!r}, {'--merge'!r}]))\n",
+            encoding="utf-8")
+        env = os.environ.copy()
+        env.update({
+            "GH_TOKEN": "ghp_dummy",
+            "REVIEW_GATE_APP_ID": "424242",
+            "REVIEW_GATE_APP_KEY": str(key),
+            "REVIEW_GATE_API": f"http://127.0.0.1:{port}",
+            "PATH": str(bindir.name) + os.pathsep + env.get("PATH", ""),
+            "GATE_GH_EXIT": "0",
+        })
+        env.pop("GH_HOST", None)
+
+        def launch(mode, gh_exit):
+            server.states = []
+            server.seen = []
+            server.codes = []
+            server.signalled = False
+            server.mode = mode
+            pull_body["state"] = "open"
+            pull_body["merged"] = False
+            mode_path.write_text(gh_exit, encoding="utf-8")
+            child_env = dict(env)
+            proc = subprocess.Popen(
+                [sys.executable, str(runner)], env=child_env, start_new_session=True,
+                stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+            server.child = proc.pid
+            self.addCleanup(lambda: os.killpg(proc.pid, signal.SIGKILL) if proc.poll() is None else None)
+            return proc
+
+        def wait_success():
+            for _ in range(80):
+                if server.states == ["success"]:
+                    return
+                time.sleep(0.05)
+            out, err = proc.communicate(timeout=2)
+            self.fail(err.decode()[-400:] + " CODES " + repr(getattr(server, "codes", [])[-6:]))
+
+        proc = launch("double", "sleep")
+        wait_success()
+        os.killpg(proc.pid, signal.SIGINT)
+        time.sleep(0.1)
+        os.killpg(proc.pid, signal.SIGINT)
+        try:
+            code = proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            wchan = Path(f"/proc/{proc.pid}/wchan").read_text()
+            stack = Path(f"/proc/{proc.pid}/stack").read_text()[:500]
+            err = proc.stderr.read1(2000) if proc.stderr else b""
+            self.fail(f"stuck {wchan} {stack} {err}")
+        self.assertNotEqual(code, 0)
+        self.assertEqual(server.states, ["success", "failure"])
+
+        proc = launch("during-cleanup", "fail")
+        self.assertNotEqual(proc.wait(timeout=15), 0)
+        self.assertEqual(server.states, ["success", "failure"])
+
+        proc = launch("control", "sleep")
+        wait_success()
+        os.killpg(proc.pid, signal.SIGTERM)
+        self.assertNotEqual(proc.wait(timeout=15), 0)
+        self.assertEqual(server.states, ["success", "failure"])
 
 
 if __name__ == "__main__":

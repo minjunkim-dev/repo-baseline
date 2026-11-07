@@ -17,11 +17,16 @@ replaces an older success from this App. Failing evidence posts failure.
 auto-merge, both Baseline checks from the Actions app, and no unresolved review
 thread. review/gate itself may still be pending. It posts success only then,
 re-reads the parsed snapshot, and squash-merges with --match-head-commit.
-Once that post is attempted, an ordinary exception, SIGINT, or SIGTERM posts
-failure unless the pull request is confirmed merged. SIGKILL, power loss, and
-a network failure that never returns are not cleared. A body edit can still
-race the recheck. There is no webhook and no new App permission. The
-installation token is used for the status POST only and is never given to gh.
+Once that post is attempted, an ordinary exception or SIGINT, SIGTERM, SIGHUP,
+or SIGQUIT posts failure unless the pull request is confirmed merged. Those
+signals are deferred until the failure post and the handler restore finish.
+SIGKILL, power loss, and a network failure that never returns are not cleared.
+A plain run does not clear a success whose SHA is no longer the open head.
+Required check names and app ids come from the default branch settings file,
+not from the pull request. A body edit can still race the recheck. There is
+no webhook and no new App permission. The installation token is used for the
+status POST only and is never given to gh. gh keeps GH_CONFIG_DIR and does
+not receive GH_HOST or a token.
 """
 
 import argparse
@@ -39,6 +44,7 @@ import subprocess
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -51,15 +57,12 @@ POLL_LIMIT = 3
 POLL_WAIT = 2
 # Actions app that posts the Baseline checks. review/gate stays the dedicated App 5641238.
 ACTIONS_APP = 15368
-# One green context is not this list. review/gate is posted by --merge and is not required beforehand.
-EXPECTED_CHECKS = (
-    ("Baseline checks (Python 3.11)", ACTIONS_APP),
-    ("Baseline checks (Python 3.13)", ACTIONS_APP),
-)
+# review/gate's app id is read from the default branch settings, not hardcoded here.
+# This repository's file records 5641238. A consumer file records its own names.
 # Bounded pages. A further page fails closed. This does not poll until the list grows.
 READINESS_PAGE = 100
 GH_ENV_KEYS = ("PATH", "HOME", "USER", "LOGNAME", "LANG", "LC_ALL", "LC_CTYPE", "LC_MESSAGES",
-               "XDG_CONFIG_HOME", "TMPDIR", "TEMP", "TMP")
+               "XDG_CONFIG_HOME", "GH_CONFIG_DIR", "TMPDIR", "TEMP", "TMP")
 OPENSSL_ENV_KEYS = ("PATH", "LANG", "LC_ALL", "SYSTEMROOT")
 # Other required checks only. Approval comments stay on REST updated_at.
 # isRequired without a pull request number is rejected for every context.
@@ -139,11 +142,45 @@ def b64url(raw):
     return base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii")
 
 
-class CaughtSignal(Exception):
-    """SIGINT or SIGTERM raised from the handler so the success guard can clean up."""
+class CaughtSignal(BaseException):
+    """Catchable terminal signal. Not an Exception, so a cleanup handler cannot swallow it."""
 
     def __init__(self, number):
         self.number = number
+
+
+class _SignalGate:
+    """Catchable terminal signals. Deferred while a failure post or handler restore is in progress.
+
+    SIGKILL is not in this set and cannot be caught."""
+
+    NUMBERS = (signal.SIGINT, signal.SIGTERM, signal.SIGHUP, signal.SIGQUIT)
+
+    def __init__(self):
+        self.previous = {}
+        self.defer = False
+        self.pending = []
+
+    def install(self):
+        for number in self.NUMBERS:
+            self.previous[number] = signal.signal(number, self.handle)
+
+    def handle(self, number, _frame):
+        if self.defer:
+            self.pending.append(number)
+            return
+        raise CaughtSignal(number)
+
+    def restore(self):
+        self.defer = True
+        try:
+            for number, handler in self.previous.items():
+                signal.signal(number, handler)
+        finally:
+            self.defer = False
+        pending = self.pending
+        self.pending = []
+        return pending
 
 
 def _on_signal(number, _frame):
@@ -443,11 +480,12 @@ def parse_readiness(payload):
     }
 
 
-def _stamp(ctx):
-    for key in ("completedAt", "startedAt", "createdAt"):
-        value = ctx.get(key)
-        if isinstance(value, str) and value:
-            return value
+def _attempt_started(ctx):
+    """When this attempt began. Completion time is not an order: a late finish is still the older run."""
+    key = "startedAt" if ctx.get("name") else "createdAt"
+    value = ctx.get(key)
+    if isinstance(value, str) and value:
+        return value
     return None
 
 
@@ -459,13 +497,24 @@ def _app_id(ctx):
 
 
 def _latest(items):
-    """Newest attempt. None when several attempts disagree and cannot be ordered."""
+    """Newest attempt by start time. None when a tie disagrees or a start time is missing.
+
+    List order is not a tie break. A later completion of an earlier run does not beat a run
+    that started after it and is still in progress."""
+    if not items:
+        return None
     if len(items) == 1:
         return items[0]
-    stamped = [(_stamp(item), item) for item in items]
+    stamped = [(_attempt_started(item), item) for item in items]
     if any(stamp is None for stamp, _item in stamped):
         return None
-    return max(stamped, key=lambda pair: pair[0])[1]
+    newest = max(stamp for stamp, _item in stamped)
+    chosen = [item for stamp, item in stamped if stamp == newest]
+    if len(chosen) == 1:
+        return chosen[0]
+    if len({_check_state(item) for item in chosen}) == 1:
+        return chosen[0]
+    return None
 
 
 def _required_ok(ctx):
@@ -491,12 +540,60 @@ def _check_state(chosen):
     return "failed"
 
 
-def readiness_problems(pull, view, sha):
+def expected_checks(payload, signing_app):
+    """Required contexts from the default-branch settings document.
+
+    The gate context is omitted from the returned list. Its app id must be the app that
+    will sign, and it must not be the Actions app. A REPLACE placeholder is not a check."""
+    protection = (payload.get("expected") or {}).get("protection") if isinstance(payload, dict) else None
+    checks = (protection or {}).get("required_status_checks", {}).get("checks") if isinstance(protection, dict) else None
+    if not isinstance(checks, list) or not checks:
+        raise ValueError("settings")
+    others = []
+    gate_app = None
+    for item in checks:
+        if not isinstance(item, dict):
+            raise ValueError("settings")
+        name = item.get("context")
+        app = item.get("app_id")
+        if not isinstance(name, str) or name == "" or name.startswith("REPLACE:"):
+            raise ValueError("settings")
+        if type(app) is not int or app <= 0:
+            raise ValueError("settings")
+        if name == CONTEXT:
+            if app == ACTIONS_APP:
+                raise ValueError("settings")
+            gate_app = app
+        else:
+            others.append((name, app))
+    if gate_app != signing_app or not others:
+        raise ValueError("settings")
+    return others
+
+
+def load_expected_checks(repo, read, signing_app):
+    """Settings on the repository default branch. The pull request head is not a source."""
+    info = read(f"repos/{repo}")
+    default = info.get("default_branch") if isinstance(info, dict) else None
+    if not isinstance(default, str) or default == "" or "/" in default or default.startswith("."):
+        raise ValueError("settings")
+    ref = urllib.parse.quote(default, safe="")
+    blob = read(f"repos/{repo}/contents/.github/repository-settings.json?ref={ref}")
+    if not isinstance(blob, dict) or blob.get("encoding") != "base64" or not isinstance(blob.get("content"), str):
+        raise ValueError("settings")
+    try:
+        payload = json.loads(base64.b64decode(blob["content"]))
+    except (ValueError, json.JSONDecodeError):
+        raise ValueError("settings")
+    return expected_checks(payload, signing_app)
+
+
+def readiness_problems(pull, view, sha, expected):
     """Blockers other than this App's own review/gate status.
 
-    The rollup page is at most READINESS_PAGE contexts. A further page fails closed.
-    An older failed attempt does not block when a newer attempt of the same check passed.
-    One green context does not stand in for EXPECTED_CHECKS."""
+    expected is the default-branch (context, app id) list. A name match with the wrong app
+    does not count. The rollup page is at most READINESS_PAGE contexts. A further page fails
+    closed. An older failed attempt does not block when a newer attempt of that check passed."""
     problems = []
     if not isinstance(pull, dict) or not isinstance(view, dict):
         return ["checks-unknown"]
@@ -517,6 +614,9 @@ def readiness_problems(pull, view, sha):
     if view.get("contexts_more") or not isinstance(view.get("contexts"), list):
         problems.append("checks-unknown")
         return problems
+    if not isinstance(expected, list) or not expected:
+        problems.append("checks-unknown")
+        return problems
     grouped = {}
     for ctx in view["contexts"]:
         if not isinstance(ctx, dict) or ctx.get("isRequired") is not True:
@@ -526,7 +626,8 @@ def readiness_problems(pull, view, sha):
             continue
         grouped.setdefault(name, []).append(ctx)
     failed = pending = unknown = False
-    for name, app in EXPECTED_CHECKS:
+    expected_names = {name for name, _app in expected}
+    for name, app in expected:
         found = [item for item in grouped.get(name, []) if _app_id(item) == app]
         state = _check_state(_latest(found) if found else None)
         if not found or state == "unknown":
@@ -535,17 +636,9 @@ def readiness_problems(pull, view, sha):
             pending = True
         elif state == "failed":
             failed = True
-    expected_names = {name for name, _app in EXPECTED_CHECKS}
-    for name, items in grouped.items():
-        if name in expected_names:
-            continue
-        state = _check_state(_latest(items))
-        if state == "unknown":
+    for name in grouped:
+        if name not in expected_names:
             unknown = True
-        elif state == "pending":
-            pending = True
-        elif state == "failed":
-            failed = True
     if unknown:
         problems.append("checks-unknown")
     elif failed:
@@ -570,13 +663,14 @@ def fetch_readiness(base, token, request, repo, number):
     return parsed
 
 
-def poll_readiness(base, token, request, repo, number, read, sha, sleep, polls, wait):
+def poll_readiness(base, token, request, repo, number, read, sha, sleep, polls, wait, signing_app):
     """Re-read pending required checks a bounded number of times. Do not arm auto-merge."""
+    expected = load_expected_checks(repo, read, signing_app)
     last = ["checks-unknown"]
     for attempt in range(polls):
         pull = read(f"repos/{repo}/pulls/{number}")
         view = fetch_readiness(base, token, request, repo, number)
-        last = readiness_problems(pull, view, sha)
+        last = readiness_problems(pull, view, sha, expected)
         if "checks-pending" not in last or any(item != "checks-pending" for item in last):
             return last
         if attempt + 1 == polls:
@@ -678,9 +772,13 @@ def _emit(report, code):
 
 
 def _invalidate(base, app_id, key, repo, sha, request, now, sign):
-    """Post failure on the SHA whose success may have been published. Return the cleanup exception, or None."""
+    """Post failure on the SHA whose success may have been published. Return the cleanup exception, or None.
+
+    Catchable signals are not swallowed. The caller defers them for the duration of this post."""
     try:
         mint_and_post(base, app_id, key, repo, sha, "failure", request, now, sign)
+    except (KeyboardInterrupt, CaughtSignal):
+        raise
     except Exception as error:
         print(f"review gate cleanup failed: {type(error).__name__}", file=sys.stderr)
         return error
@@ -688,8 +786,11 @@ def _invalidate(base, app_id, key, repo, sha, request, now, sign):
 
 
 def _observe_merge(read, repo, number, sha):
+    """None when the read fails. An interrupt is not a failed read."""
     try:
         return merge_observed(read(f"repos/{repo}/pulls/{number}"), sha)
+    except (KeyboardInterrupt, CaughtSignal):
+        raise
     except Exception:
         return None
 
@@ -702,7 +803,18 @@ class _PublishGuard:
         self.attempted = True
 
 
-def run(argv, env, request, now=None, sign=None, merge=None, sleep=None, polls=POLL_LIMIT, poll_wait=POLL_WAIT):
+def developer_login(env, secrets):
+    """Login gh will use for the merge. Host overrides and tokens are not in that environment."""
+    result = subprocess.run(
+        ["gh", "api", "user", "--jq", ".login"],
+        env=merge_child_env(env, secrets), capture_output=True, text=True, timeout=30)
+    login = result.stdout.strip()
+    if result.returncode != 0 or login == "" or "\n" in login or login.endswith("[bot]"):
+        raise ValueError("login")
+    return login
+
+
+def run(argv, env, request, now=None, sign=None, merge=None, sleep=None, polls=POLL_LIMIT, poll_wait=POLL_WAIT, who=None):
     parser = argparse.ArgumentParser(description="Post review/gate for one pull request head.")
     parser.add_argument("--repo", required=True)
     parser.add_argument("--pr", required=True)
@@ -713,6 +825,7 @@ def run(argv, env, request, now=None, sign=None, merge=None, sleep=None, polls=P
     now = time.time if now is None else now
     sleep = time.sleep if sleep is None else sleep
     merge = merge_command if merge is None else merge
+    who = developer_login if who is None else who
     if env.get("GITHUB_ACTIONS"):
         print("review gate refused: GITHUB_ACTIONS is set", file=sys.stderr)
         return 2
@@ -732,8 +845,11 @@ def run(argv, env, request, now=None, sign=None, merge=None, sleep=None, polls=P
     if args.dry_run or not decision.posts:
         if args.dry_run and args.merge and decision.kind == "success":
             try:
+                signing_app = parse_app_id(env.get("REVIEW_GATE_APP_ID"))
+                if signing_app is None:
+                    raise ValueError("settings")
                 problems = poll_readiness(
-                    base, token, request, args.repo, args.pr, reader.read, decision.sha, sleep, 1, 0)
+                    base, token, request, args.repo, args.pr, reader.read, decision.sha, sleep, 1, 0, signing_app)
             except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError, json.JSONDecodeError) as error:
                 report["kind"] = "unverified"
                 report["state"] = None
@@ -783,7 +899,7 @@ def run(argv, env, request, now=None, sign=None, merge=None, sleep=None, polls=P
         return _emit(report, 0)
     try:
         problems = poll_readiness(
-            base, token, request, args.repo, args.pr, reader.read, decision.sha, sleep, polls, poll_wait)
+            base, token, request, args.repo, args.pr, reader.read, decision.sha, sleep, polls, poll_wait, app_id)
     except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError, json.JSONDecodeError) as error:
         print(f"review gate UNVERIFIED: {type(error).__name__}", file=sys.stderr)
         report["kind"] = "unverified"
@@ -804,43 +920,28 @@ def run(argv, env, request, now=None, sign=None, merge=None, sleep=None, polls=P
     if snapshot is None:
         print("review gate UNVERIFIED: snapshot", file=sys.stderr)
         return 2
+    try:
+        login = who(env, secrets)
+    except (KeyboardInterrupt, CaughtSignal):
+        raise
+    except Exception:
+        print("review gate UNVERIFIED: login", file=sys.stderr)
+        report["kind"] = "unverified"
+        report["state"] = None
+        report["detail"] = "login"
+        return _emit(report, 2)
+    if not isinstance(login, str) or login == "" or login.endswith("[bot]"):
+        print("review gate refused: login", file=sys.stderr)
+        return 2
     guard = _PublishGuard()
-    previous_handlers = {}
-    for signum in (signal.SIGINT, signal.SIGTERM):
-        previous_handlers[signum] = signal.signal(signum, _on_signal)
-
-    def cleanup():
-        return _invalidate(base, app_id, key, args.repo, decision.sha, request, now(), sign)
-
-    def observed():
-        try:
-            return _observe_merge(reader.read, args.repo, args.pr, decision.sha)
-        except BaseException:
-            return None
-
-    def close_guard(primary, text="", code=None):
-        """Clear a success that may exist unless this SHA is confirmed merged."""
-        if observed() is True:
-            report["kind"] = "success"
-            report["state"] = "success"
-            report["detail"] = digest
-            return _emit(report, 0)
-        if not guard.attempted:
-            print(f"review gate UNVERIFIED: {primary}", file=sys.stderr)
-            report["kind"] = "unverified"
-            report["state"] = None
-            report["detail"] = primary
-            return _emit(report, 2)
-        failure = cleanup()
-        if code is None:
-            print(f"review gate {primary}", file=sys.stderr)
-        else:
-            print(f"review gate merge failed: {code} {_redact(text, secrets)}", file=sys.stderr)
-        report["kind"] = "failure"
-        report["state"] = None if failure else "failure"
-        report["detail"] = primary if failure is None else primary + "; cleanup failed"
-        return _emit(report, 2 if failure else 1)
-
+    signals = _SignalGate()
+    signals.install()
+    merged_ok = False
+    interrupt = None
+    primary = None
+    merge_code = None
+    merge_text = ""
+    cleanup_error = None
     try:
         try:
             mint_and_post(
@@ -850,44 +951,81 @@ def run(argv, env, request, now=None, sign=None, merge=None, sleep=None, polls=P
             if again.kind != "success" or again.sha.lower() != decision.sha.lower() or checked is None or checked[0] != snapshot[0]:
                 raise ValueError("recheck")
             argv = ["gh", "pr", "merge", args.pr, "--repo", args.repo, "--squash", "--match-head-commit", decision.sha]
-            code, stderr = merge(argv, merge_child_env(env, secrets))
-            merged = observed()
-            if merged is True:
-                report["kind"] = "success"
-                report["state"] = "success"
-                report["detail"] = digest
-                return _emit(report, 0)
-            if code != 0 or merged is False:
-                label = "merge" if code != 0 else "merge-open"
-                detail = stderr if isinstance(stderr, str) else ""
-                return close_guard(label, detail, code if code != 0 else None)
-            return close_guard("merge-unknown")
+            merge_code, merge_text = merge(argv, merge_child_env(env, secrets))
+            seen = _observe_merge(reader.read, args.repo, args.pr, decision.sha)
+            if seen is True:
+                merged_ok = True
+            elif merge_code != 0:
+                primary = "merge"
+            elif seen is False:
+                primary = "merge-open"
+            else:
+                primary = "merge-unknown"
         except (KeyboardInterrupt, CaughtSignal) as error:
-            if guard.attempted and observed() is not True:
-                failure = cleanup()
-                if failure is not None:
-                    print(f"review gate cleanup failed: {type(failure).__name__}", file=sys.stderr)
+            interrupt = error
             print(f"review gate interrupted: {type(error).__name__}", file=sys.stderr)
+        except (SystemExit, GeneratorExit):
+            primary = "abort"
             raise
         except Exception as error:
             if isinstance(error, AssertionError):
                 raise
             if type(error) is ValueError and str(error) == "recheck":
-                label = "recheck"
+                primary = "recheck"
             elif type(error) is ValueError and str(error) == "posted status":
-                label = "posted-status"
+                primary = "posted-status"
             else:
-                label = type(error).__name__
-            return close_guard(label)
+                primary = type(error).__name__
     finally:
-        for signum, handler in previous_handlers.items():
-            signal.signal(signum, handler)
+        # A second catchable signal must not abort the failure post or the handler restore.
+        signals.defer = True
+        try:
+            if guard.attempted and not merged_ok:
+                try:
+                    if _observe_merge(reader.read, args.repo, args.pr, decision.sha) is True:
+                        merged_ok = True
+                except (KeyboardInterrupt, CaughtSignal) as error:
+                    interrupt = interrupt or error
+                if not merged_ok:
+                    cleanup_error = _invalidate(base, app_id, key, args.repo, decision.sha, request, now(), sign)
+        finally:
+            pending = signals.restore()
+    if interrupt is None and pending:
+        interrupt = CaughtSignal(pending[0])
+    if merged_ok:
+        if interrupt is not None:
+            raise interrupt
+        report["kind"] = "success"
+        report["state"] = "success"
+        report["detail"] = digest
+        return _emit(report, 0)
+    if not guard.attempted:
+        print(f"review gate UNVERIFIED: {primary}", file=sys.stderr)
+        report["kind"] = "unverified"
+        report["state"] = None
+        report["detail"] = primary or "publish"
+        code = 2
+    else:
+        if merge_code not in (None, 0):
+            print(f"review gate merge failed: {merge_code} {_redact(merge_text if isinstance(merge_text, str) else '', secrets)}", file=sys.stderr)
+        else:
+            print(f"review gate {primary or 'cleanup'}", file=sys.stderr)
+        detail = primary or "cleanup"
+        if cleanup_error is not None:
+            detail += "; cleanup failed"
+        report["kind"] = "failure"
+        report["state"] = None if cleanup_error else "failure"
+        report["detail"] = detail
+        code = 2 if cleanup_error is not None else 1
+    if interrupt is not None:
+        raise interrupt
+    return _emit(report, code)
 
 
 def main(argv=None, env=None, request=None, now=None, sign=None, merge=None, sleep=None,
-         polls=POLL_LIMIT, poll_wait=POLL_WAIT):
+         polls=POLL_LIMIT, poll_wait=POLL_WAIT, who=None):
     return run(argv if argv is not None else sys.argv[1:], env if env is not None else os.environ,
-               request or http_request, now, sign, merge, sleep, polls, poll_wait)
+               request or http_request, now, sign, merge, sleep, polls, poll_wait, who)
 
 
 if __name__ == "__main__":
