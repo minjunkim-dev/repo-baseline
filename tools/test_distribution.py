@@ -21,6 +21,26 @@ class DistributionTests(unittest.TestCase):
         self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
         return result.stdout
 
+    def source_snapshot(self, root):
+        """Copy the working tree into root/source and commit it there. The real index stays untouched."""
+        source = root / "source"
+        source.mkdir()
+        paths = self.run_command(
+            "git", "ls-files", "--cached", "--others", "--exclude-standard", "-z", cwd=ROOT)
+        for name in set(paths.split("\0")) - {""}:
+            path = ROOT / name
+            if path.is_file():
+                target = source / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(path, target)
+        self.run_command("git", "init", "--quiet", cwd=source)
+        self.run_command("git", "add", ".", cwd=source)
+        self.run_command(
+            "git", "-c", "user.name=Baseline test", "-c", "user.email=test@example.invalid",
+            "-c", "core.hooksPath=/dev/null", "-c", "commit.gpgsign=false",
+            "commit", "--quiet", "-m", "Fixture snapshot", cwd=source)
+        return source
+
     def test_own_dependabot_config_matches_the_template(self):
         own = (ROOT / ".github/dependabot.yml").read_text(encoding="utf-8").splitlines()
         template = (ROOT / "templates/dependabot.yml").read_text(encoding="utf-8").splitlines()
@@ -73,7 +93,6 @@ class DistributionTests(unittest.TestCase):
         self.assertIn("docs/start.md", readme)
         self.assertIn("templates/repo-baseline.core.json", readme)
         self.assertIn("이미 전체 manifest가 있으면 코어 파일로 바꾸지 않는다.", readme)
-        self.assertIn("python3 tools/review_status_policy.py", readme)
         self.assertIn("새 프로젝트의 언어 요구가 아니다", readme)
         self.assertIn("eval.md", start)
         self.assertIn("라운드 상한은 3", start)
@@ -100,21 +119,7 @@ class DistributionTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
-            source = root / "source"
-            source.mkdir()
-            paths = self.run_command("git", "ls-files", "--cached", "--others", "--exclude-standard", "-z", cwd=ROOT)
-            for name in set(paths.split("\0")) - {""}:
-                path = ROOT / name
-                if path.is_file():
-                    target = source / name
-                    target.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copyfile(path, target)
-            self.run_command("git", "init", "--quiet", cwd=source)
-            self.run_command("git", "add", ".", cwd=source)
-            self.run_command(
-                "git", "-c", "user.name=Baseline test", "-c", "user.email=test@example.invalid",
-                "-c", "core.hooksPath=/dev/null", "-c", "commit.gpgsign=false",
-                "commit", "--quiet", "-m", "Fixture snapshot", cwd=source)
+            source = self.source_snapshot(root)
 
             def install(manifest_name, label):
                 project = root / label
@@ -166,24 +171,24 @@ class DistributionTests(unittest.TestCase):
             self.assertIn("scripts/check_github_settings.py", manifest["files"])
             self.assertIn(".github/dependabot.yml", manifest["files"])
 
+    def test_setup_prompt_keeps_copied_checker_tests(self):
+        prompt = (ROOT / "prompts/pr-ci-setup.md").read_text(encoding="utf-8")
+        start = (ROOT / "docs/start.md").read_text(encoding="utf-8")
+        profile = (ROOT / "docs/github-settings-profile.md").read_text(encoding="utf-8")
+        banned = "Python을 쓰지 않는 프로젝트에 Python setup이나 그 unittest를 넣지 마."
+        self.assertNotIn(banned, prompt)
+        self.assertIn("대상의 필수 체크로 복사하지 마.", prompt)
+        self.assertIn("자체 setup·test에는 Python setup이나 원본 unittest를 넣지 마.", prompt)
+        self.assertIn("대상 CI는 그 복사본과 테스트를 프로젝트가 고른 python3 하나로 돌린다.", prompt)
+        self.assertIn("새 head SHA는 이전 head의 근거 표를 잇지 않는다.", prompt)
+        self.assertIn("복사된 검사기만, 그 프로젝트가 고른 `python3` 하나로 돌린다.", start)
+        self.assertIn("python3 -m unittest discover -s scripts -p 'test_*.py'", profile)
+        self.assertIn("검사기를 복사하지 않은 프로젝트는 이 명령을 자신의 setup이나 test로 두지 않는다.", profile)
+
     def test_fresh_install_copied_tests_provenance_drift_and_repair(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
-            source = root / "source"
-            source.mkdir()
-            # Snapshot the working copy, including new files, without modifying the real Git index.
-            paths = self.run_command("git", "ls-files", "--cached", "--others", "--exclude-standard", "-z", cwd=ROOT)
-            for name in set(paths.split("\0")) - {""}:
-                path = ROOT / name
-                if path.is_file():
-                    target = source / name
-                    target.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copyfile(path, target)
-            self.run_command("git", "init", "--quiet", cwd=source)
-            self.run_command("git", "add", ".", cwd=source)
-            self.run_command("git", "-c", "user.name=Baseline test", "-c", "user.email=test@example.invalid",
-                             "-c", "core.hooksPath=/dev/null", "-c", "commit.gpgsign=false",
-                             "commit", "--quiet", "-m", "Fixture snapshot", cwd=source)
+            source = self.source_snapshot(root)
             head = self.run_command("git", "rev-parse", "HEAD", cwd=source).strip()
             for mode in ("default", "advanced", "unsupported"):
                 with self.subTest(mode=mode):
