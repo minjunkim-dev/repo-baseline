@@ -4,6 +4,18 @@
 
 코어만 적용한 상태는 GitHub 보호가 켜진 것이 아니다. 그 프로젝트의 Evidence에는 프로필을 `미적용`으로 적는다. 서버 설정과 앱 키는 쓰지 않는다.
 
+## 세 층
+
+공통 계약, 언어 어댑터, 제품 옵션을 한 설치로 섞지 않는다.
+
+- 공통 계약에서 코어가 복사하는 파일은 `.github/pull_request_template.md` 하나다. `templates/repo-baseline.core.json`도 그 파일만 가리킨다. 그 양식은 GitHub pull request 본문이다. GitHub PR을 쓰지 않으면 그 파일을 필수로 두지 않고, 네 칸과 `POLICY.md` §10의 문 판정만 자기 문서에 적는다.
+- 설치하지 않고 읽는 것: `POLICY.md`, `docs/development-workflow.md`, Matt `/ask-matt` 다음 `/grill-with-docs`, `/to-spec`, `/to-tickets`, `/implement`. `disable-model-invocation: true`인 스킬은 사용자가 실행한다. `eval.md`는 만들지 않는다.
+- 언어 어댑터는 `setup`, `check`, `test`, `build`다. format, lint, type, test, build 도구는 그 스택이 이미 가진 것만 쓴다. 이 저장소는 포매터나 새 의존성을 스택 선택 없이 넣지 않는다. 없는 칸은 `N/A`와 이유다.
+- 제품 옵션은 아래 선택 프로필이다. GitHub 전체 manifest, Dependabot, Claude 설정, 리뷰 게이트 앱, pstack, 병합 큐, 단계 배포는 코어 `cp`가 켜지 않는다.
+- 이 저장소 자신을 고칠 때의 독립 패밀리 리뷰, 라운드 상한 3, `review/gate`, `POLICY.md` §10은 이 원본의 안전 정책이다. 새 프로젝트의 제품 옵션과 이름이 같아도 코어 복사가 그 정책을 설치하거나 약하게 하지 않는다. GitHub 프로필을 켜면 그 절차가 `POLICY.md`를 따른다. 외부 리뷰와 병합 전 스레드 규칙은 `POLICY.md` §5에 그대로 있다.
+
+예제 명령은 POSIX `cp`와 `sh`다. Git이 있는 clone에서 이 저장소 파일을 복사한다. Git이 없는 환경과, POSIX 셸이 없는 Windows 설치는 확인하지 않았다. 그 환경을 지원한다고 적지 않는다.
+
 ## 항상 하는 일
 
 1. 기준 브랜치는 `main` 하나다. 작업 브랜치는 짧다. 병합은 squash다. 절차는 `docs/development-workflow.md`의 트렁크다.

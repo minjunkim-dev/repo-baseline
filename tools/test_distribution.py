@@ -83,6 +83,11 @@ class DistributionTests(unittest.TestCase):
             self.assertNotIn("3.13", body)
         self.assertIn("sh check.sh", start)
         self.assertIn("Baseline checks (Python 3.11)", start)
+        self.assertIn("코어가 복사하는 파일은 `.github/pull_request_template.md` 하나다.", start)
+        self.assertIn("포매터나 새 의존성을 스택 선택 없이 넣지 않는다.", start)
+        self.assertIn("Git이 없는 환경과, POSIX 셸이 없는 Windows 설치는 확인하지 않았다.", start)
+        self.assertIn("코어가 복사하는 파일은 PR 본문 양식 하나다.", readme)
+        self.assertIn("없는 주소를 적어 두지 않는다.", readme)
 
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)

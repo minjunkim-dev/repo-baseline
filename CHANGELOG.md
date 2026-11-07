@@ -17,6 +17,12 @@ Dependabot 현행은 「2026-11-06 — Dependabot PR은 다른 PR과 같다」�
 - Dependabot의 `scripts/workflow_policy.py` 본문 건너뜀은 근거 표의 작성 기록을 빼지 않는다. 버전 전용 예외는 없다.
 - 필수 체크와 `review/gate` `app_id` 5641238은 바꾸지 않는다.
 
+## 2026-11-07 — 시작 범위는 PR 양식 하나와 참조 계약이다
+
+- `docs/start.md`, README, `docs/development-workflow.md`, `prompts/pr-ci-setup.md`: 코어가 복사하는 파일은 `.github/pull_request_template.md` 하나다. Matt 절차, `POLICY.md`, 명령 네 칸은 설치가 아니라 참조다. format·lint·type·test·build는 대상 스택이거나 `N/A`와 이유다. 포매터와 새 의존성은 스택 선택 없이 넣지 않는다. 예제는 POSIX `sh`와 Git clone이다. Git이 없는 환경과 POSIX 셸이 없는 Windows는 지원 범위가 아니다.
+- 이 원본의 독립 패밀리 리뷰, 라운드 상한 3, `review/gate`, `POLICY.md` §10은 코어 복사가 약하게 하지 않는다. 외부 리뷰와 스레드 규칙은 §5 그대로다.
+- 메타 이슈 URL은 아직 없어 README에 링크를 만들지 않는다. 필수 체크와 workflow의 3.11·3.13 job, `review/gate` `app_id` 5641238은 바꾸지 않는다.
+
 ## 2026-11-07 — Python 3.15 검사를 필수 목록 밖에 더한다
 
 - `.github/workflows/check.yml`: `Baseline checks (Python 3.11)`과 `Baseline checks (Python 3.13)`은 그 minor로 unittest를 계속 실행한다. 새 버전으로 바꿔 성공을 위장하지 않는다. job `Baseline checks`를 더한다. `python-version`은 `3.15`이고 `check-latest: true`다. `3.x`, prerelease, free-threaded는 쓰지 않는다. 이 job은 필수 체크가 아니다.

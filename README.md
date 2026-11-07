@@ -3,7 +3,7 @@
 1인 개발과 소규모 팀(2~6명) 저장소의 GitHub 설정·CI 기준을 한 곳에서 관리하는 원본 저장소다. 두 프로필의 차이는 `POLICY.md` §9에 있고, 기본은 1인 프로필이다.
 새 프로젝트를 셋업하거나 기존 프로젝트를 다시 맞출 때 같은 결과가 나오게 한다.
 
-언어와 스택이 달라도 바로 시작하는 경로는 [새 프로젝트 시작](docs/start.md)이다. 그때 복사하는 목록은 `templates/repo-baseline.core.json`이다. 이미 전체 manifest를 쓰는 저장소는 그 파일로 바꾸지 않는다. 이 저장소의 GitHub 보호, `review/gate`, 필수 체크는 그대로다.
+언어와 스택이 달라도 바로 시작하는 경로는 [새 프로젝트 시작](docs/start.md)이다. 코어가 복사하는 파일은 PR 본문 양식 하나다. Matt 절차, `POLICY.md`, 명령 네 칸은 읽는 계약이고 그 복사에 들어 있지 않다. format·lint·type·test·build는 대상 스택의 명령이거나 `N/A`와 이유다. 예제 명령은 POSIX `sh`이고 Git clone을 가정한다. Git이 없는 환경과 POSIX 셸이 없는 Windows는 확인하지 않았다. 이미 전체 manifest를 쓰는 저장소는 코어 파일로 바꾸지 않는다. 이 저장소의 GitHub 보호, `review/gate`, 필수 체크는 그대로다. 열린 이슈를 묶는 메타 이슈 URL은 아직 없다. 없는 주소를 적어 두지 않는다.
 
 ## 구조
 

@@ -22,7 +22,7 @@ GitHub 설정 프롬프트나 이전 기록이 없으면 누락을 기록하고 
 
 - 실제 Git remote·기본 브랜치·스택·Issue 규칙·현재 CI/CD를 확인해. 열린 PR·worktree·dirty 상태를 확인하고 다른 작업자의 변경을 보존해. 적절한 깨끗한 worktree를 재사용하거나 필요한 경우 격리해.
 - branch push·PR 생성·main 병합 전에 공개 자동 배포 연결을 확인해. 공개 배포를 유발하는 동작은 보류해. 기존 배포 pipeline·production 설정·보호를 임의로 해제하지 마.
-- 실제 구현된 빌드·테스트·패키징 단위에 맞춰 적용해. 존재하지 않는 플랫폼의 구현·기기·배포를 검증했다고 보고하지 마. 원본의 `Baseline checks (Python 3.11)`와 `Baseline checks (Python 3.13)`는 이 저장소 도구 CI다. 대상의 필수 체크로 복사하지 마. Python을 쓰지 않는 프로젝트에 Python setup이나 그 unittest를 넣지 마.
+- 실제 구현된 빌드·테스트·패키징 단위에 맞춰 적용해. 존재하지 않는 플랫폼의 구현·기기·배포를 검증했다고 보고하지 마. 원본의 `Baseline checks (Python 3.11)`와 `Baseline checks (Python 3.13)`는 이 저장소 도구 CI다. 대상의 필수 체크로 복사하지 마. Python을 쓰지 않는 프로젝트에 Python setup이나 그 unittest를 넣지 마. repo-baseline 코어는 `.github/pull_request_template.md`만 복사한다. format·lint·type 도구와 새 패키지는 그 스택에 이미 있을 때만 쓰고, 없으면 `N/A`와 이유를 남겨. 스택을 고르기 전에 포매터를 넣지 마.
 - ChatGPT/Codex Cloud 계정과 서비스 저장소 목록은 탐색하지 마. 대상 저장소의 실제 자동 리뷰 연결은 GitHub 인계 기록을 사용해. 필요한 최신 상태만 다시 확인해.
 - 설치된 관련 스킬의 실제 지침을 확인해. 사용자 경로와 대체 설치 경로를 확인하고 미확인과 미설치를 구분해. 사용하지 않은 스킬이나 리뷰를 실행했다고 보고하지 마.
 - Matt Pocock 스킬은 설치된 원문대로 써. 이 프롬프트에서 스킬의 단계를 다시 정하지 마. `disable-model-invocation: true`인 스킬은 사용자가 실행한다. 목록은 `docs/development-workflow.md`에 있다. 에이전트는 실행을 요청만 해. 어떤 스킬로 시작할지는 사용자가 `/ask-matt`를 실행해 정한다.
