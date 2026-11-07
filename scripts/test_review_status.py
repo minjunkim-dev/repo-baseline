@@ -699,5 +699,223 @@ class ReviewStatusTests(unittest.TestCase):
         self.assertEqual(tool.main({}, api([])), 2)
 
 
+AUTHOR_AGENT = "bc-author-11111111"
+REVIEW_AGENT = "bc-review-22222222"
+PREVIOUS_AGENT = "bc-prev-33333333"
+
+
+def exception_block(head, axes="Standards, Spec, 버그 찾기", author="Sonnet 5.5",
+                    author_family="Claude", review="Opus 5.5", review_family="Claude",
+                    author_agent=AUTHOR_AGENT, review_agent=REVIEW_AGENT, reason="기록된 불가",
+                    previous_models="", previous_agents=""):
+    lines = [
+        "같은 패밀리 예외:",
+        f"- 축: {axes}",
+        f"- 이유: 다른 패밀리 불가: {reason}",
+        f"- 작성 모델: {author}",
+        f"- 작성 패밀리: {author_family}",
+        f"- 리뷰 모델: {review}",
+        f"- 리뷰 패밀리: {review_family}",
+        f"- 작성 에이전트: {author_agent}",
+        f"- 리뷰 에이전트: {review_agent}",
+        f"- 검토 SHA: {head}",
+    ]
+    if previous_models:
+        lines.append(f"- 이전 작성 모델: {previous_models}")
+    if previous_agents:
+        lines.append(f"- 이전 작성 에이전트: {previous_agents}")
+    return "\n".join(lines)
+
+
+def same_family_body(head, author="Sonnet 5.5", review="Opus 5.5", security=None, door="되돌리기 쉬움",
+                     block=True, previous="", **block_kwargs):
+    security_cell = review if security is None else security
+    security_effort = "high" if not str(security_cell).startswith("해당 없음:") else "해당 없음"
+    axes = "Standards, Spec, 버그 찾기"
+    if not str(security_cell).startswith("해당 없음:"):
+        axes += ", Security"
+    lines = [
+        f"Author: Claude Code / {author}",
+        f"Door: {door}",
+    ]
+    if previous:
+        lines.append(f"이전 작성 모델: {previous}")
+    lines.extend([
+        "| axis | model | effort | head SHA | P0 | P1 | P2 | result |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- |",
+        f"| Standards | {review} | high | {head} | 0 | 0 | 0 | pass |",
+        f"| Spec | {review} | high | {head} | 0 | 0 | 0 | pass |",
+        f"| 버그 찾기 | {review} | high | {head} | 0 | 0 | 0 | pass |",
+        f"| Security | {security_cell} | {security_effort} | {head} | 0 | 0 | 0 | pass |",
+    ])
+    if block:
+        kwargs = {"author": author, "review": review, "axes": axes}
+        kwargs.update(block_kwargs)
+        lines.append(exception_block(head, **kwargs))
+    return "\n".join(lines) + "\n"
+
+
+class SameFamilyExceptionTests(unittest.TestCase):
+    def test_identities_distinguish_effort_from_a_different_model(self):
+        self.assertEqual(tool.model_identity("Opus 5.5"), ("opus", (5, 5)))
+        self.assertEqual(tool.model_identity("claude-opus-5-5-high"), ("opus", (5, 5)))
+        self.assertTrue(tool.proven_same("Opus 5.5", "claude-opus-5-5-high"))
+        self.assertFalse(tool.proven_different("grok-4.7", "grok-4.7-high-fast"))
+        self.assertTrue(tool.proven_different("grok-4.7", "cursor-grok-4.6"))
+        self.assertTrue(tool.proven_different("Sonnet 5.5", "Opus 5.5"))
+        self.assertFalse(tool.proven_different("Haiku", "claude-haiku-4-5"))
+        self.assertIsNone(tool.model_identity("not-a-model"))
+
+    def test_a_different_model_in_the_same_family_passes_only_with_the_record(self):
+        head = HEAD
+        self.assertEqual(tool.evidence_problems(same_family_body(head), head), [])
+        grok = same_family_body(
+            head, author="grok-4.7", review="cursor-grok-4.6", door="되돌리기 어려움",
+            author_family="Grok", review_family="Grok",
+            reason="가용성 추정 없이 남긴 문장")
+        self.assertEqual(tool.evidence_problems(grok, head), [])
+        sonnet = same_family_body(
+            head, author="Opus 5.5", review="Sonnet 5.5", security="Sonnet 5.5",
+            door="되돌리기 어려움")
+        self.assertEqual(tool.evidence_problems(sonnet, head), [])
+        easy_haiku = same_family_body(
+            head, author="Opus 5.5", review="claude-haiku-4-5",
+            security="해당 없음: 신뢰 경계 변경 아님", door="되돌리기 쉬움")
+        self.assertEqual(tool.evidence_problems(easy_haiku, head), [])
+        crossed = "\n".join([
+            "Author: Cursor / grok-4.7",
+            "Door: 되돌리기 쉬움",
+            "| axis | model | effort | head SHA | P0 | P1 | P2 | result |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- |",
+            f"| Standards | Sonnet 5.5 | high | {head} | 0 | 0 | 0 | pass |",
+            f"| Spec | Sonnet 5.5 | high | {head} | 0 | 0 | 0 | pass |",
+            f"| 버그 찾기 | Opus 5.5 | high | {head} | 0 | 0 | 0 | pass |",
+            f"| Security | 해당 없음: 신뢰 경계 변경 아님 | 해당 없음 | {head} | 0 | 0 | 0 | pass |",
+        ])
+        self.assertEqual(tool.evidence_problems(crossed, head), [])
+
+    def test_the_same_model_or_the_same_agent_does_not_pass(self):
+        head = HEAD
+        renamed = same_family_body(head, author="Opus 5.5", review="claude-opus-5-5-high")
+        self.assertIn("same-model", tool.evidence_problems(renamed, head))
+        self.assertIn("same-family", tool.evidence_problems(renamed, head))
+        effort = same_family_body(
+            head, author="grok-4.7", review="grok-4.7-high-fast",
+            author_family="Grok", review_family="Grok")
+        self.assertIn("same-model", tool.evidence_problems(effort, head))
+        same_agent = same_family_body(head, review_agent=AUTHOR_AGENT)
+        found = tool.evidence_problems(same_agent, head)
+        self.assertIn("same-agent", found)
+        self.assertIn("same-family", found)
+        self.assertNotIn("same-model", found)
+
+    def test_a_missing_reason_sha_or_agent_record_fails(self):
+        head = HEAD
+        bare = same_family_body(head, block=False)
+        self.assertIn("same-family", tool.evidence_problems(bare, head))
+        self.assertNotIn("exception-reason", tool.evidence_problems(bare, head))
+        no_prefix = same_family_body(head).replace(
+            "- 이유: 다른 패밀리 불가: 기록된 불가", "- 이유: 크레딧 부족")
+        self.assertIn("exception-reason", tool.evidence_problems(no_prefix, head))
+        empty_reason = same_family_body(head).replace(
+            "- 이유: 다른 패밀리 불가: 기록된 불가", "- 이유: 다른 패밀리 불가:")
+        self.assertIn("exception-reason", tool.evidence_problems(empty_reason, head))
+        other = "b" * 40
+        wrong_sha = same_family_body(head).replace(f"- 검토 SHA: {head}", f"- 검토 SHA: {other}")
+        self.assertIn("exception-sha", tool.evidence_problems(wrong_sha, head))
+        missing_agent = same_family_body(head, review_agent="")
+        self.assertIn("exception-agent", tool.evidence_problems(missing_agent, head))
+        placeholder = same_family_body(head, review_agent="미확인")
+        self.assertIn("exception-agent", tool.evidence_problems(placeholder, head))
+        short = same_family_body(head, author_agent="agent-1")
+        self.assertIn("exception-agent", tool.evidence_problems(short, head))
+        hidden = "<!--\n" + exception_block(head) + "\n-->\n" + same_family_body(head, block=False)
+        self.assertIn("same-family", tool.evidence_problems(hidden, head))
+        self.assertNotIn("exception-reason", tool.evidence_problems(hidden, head))
+
+    def test_the_record_must_match_the_author_and_the_review_names(self):
+        head = HEAD
+        wrong_author = same_family_body(head, author="Sonnet 5.5")
+        wrong_author = wrong_author.replace("- 작성 모델: Sonnet 5.5", "- 작성 모델: Opus 5.5", 1)
+        self.assertIn("exception-record", tool.evidence_problems(wrong_author, head))
+        wrong_family = same_family_body(head).replace("- 리뷰 패밀리: Claude", "- 리뷰 패밀리: Grok")
+        self.assertIn("exception-record", tool.evidence_problems(wrong_family, head))
+        stray = "\n".join([
+            "Author: Cursor / grok-4.7",
+            "| axis | model | effort | head SHA | P0 | P1 | P2 | result |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- |",
+            f"| Standards | Sonnet 5.5 | high | {head} | 0 | 0 | 0 | pass |",
+            f"| Spec | Sonnet 5.5 | high | {head} | 0 | 0 | 0 | pass |",
+            f"| 버그 찾기 | Opus 5.5 | high | {head} | 0 | 0 | 0 | pass |",
+            f"| Security | 해당 없음: 신뢰 경계 변경 아님 | 해당 없음 | {head} | 0 | 0 | 0 | pass |",
+            exception_block(head, author="grok-4.7", author_family="Grok",
+                            review="Sonnet 5.5", review_family="Claude"),
+        ])
+        self.assertIn("exception-record", tool.evidence_problems(stray, head))
+
+    def test_haiku_is_not_enough_for_security_or_a_hard_bug_review(self):
+        head = HEAD
+        security = same_family_body(
+            head, author="Opus 5.5", review="claude-haiku-4-5", security="claude-haiku-4-5",
+            door="되돌리기 쉬움")
+        self.assertIn("insufficient-capability", tool.evidence_problems(security, head))
+        hard_bug = same_family_body(
+            head, author="Opus 5.5", review="claude-haiku-4-5",
+            security="해당 없음: 신뢰 경계 변경 아님", door="되돌리기 어려움")
+        self.assertIn("insufficient-capability", tool.evidence_problems(hard_bug, head))
+        no_door = same_family_body(
+            head, author="Opus 5.5", review="claude-haiku-4-5",
+            security="해당 없음: 신뢰 경계 변경 아님", door="되돌리기 쉬움").replace(
+            "Door: 되돌리기 쉬움\n", "")
+        self.assertIn("insufficient-capability", tool.evidence_problems(no_door, head))
+        gemini = same_family_body(
+            head, author="Gemini 2.5", review="Gemini 4",
+            author_family="Gemini", review_family="Gemini")
+        found = tool.evidence_problems(gemini, head)
+        self.assertIn("inactive-roster", found)
+        self.assertIn("same-family", found)
+
+    def test_previous_authors_stay_out_of_the_review_model_and_agent(self):
+        head = HEAD
+        covered = same_family_body(
+            head, author="grok-4.7", review="Opus 5.5", previous="Sonnet 5.5",
+            author_family="Grok", review_family="Claude",
+            previous_models="Sonnet 5.5", previous_agents=PREVIOUS_AGENT)
+        self.assertEqual(tool.evidence_problems(covered, head), [])
+        reused = same_family_body(
+            head, author="grok-4.7", review="Sonnet 5.5", previous="Sonnet 5.5",
+            author_family="Grok", review_family="Claude",
+            previous_models="Sonnet 5.5", previous_agents=PREVIOUS_AGENT)
+        self.assertIn("same-model", tool.evidence_problems(reused, head))
+        same_previous_agent = same_family_body(
+            head, author="grok-4.7", review="Opus 5.5", previous="Sonnet 5.5",
+            author_family="Grok", review_family="Claude",
+            previous_models="Sonnet 5.5", previous_agents=REVIEW_AGENT)
+        self.assertIn("same-agent", tool.evidence_problems(same_previous_agent, head))
+        missing_previous = same_family_body(
+            head, author="grok-4.7", review="Opus 5.5", previous="Sonnet 5.5",
+            author_family="Grok", review_family="Claude")
+        found = tool.evidence_problems(missing_previous, head)
+        self.assertIn("exception-record", found)
+        self.assertIn("exception-agent", found)
+
+    def test_the_exception_does_not_waive_owner_approval_or_required_axes(self):
+        head = HEAD
+        body = same_family_body(head, security="Opus 5.5", door="되돌리기 어려움")
+        open_p0 = body.replace("| 0 | 0 | 0 | pass |", "| 1 | 0 | 0 | pass |", 1)
+        self.assertIn("open", tool.evidence_problems(open_p0, head))
+        unrun = body.replace("| 버그 찾기 | Opus 5.5 | high |", "| 버그 찾기 | 미실행 | 미실행 |")
+        self.assertIn("model", tool.evidence_problems(unrun, head))
+        dropped = "\n".join(line for line in body.split("\n") if not line.startswith("| Security"))
+        self.assertIn("axis-security", tool.evidence_problems(dropped, head))
+        read = api([{"filename": "scripts/check_review_status.py"}], body=body, head=head)
+        self.assertEqual(tool.missing("o/n", "1", head, "BASE", read), [tool.OWNER])
+        self.assertIn(tool.EVIDENCE, tool.missing("o/n", "1", head, "BASE", api(
+            [{"filename": "scripts/check_review_status.py"}], body=body.replace(
+                f"| {head} |", f"| {'c' * 40} |"), head=head)))
+        docs = api([{"filename": "docs/readme.md"}], body=same_family_body(head), head=head)
+        self.assertEqual(tool.missing("o/n", "1", head, "BASE", docs), [])
+
+
 if __name__ == "__main__":
     unittest.main()

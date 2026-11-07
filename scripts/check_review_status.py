@@ -24,6 +24,11 @@ by hand. A comment does not re-run this checker.
 The first line must be the current prefix or the deprecated prefix, then the full head SHA.
 Both prefixes share this match.
 The pull request body is parsed for the review evidence table. It is never executed.
+A review family that matches the author family fails, unless a same-family exception block
+records a different model, a separate agent id, an unavailability reason, and this head's SHA.
+The checker compares those strings. It does not ask whether another family is available,
+and it does not authenticate an agent id. Haiku is not sufficient for Security, or for
+bug-finding unless the Door is the easy one.
 The pull request base ref must be the repository default branch, and the event base SHA must be
 that branch or an ancestor of it. A pull request with a different base is not evidence."""
 
@@ -325,6 +330,232 @@ def model_family(name):
     return found.pop()
 
 
+# Line, then version numbers. Host and effort words are not a second model.
+# A missing version does not prove that two names are different models.
+_IDENTITY_LINES = ("haiku", "opus", "sonnet", "composer", "gemini", "grok", "gpt")
+_EASY_DOORS = {"되돌리기 쉬움", "양쪽 문"}
+_HARD_DOORS = {"되돌리기 어려움", "한쪽 문"}
+_ACTIVE_EXCEPTION = {"claude", "grok", "composer"}
+_FAMILY_LABELS = {
+    "claude": "claude", "클로드": "claude",
+    "grok": "grok", "그록": "grok",
+    "composer": "composer", "컴포저": "composer",
+    "gemini": "gemini", "gpt": "gpt",
+}
+_AGENT_PLACEHOLDER = {
+    "없음", "미확인", "unknown", "n/a", "na", "same", "동일", "해당 없음",
+    "agent", "bot", "사람", "같은에이전트", "self", "myself",
+}
+_EXCEPTION_HEADER = "같은 패밀리 예외:"
+_EXCEPTION_FIELDS = (
+    ("축", "axes"),
+    ("이유", "reason"),
+    ("작성 모델", "author_model"),
+    ("작성 패밀리", "author_family"),
+    ("리뷰 모델", "review_model"),
+    ("리뷰 패밀리", "review_family"),
+    ("작성 에이전트", "author_agent"),
+    ("리뷰 에이전트", "review_agent"),
+    ("검토 SHA", "sha"),
+    ("이전 작성 모델", "previous_models"),
+    ("이전 작성 에이전트", "previous_agents"),
+)
+_EXCEPTION_KEYS = {label: key for label, key in _EXCEPTION_FIELDS}
+_REASON = re.compile(r"다른 패밀리 불가:\s*\S.*")
+
+
+def model_identity(name):
+    """(line, version numbers) or None when the name is not one model line.
+
+    Words that are not the line or a number are ignored. Two lines in one name are unknown.
+    This does not ask a provider which model ran."""
+    if not isinstance(name, str):
+        return None
+    tokens = re.findall(r"[a-z0-9]+", name.strip().lower())
+    lines = [alias for alias in _IDENTITY_LINES if alias in tokens]
+    if len(lines) != 1:
+        return None
+    return (lines[0], tuple(int(token) for token in tokens if token.isdigit()))
+
+
+def proven_same(left, right):
+    """True when both names identify the same line and the same version numbers."""
+    return model_identity(left) is not None and model_identity(left) == model_identity(right)
+
+
+def proven_different(left, right):
+    """True only when both names identify one line and those identities differ.
+
+    A missing identity, or the same line with a missing version, is not proof of a
+    different model. The checker does not fill in a version from anywhere else."""
+    left_id, right_id = model_identity(left), model_identity(right)
+    if left_id is None or right_id is None or left_id[0] != right_id[0]:
+        return left_id is not None and right_id is not None and left_id[0] != right_id[0]
+    if not left_id[1] or not right_id[1]:
+        return False
+    return left_id[1] != right_id[1]
+
+
+def family_label(value):
+    """Canonical family for a declared label, or None when the label is not one family."""
+    if not isinstance(value, str):
+        return None
+    return _FAMILY_LABELS.get(value.strip().casefold())
+
+
+def door_kind(text):
+    """easy, hard, or None. None when Door is missing, repeated, or not a known value.
+
+    The field name matches scripts/workflow_policy.py. Deprecated values map the same way.
+    This does not decide whether the pull request is a gate path."""
+    if not isinstance(text, str):
+        return None
+    doors = [line[len("Door:"):].strip() for line in text.split("\n") if line.startswith("Door:")]
+    if len(doors) != 1:
+        return None
+    if doors[0] in _EASY_DOORS:
+        return "easy"
+    if doors[0] in _HARD_DOORS:
+        return "hard"
+    return None
+
+
+def agent_token(value):
+    """Comparable agent id, or None when the text is too short, blank, or a placeholder.
+
+    The comparison is the text itself. This does not look up an agent registry."""
+    if not isinstance(value, str):
+        return None
+    text = value.strip()
+    if len(text) < 8 or text.casefold() in _AGENT_PLACEHOLDER or re.search(r"\d", text) is None:
+        return None
+    return text.casefold()
+
+
+def _split_list(value):
+    if not isinstance(value, str) or value.strip() == "":
+        return []
+    return [part.strip() for part in value.split(",")]
+
+
+def _named_axes(raw):
+    """Axis keys named by a comma-separated cell, and whether a name was unusable."""
+    if not isinstance(raw, str) or raw.strip() == "":
+        return [], True
+    found = []
+    bad = False
+    for part in raw.split(","):
+        name = part.strip().lower()
+        if name == "":
+            bad = True
+            continue
+        key = AXIS_KEYS.get(name)
+        if key is None or key in found:
+            bad = True
+            continue
+        found.append(key)
+    return found, bad
+
+
+def exception_blocks(text):
+    """Parsed `같은 패밀리 예외:` blocks, in order. The body is not executed.
+
+    A block ends at the next non-empty line that is not a field. Missing fields are
+    empty strings. Duplicate or unknown fields mark the block malformed."""
+    if not isinstance(text, str):
+        return []
+    blocks = []
+    current = None
+    for line in text.split("\n"):
+        stripped = line.strip()
+        if stripped == _EXCEPTION_HEADER:
+            if current is not None:
+                blocks.append(_finish_exception(current))
+            current = {"fields": {}, "malformed": ""}
+            continue
+        if current is None:
+            continue
+        if stripped == "":
+            continue
+        match = re.fullmatch(r"- ([^:]+):\s*(.*)", stripped)
+        if match is None:
+            blocks.append(_finish_exception(current))
+            current = None
+            continue
+        key = _EXCEPTION_KEYS.get(match.group(1))
+        if key is None or key in current["fields"]:
+            current["malformed"] = "field"
+            continue
+        current["fields"][key] = match.group(2).strip()
+    if current is not None:
+        blocks.append(_finish_exception(current))
+    return blocks
+
+
+def _finish_exception(current):
+    row = {key: current["fields"].get(key, "") for _, key in _EXCEPTION_FIELDS}
+    row["malformed"] = current["malformed"]
+    return row
+
+
+def _dedupe(codes):
+    found = []
+    for code in codes:
+        if code not in found:
+            found.append(code)
+    return found
+
+
+def _exception_codes(block, reviewer, author_model, previous, head, axis, door):
+    """Why this block does not cover one same-family row. Empty means it does."""
+    if block.get("malformed"):
+        return ["exception-record"]
+    codes = []
+    family = model_family(reviewer)
+    if family not in _ACTIVE_EXCEPTION:
+        codes.append("inactive-roster")
+    authors = [author_model] + list(previous)
+    if any(not proven_different(reviewer, name) for name in authors):
+        codes.append("same-model")
+    if _REASON.fullmatch(block.get("reason", "").strip()) is None:
+        codes.append("exception-reason")
+    sha = block.get("sha", "").strip()
+    if not re.fullmatch(r"[0-9a-fA-F]{40}", sha) or sha.lower() != (head or "").lower():
+        codes.append("exception-sha")
+    author_agent = agent_token(block.get("author_agent", ""))
+    review_agent = agent_token(block.get("review_agent", ""))
+    if author_agent is None or review_agent is None:
+        codes.append("exception-agent")
+    elif author_agent == review_agent:
+        codes.append("same-agent")
+    if not proven_same(block.get("author_model", ""), author_model):
+        codes.append("exception-record")
+    if family_label(block.get("author_family", "")) != model_family(author_model):
+        codes.append("exception-record")
+    if not proven_same(block.get("review_model", ""), reviewer):
+        codes.append("exception-record")
+    if family_label(block.get("review_family", "")) != family:
+        codes.append("exception-record")
+    declared_models = _split_list(block.get("previous_models", ""))
+    declared_agents = _split_list(block.get("previous_agents", ""))
+    if len(declared_models) != len(previous) or any(
+            not proven_same(declared, actual) for declared, actual in zip(declared_models, previous)):
+        codes.append("exception-record")
+    if previous:
+        tokens = [agent_token(item) for item in declared_agents]
+        if len(declared_agents) != len(previous) or any(item is None for item in tokens):
+            codes.append("exception-agent")
+        elif review_agent is not None and any(item == review_agent for item in tokens):
+            codes.append("same-agent")
+    elif block.get("previous_models", "").strip() or block.get("previous_agents", "").strip():
+        codes.append("exception-record")
+    identity = model_identity(reviewer)
+    if identity is not None and identity[0] == "haiku" and (
+            axis == "security" or (axis == "bug" and door != "easy")):
+        codes.append("insufficient-capability")
+    return _dedupe(codes)
+
+
 def _cells(line):
     stripped = line.strip()
     if len(stripped) < 2 or not stripped.startswith("|") or not stripped.endswith("|"):
@@ -487,7 +718,10 @@ def evidence_problems(body, head, security_required=False):
     if rows is None:
         problems.append("table")
         return problems
+    blocks = exception_blocks(text)
+    door = door_kind(text)
     seen = {}
+    same_axes = set()
     for row in rows:
         key = AXIS_KEYS.get(row.get("axis", "").strip().lower())
         if key is None:
@@ -520,11 +754,30 @@ def evidence_problems(body, head, security_required=False):
             if family is None:
                 problems.append("unknown-family")
             elif family in families:
-                problems.append("same-family")
+                same_axes.add(key)
+                covering = []
+                for block in blocks:
+                    axes, _bad = _named_axes(block.get("axes", ""))
+                    if key in axes:
+                        covering.append(block)
+                if len(covering) != 1:
+                    problems.append("same-family")
+                    if len(covering) > 1:
+                        problems.append("exception-record")
+                else:
+                    extra = _exception_codes(
+                        covering[0], reviewer, model, previous, head, key, door)
+                    if extra:
+                        problems.append("same-family")
+                        problems.extend(extra)
             _row_results(row, problems)
         sha = row.get("sha", "").strip()
         if not re.fullmatch(r"[0-9a-fA-F]{40}", sha) or sha.lower() != wanted:
             problems.append("sha")
+    for block in blocks:
+        axes, bad = _named_axes(block.get("axes", ""))
+        if block.get("malformed") or bad or any(axis not in same_axes for axis in axes):
+            problems.append("exception-record")
     return problems
 
 

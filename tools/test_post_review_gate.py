@@ -152,6 +152,46 @@ class DecideTests(unittest.TestCase):
         self.assertEqual(found.kind, "success")
         self.assertNotIn("review/independent", found.detail)
 
+    def test_a_recorded_same_family_review_still_needs_the_owner_on_a_gate_path(self):
+        rows = "\n".join(
+            f"| {axis} | cursor-grok-4.6 | high | {HEAD} | 0 | 0 | 0 | pass |"
+            for axis in ("Standards", "Spec", "버그 찾기", "Security"))
+        record = "\n".join([
+            "같은 패밀리 예외:",
+            "- 축: Standards, Spec, 버그 찾기, Security",
+            "- 이유: 다른 패밀리 불가: 크레딧 부족",
+            "- 작성 모델: grok-4.7",
+            "- 작성 패밀리: Grok",
+            "- 리뷰 모델: cursor-grok-4.6",
+            "- 리뷰 패밀리: Grok",
+            "- 작성 에이전트: bc-author-11111111",
+            "- 리뷰 에이전트: bc-review-22222222",
+            f"- 검토 SHA: {HEAD}",
+        ])
+        body = "\n".join([
+            "Author: Cursor 클라우드 에이전트 / grok-4.7",
+            "Door: 되돌리기 어려움",
+            "| axis | model | effort | head SHA | P0 | P1 | P2 | result |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- |",
+            rows,
+            record,
+            "",
+        ])
+        docs = [{"filename": "README.md", "patch": "@@\n-a\n+b\n"}]
+        self.assertEqual(decide(Scripted(pull(body=body), docs, [])).kind, "success")
+        gate_path = [{"filename": "scripts/check_review_status.py", "patch": "@@\n-a\n+b\n"}]
+        bare = decide(Scripted(pull(body=body), gate_path, []))
+        self.assertEqual(bare.kind, "failure")
+        self.assertIn(review.OWNER, bare.detail)
+        self.assertNotIn(review.EVIDENCE, bare.detail)
+        approved = decide(Scripted(pull(body=body), gate_path, [], comments=[comment(HEAD)]))
+        self.assertEqual(approved.kind, "success")
+        other = body.replace("bc-review-22222222", "bc-review-33333333")
+        first = gate.evidence_snapshot(body, HEAD, [], OWNER)
+        second = gate.evidence_snapshot(other, HEAD, [], OWNER)
+        self.assertNotEqual(first[0]["exceptions"], second[0]["exceptions"])
+        self.assertNotEqual(first[1], second[1])
+
     def test_same_family_evidence_fails_and_an_actions_status_does_not(self):
         files = [{"filename": "README.md", "patch": "@@\n-a\n+b\n"}]
         same = decide(Scripted(pull(body=evidence(HEAD, standards="grok-4.7")), files, []))
