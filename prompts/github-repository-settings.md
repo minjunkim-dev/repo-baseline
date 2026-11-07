@@ -61,7 +61,7 @@ GitHub 최종 확인은 두 번째 작업의 마무리다. 세 번째 프롬프�
 팀 프로필은 `templates/CODEOWNERS`로 `.github/CODEOWNERS`를 두는 작업을 PR·CI/CD 작업에 인계해. 소유자마다 쓰기 권한이 있는지, 소유자가 두 명 이상이거나 팀인지 확인해. 저장소가 개인 계정 소유인지 조직 소유인지 기록하고, 조직 소유 저장소의 차이는 `POLICY.md` §9를 따라.
 기존 협업·release 운영과 충돌하면 근거를 확인해. 다른 목적의 보호를 삭제하거나 보호 공백을 만들지 마.
 branch protection·ruleset·상속 규칙의 중복과 충돌을 확인해. 관리자 우회와 일시적인 보호 해제로 병합하지 마.
-Allow auto-merge는 사용 가능한 상태로만 둬. 모든 PR에 자동 병합을 예약하거나 자동 병합 workflow를 만들지 마. 예약 조건은 `POLICY.md` §10이다.
+Allow auto-merge는 사용 가능한 상태로만 둬. 그 설정이 켜져 있어도 이 절차는 auto-merge를 예약하지 않는다. 예약된 auto-merge는 `tools/post_review_gate.py --merge`가 거부한다. `gh pr merge --disable-auto`로 끈다. `--auto`와 관리자 우회는 쓰지 않는다.
 Release를 사용하는 저장소는 미래 공개 Release의 immutability 지원과 영향을 확인해. 설정 변경과 실제 Release 생성·공개를 구분해.
 
 ## 4. 실제 CI와 필수 체크 연결

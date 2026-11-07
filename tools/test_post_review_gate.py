@@ -1,6 +1,8 @@
 """Mac-side review/gate poster. HTTP is mocked. No key material is committed."""
 
 import base64
+from contextlib import redirect_stderr
+import io
 import json
 import os
 from pathlib import Path
@@ -126,8 +128,8 @@ class DecideTests(unittest.TestCase):
         edited = decide(Scripted(pull(body=body), files, [], comments=[comment(HEAD, edited=True)]))
         self.assertEqual(edited.kind, "failure")
         source = Path(gate.__file__).read_text(encoding="utf-8")
-        self.assertNotIn("graphql", source)
         self.assertNotIn("lastEditedAt", source)
+        self.assertIn("updated_at", source)
 
     def test_head_mismatch_and_a_closed_pull_do_not_count_as_evidence_failure(self):
         files = [{"filename": "README.md"}]
@@ -196,11 +198,34 @@ def _key(mode=0o600):
     return directory, path
 
 
+def ready_payload(head=HEAD, contexts=None, threads=None, review=None, more_checks=False, more_threads=False):
+    if contexts is None:
+        contexts = [
+            {"__typename": "CheckRun", "name": "Baseline checks (Python 3.11)",
+             "status": "COMPLETED", "conclusion": "SUCCESS", "isRequired": True},
+            {"__typename": "CheckRun", "name": "Baseline checks (Python 3.13)",
+             "status": "COMPLETED", "conclusion": "SUCCESS", "isRequired": True},
+            {"__typename": "StatusContext", "context": "review/gate", "state": "PENDING", "isRequired": True},
+        ]
+    return {"data": {"repository": {"pullRequest": {
+        "reviewDecision": review,
+        "reviewThreads": {"pageInfo": {"hasNextPage": more_threads}, "nodes": [] if threads is None else threads},
+        "commits": {"nodes": [{"commit": {
+            "oid": head,
+            "statusCheckRollup": {"contexts": {"pageInfo": {"hasNextPage": more_checks}, "nodes": contexts}},
+        }}]},
+    }}}}
+
+
 class FakeHub:
     def __init__(self, repo_pull, files, statuses):
         self.pull = repo_pull
         self.files = files
         self.statuses = statuses
+        self.comments = []
+        self.graphql = []
+        self.on_success = None
+        self.fail_post = None
         self.calls = []
 
     def __call__(self, method, url, headers, body):
@@ -212,17 +237,29 @@ class FakeHub:
             return self._json({"default_branch": "main", "owner": {"login": OWNER}})
         if path == f"/repos/{REPO}/compare/{BASE}...main":
             return self._json({"status": "identical"})
-        if path == f"/repos/{REPO}/compare/{BASE}...{self.pull['head']['sha']}":
+        compare_head = self.pull["head"]["sha"]
+        if path == f"/repos/{REPO}/compare/{BASE}...{compare_head}":
             return self._json({"files": self.files, "commits": []})
         if path.startswith(f"/repos/{REPO}/contents/"):
             return 404, {}, b""
-        if path == f"/repos/{REPO}/commits/{self.pull['head']['sha']}/statuses?per_page=100":
+        if path == f"/repos/{REPO}/commits/{compare_head}/statuses?per_page=100":
             return self._json(self.statuses)
+        if path == f"/repos/{REPO}/issues/7/comments?per_page=100":
+            return self._json([self.comments])
+        if path == "/graphql":
+            if not self.graphql:
+                raise AssertionError("graphql")
+            payload = self.graphql.pop(0)
+            return self._json(payload)
         if path == f"/repos/{REPO}/installation":
             return self._json({"id": 99})
         if path == "/app/installations/99/access_tokens":
             return self._json({"token": "ghs_test_token"})
-        if path == f"/repos/{REPO}/statuses/{self.pull['head']['sha']}":
+        if path.startswith(f"/repos/{REPO}/statuses/"):
+            if self.fail_post and body and body.get("state") == self.fail_post:
+                return 500, {}, b""
+            if body and body.get("state") == "success" and self.on_success:
+                self.on_success()
             return 201, {}, json.dumps({"context": body["context"], "state": body["state"]}).encode()
         raise AssertionError(path)
 
@@ -270,9 +307,11 @@ class HttpTests(unittest.TestCase):
         posts = [item for item in hub.calls if item[0] == "POST" and item[1].endswith(f"/statuses/{HEAD}")]
         self.assertEqual(len(posts), 1)
         _, url, headers, body = posts[0]
-        self.assertEqual(body, {
-            "state": "success", "context": "review/gate", "description": f"review/gate success {HEAD}",
-        })
+        self.assertEqual(body["state"], "pending")
+        self.assertEqual(body["context"], "review/gate")
+        self.assertNotEqual(body["state"], "success")
+        self.assertTrue(body["description"].startswith(f"review/gate pending {HEAD} "))
+        self.assertLessEqual(len(body["description"]), 140)
         self.assertEqual(headers["Authorization"], "Bearer ghs_test_token")
         self.assertNotIn("check-runs", url)
         minted = [item for item in hub.calls if item[1].endswith("/access_tokens")]
@@ -366,6 +405,229 @@ class HttpTests(unittest.TestCase):
             ["openssl", "dgst", "-sha256", "-verify", str(pub), "-signature", str(sig_path), str(data_path)],
             check=True, capture_output=True, text=True)
         self.assertIn("Verified OK", verified.stdout)
+
+
+class MergeTests(unittest.TestCase):
+    def env(self, key):
+        return {
+            "GH_TOKEN": "ghp_mac_read",
+            "REVIEW_GATE_APP_ID": "424242",
+            "REVIEW_GATE_APP_KEY": str(key),
+            "REVIEW_GATE_API": API,
+            "PATH": "/usr/bin",
+        }
+
+    def hub(self):
+        files = [{"filename": "README.md", "patch": "@@\n-a\n+b\n"}]
+        found = FakeHub(pull(), files, [])
+        found.graphql = [ready_payload()]
+        return found
+
+    def invoke(self, hub, key, merge, polls=3, extra=None):
+        argv = ["--repo", REPO, "--pr", "7", "--sha", HEAD, "--merge"]
+        if extra:
+            argv = argv + extra
+        sleeps = []
+        code = gate.main(
+            argv, self.env(key), hub, now=lambda: 1700000000, sign=lambda data, path: b"sig",
+            merge=merge, sleep=lambda seconds: sleeps.append(seconds), polls=polls, poll_wait=2)
+        return code, sleeps
+
+    def test_merge_posts_success_then_squash_merges_that_sha(self):
+        directory, key = _key()
+        self.addCleanup(directory.cleanup)
+        hub = self.hub()
+        calls = []
+
+        def merge(argv, env):
+            calls.append((argv, dict(env)))
+            return 0, ""
+
+        code, sleeps = self.invoke(hub, key, merge)
+        self.assertEqual(code, 0)
+        self.assertEqual(sleeps, [])
+        self.assertEqual(calls[0][0], [
+            "gh", "pr", "merge", "7", "--repo", REPO, "--squash", "--match-head-commit", HEAD])
+        self.assertNotIn("--auto", calls[0][0])
+        self.assertNotIn("--admin", calls[0][0])
+        self.assertNotIn("GH_TOKEN", calls[0][1])
+        self.assertNotIn("REVIEW_GATE_APP_KEY", calls[0][1])
+        self.assertTrue(all("ghp_mac_read" not in value and "ghs_test_token" not in value
+                            and str(key) not in value for value in calls[0][1].values()))
+        posts = [item[3] for item in hub.calls if item[0] == "POST" and "/statuses/" in item[1]]
+        self.assertEqual([item["state"] for item in posts], ["success"])
+        self.assertIn(HEAD, posts[0]["description"])
+        self.assertLessEqual(len(posts[0]["description"]), 140)
+        self.assertNotIn("ghs_test_token", posts[0]["description"])
+
+    def test_plain_dry_run_and_bad_evidence_do_not_post_success_or_merge(self):
+        directory, key = _key()
+        self.addCleanup(directory.cleanup)
+        hub = self.hub()
+
+        def boom(*_args):
+            raise AssertionError("merge")
+
+        code = gate.main(
+            ["--repo", REPO, "--pr", "7", "--sha", HEAD, "--dry-run"],
+            self.env(key), hub, now=lambda: 1700000000, sign=lambda data, path: b"sig", merge=boom)
+        self.assertEqual(code, 0)
+        self.assertFalse(any("/statuses/" in url or url.endswith("/graphql") for _, url, _, _ in hub.calls))
+        hub.pull = pull(body="")
+        code, _sleeps = self.invoke(hub, key, boom)
+        self.assertEqual(code, 1)
+        posts = [item[3]["state"] for item in hub.calls if "/statuses/" in item[1]]
+        self.assertEqual(posts, ["failure"])
+        broken = self.hub()
+        broken.pull = pull(body="Author: Cursor / grok-4.7\nnot a table\n")
+        code, _sleeps = self.invoke(broken, key, boom)
+        self.assertEqual(code, 1)
+        self.assertEqual([item[3]["state"] for item in broken.calls if "/statuses/" in item[1]], ["failure"])
+        opened = self.hub()
+        opened.pull = pull(body=evidence(HEAD).replace("| 0 | 0 | 0 | pass |", "| 1 | 0 | 0 | pass |", 1))
+        code, _sleeps = self.invoke(opened, key, boom)
+        self.assertEqual(code, 1)
+        self.assertEqual([item[3]["state"] for item in opened.calls if "/statuses/" in item[1]], ["failure"])
+
+    def test_sha_drift_before_post_does_not_post_and_drift_after_post_clears_success(self):
+        directory, key = _key()
+        self.addCleanup(directory.cleanup)
+
+        def boom(*_args):
+            raise AssertionError("merge")
+
+        early = self.hub()
+        early.pull = pull(head=OTHER)
+        code, _sleeps = self.invoke(early, key, boom)
+        self.assertEqual(code, 1)
+        self.assertFalse(any("/statuses/" in url for _, url, _, _ in early.calls))
+        late = self.hub()
+
+        def move():
+            late.pull["head"]["sha"] = OTHER
+
+        late.on_success = move
+        calls = []
+        code, _sleeps = self.invoke(late, key, lambda argv, env: calls.append(argv) or (0, ""))
+        self.assertEqual(code, 1)
+        self.assertEqual(calls, [])
+        states = [item[3]["state"] for item in late.calls if "/statuses/" in item[1]]
+        self.assertEqual(states, ["success", "failure"])
+        self.assertTrue(all(item[1].endswith("/" + HEAD) for item in late.calls if "/statuses/" in item[1]))
+
+    def test_a_semantic_table_change_clears_success_and_a_comment_does_not(self):
+        directory, key = _key()
+        self.addCleanup(directory.cleanup)
+        changed = self.hub()
+        original = changed.pull["body"]
+
+        def edit():
+            changed.pull["body"] = original.replace("Sonnet 5.5", "Composer 2.5", 1)
+
+        changed.on_success = edit
+        code, _sleeps = self.invoke(changed, key, lambda argv, env: (_ for _ in ()).throw(AssertionError("merge")))
+        self.assertEqual(code, 1)
+        self.assertEqual([item[3]["state"] for item in changed.calls if "/statuses/" in item[1]], ["success", "failure"])
+        commented = self.hub()
+        body = commented.pull["body"]
+
+        def decorate():
+            commented.pull["body"] = "<!-- coderabbit -->\n" + body
+
+        commented.on_success = decorate
+        calls = []
+        code, _sleeps = self.invoke(commented, key, lambda argv, env: calls.append(argv) or (0, ""))
+        self.assertEqual(code, 0)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual([item[3]["state"] for item in commented.calls if "/statuses/" in item[1]], ["success"])
+
+    def test_draft_failed_check_thread_and_review_block_before_success(self):
+        directory, key = _key()
+        self.addCleanup(directory.cleanup)
+
+        def boom(*_args):
+            raise AssertionError("merge")
+
+        draft = self.hub()
+        draft.pull["draft"] = True
+        code, _sleeps = self.invoke(draft, key, boom)
+        self.assertEqual(code, 1)
+        self.assertFalse(any("/statuses/" in url for _, url, _, _ in draft.calls))
+        failed = self.hub()
+        failed.graphql = [ready_payload(contexts=[
+            {"__typename": "CheckRun", "name": "Baseline checks (Python 3.11)",
+             "status": "COMPLETED", "conclusion": "FAILURE", "isRequired": True},
+            {"__typename": "CheckRun", "name": "Baseline checks (Python 3.13)",
+             "status": "COMPLETED", "conclusion": "SUCCESS", "isRequired": True},
+        ])]
+        code, sleeps = self.invoke(failed, key, boom)
+        self.assertEqual(code, 1)
+        self.assertEqual(sleeps, [])
+        self.assertFalse(any("/statuses/" in url for _, url, _, _ in failed.calls))
+        thread = self.hub()
+        thread.graphql = [ready_payload(threads=[{"isResolved": False}])]
+        self.assertEqual(self.invoke(thread, key, boom)[0], 1)
+        self.assertFalse(any("/statuses/" in url for _, url, _, _ in thread.calls))
+        review = self.hub()
+        review.graphql = [ready_payload(review="CHANGES_REQUESTED")]
+        self.assertEqual(self.invoke(review, key, boom)[0], 1)
+
+    def test_pending_checks_wait_boundedly_and_auto_merge_is_refused(self):
+        directory, key = _key()
+        self.addCleanup(directory.cleanup)
+        pending = {
+            "__typename": "CheckRun", "name": "Baseline checks (Python 3.11)",
+            "status": "IN_PROGRESS", "conclusion": None, "isRequired": True,
+        }
+        other = {
+            "__typename": "CheckRun", "name": "Baseline checks (Python 3.13)",
+            "status": "COMPLETED", "conclusion": "SUCCESS", "isRequired": True,
+        }
+        waiting = self.hub()
+        waiting.graphql = [ready_payload(contexts=[pending, other]), ready_payload()]
+        calls = []
+        code, sleeps = self.invoke(waiting, key, lambda argv, env: calls.append(argv) or (0, ""), polls=3)
+        self.assertEqual(code, 0)
+        self.assertEqual(sleeps, [2])
+        self.assertEqual(len(calls), 1)
+        stuck = self.hub()
+        stuck.graphql = [ready_payload(contexts=[pending, other]), ready_payload(contexts=[pending, other])]
+        stderr = io.StringIO()
+        with redirect_stderr(stderr):
+            code, sleeps = self.invoke(stuck, key, lambda argv, env: (_ for _ in ()).throw(AssertionError("merge")), polls=2)
+        self.assertEqual(code, 1)
+        self.assertEqual(sleeps, [2])
+        self.assertIn("Do not arm auto-merge", stderr.getvalue())
+        self.assertFalse(any("/statuses/" in url for _, url, _, _ in stuck.calls))
+        armed = self.hub()
+        armed.pull["auto_merge"] = {"merge_method": "squash"}
+        stderr = io.StringIO()
+        with redirect_stderr(stderr):
+            code, _sleeps = self.invoke(armed, key, lambda argv, env: (_ for _ in ()).throw(AssertionError("merge")))
+        self.assertEqual(code, 1)
+        self.assertIn("--disable-auto", stderr.getvalue())
+        self.assertFalse(any("/statuses/" in url for _, url, _, _ in armed.calls))
+
+    def test_merge_refusal_clears_success_and_a_failed_cleanup_stays_visible(self):
+        directory, key = _key()
+        self.addCleanup(directory.cleanup)
+        refused = self.hub()
+        code, _sleeps = self.invoke(refused, key, lambda argv, env: (1, "merge refused"))
+        self.assertEqual(code, 1)
+        self.assertEqual([item[3]["state"] for item in refused.calls if "/statuses/" in item[1]], ["success", "failure"])
+        stranded = self.hub()
+        stranded.fail_post = "failure"
+        stderr = io.StringIO()
+        with redirect_stderr(stderr):
+            code, _sleeps = self.invoke(stranded, key, lambda argv, env: (7, "merge refused ghp_mac_read"))
+        self.assertEqual(code, 2)
+        text = stderr.getvalue()
+        self.assertIn("merge failed: 7", text)
+        self.assertIn("cleanup failed", text)
+        self.assertNotIn("ghp_mac_read", text)
+        states = [item[3]["state"] for item in stranded.calls if "/statuses/" in item[1] and item[3]]
+        self.assertEqual(states[0], "success")
+        self.assertIn("failure", states)
 
 
 if __name__ == "__main__":

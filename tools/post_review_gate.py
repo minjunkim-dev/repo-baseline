@@ -10,22 +10,24 @@ written here. Reads use GH_TOKEN, the gate account's read-only token, not the
 developer gh token. The installation token is used for the
 single status POST and is requested only for this repository's statuses.
 
---dry-run reads the evidence table and, when needed, the owner approval comment.
-It does not read review/independent or review/security. It does not mint a
-token and does not POST. A conclusive failure on a real run POSTs state
-failure on that head so an older success from this App does not remain.
-Success attests the body read on that run. A later pull request body edit
-keeps the same SHA and leaves the status in place. Review status may rerun
-and fail; it is not a required check and does not post this context. Run this
-script again after a body edit. This file does not listen for pull_request
-events and does not add App permissions.
-A head mismatch, a closed pull request, or a base that is not the default
-branch posts nothing. Transport and key errors post nothing.
+--dry-run reads and does not mint a token, post a status, or merge.
+A plain real run never posts success. Passing evidence posts pending, which
+replaces an older success from this App. Failing evidence posts failure.
+--merge is the only success path. It requires a ready pull request, no armed
+auto-merge, every other required check green, and no unresolved review thread.
+review/gate itself may still be pending. It posts success only then, re-reads
+the parsed author, table, and approval snapshot, and squash-merges with
+--match-head-commit. A failed recheck or a failed merge posts failure on that
+same SHA. This is not an atomic freshness guarantee: a crash after the success
+post can leave it, and a body edit can race the recheck. There is no webhook
+and no new App permission. The installation token is used for the status POST
+only and is never given to gh. gh merge uses the developer login, not GH_TOKEN.
 """
 
 import argparse
 import base64
 from contextlib import redirect_stdout
+import hashlib
 import io
 import json
 import os
@@ -44,6 +46,39 @@ import check_review_status as review  # noqa: E402
 
 CONTEXT = "review/gate"
 API = "https://api.github.com"
+POLL_LIMIT = 3
+POLL_WAIT = 2
+# Other required checks only. Approval comments stay on REST updated_at.
+READINESS_QUERY = """
+query($owner:String!,$name:String!,$number:Int!) {
+  repository(owner:$owner, name:$name) {
+    pullRequest(number:$number) {
+      reviewDecision
+      reviewThreads(first:100) {
+        pageInfo { hasNextPage }
+        nodes { isResolved }
+      }
+      commits(last:1) {
+        nodes {
+          commit {
+            oid
+            statusCheckRollup {
+              contexts(first:100) {
+                pageInfo { hasNextPage }
+                nodes {
+                  __typename
+                  ... on CheckRun { name conclusion status isRequired }
+                  ... on StatusContext { context state isRequired }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+"""
 ACCEPT = "application/vnd.github+json"
 USER_AGENT = "repo-baseline-review-gate"
 
@@ -232,7 +267,238 @@ def _decide(repo, number, sha, read):
         return Decision("unverified", f"{type(error).__name__}", sha)
 
 
-def mint_and_post(base, app_id, key_path, repo, sha, state, request, now, sign=None):
+def status_description(state, sha, digest=None):
+    """Commit-status description. At most 140 characters. The digest is not rechecked by GitHub."""
+    text = f"review/gate {state} {sha}"
+    if digest:
+        text = f"{text} {digest}"
+    if len(text) > 140:
+        raise ValueError("description")
+    return text
+
+
+def evidence_snapshot(body, head, comment_pages, owner):
+    """Parsed author, table, and unedited owner approvals. None when that parse is incomplete.
+
+    HTML comments and other prose are not part of the snapshot. Callers compare this object,
+    not the raw pull request body."""
+    if not isinstance(body, str) or not review.full_oid(head):
+        return None
+    text = review.visible_text(body.replace("\r\n", "\n").replace("\r", "\n"))
+    if text is None:
+        return None
+    record, previous, _errors = review.parse_author(text[:review.BODY_LIMIT])
+    rows = review.evidence_table(text[:review.BODY_LIMIT])
+    if rows is None:
+        return None
+    by_axis = {}
+    for row in rows:
+        key = review.AXIS_KEYS.get(str(row.get("axis", "")).strip().lower())
+        if key:
+            by_axis[key] = row
+    canonical = []
+    for key in ("standards", "spec", "bug", "security"):
+        row = by_axis.get(key)
+        if row is None:
+            return None
+        canonical.append({
+            "axis": key,
+            "model": str(row.get("model", "")).strip(),
+            "effort": str(row.get("effort", "")).strip(),
+            "sha": str(row.get("sha", "")).strip().lower(),
+            "p0": str(row.get("p0", "")).strip(),
+            "p1": str(row.get("p1", "")).strip(),
+            "p2": str(row.get("p2", "")).strip(),
+            "result": str(row.get("result") or "").strip(),
+        })
+    approvals = []
+    wanted = head.lower()
+    for page in comment_pages or []:
+        if not isinstance(page, list):
+            return None
+        for comment in page:
+            if not isinstance(comment, dict) or not review.comment_unedited(comment):
+                continue
+            user = comment.get("user")
+            login = user.get("login") if isinstance(user, dict) else None
+            if review.bot_creator(login) or not review.same_login(login, owner):
+                continue
+            if review.approval_sha(comment.get("body")) != wanted:
+                continue
+            approvals.append({
+                "login": login,
+                "created_at": comment.get("created_at"),
+                "updated_at": comment.get("updated_at"),
+                "sha": wanted,
+            })
+    approvals.sort(key=lambda item: (str(item["created_at"]), str(item["login"])))
+    payload = {
+        "head": wanted,
+        "author": [record[0], record[1]] if record else None,
+        "previous": list(previous),
+        "rows": canonical,
+        "approvals": approvals,
+    }
+    raw = json.dumps(payload, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode()
+    return payload, hashlib.sha256(raw).hexdigest()
+
+
+def _comment_pages(repo, number, read):
+    pages = read(f"repos/{repo}/issues/{number}/comments?per_page=100")
+    if not isinstance(pages, list):
+        raise ValueError("comments")
+    return pages
+
+
+def take_snapshot(repo, number, sha, read):
+    pull = read(f"repos/{repo}/pulls/{number}")
+    if not isinstance(pull, dict):
+        raise ValueError("pull request")
+    owner = review.repository_owner(repo, read)
+    return evidence_snapshot(pull.get("body"), sha, _comment_pages(repo, number, read), owner)
+
+
+def parse_readiness(payload):
+    """Normalize one GraphQL payload. None when the shape cannot prove the pull request is ready."""
+    if not isinstance(payload, dict) or payload.get("errors"):
+        return None
+    pull = ((payload.get("data") or {}).get("repository") or {}).get("pullRequest")
+    if not isinstance(pull, dict):
+        return None
+    threads = pull.get("reviewThreads") if isinstance(pull.get("reviewThreads"), dict) else {}
+    nodes = (pull.get("commits") or {}).get("nodes") if isinstance(pull.get("commits"), dict) else None
+    commit = nodes[0].get("commit") if isinstance(nodes, list) and nodes and isinstance(nodes[0], dict) else None
+    rollup = commit.get("statusCheckRollup") if isinstance(commit, dict) else None
+    contexts = rollup.get("contexts") if isinstance(rollup, dict) else None
+    return {
+        "review": pull.get("reviewDecision"),
+        "threads": threads.get("nodes") if isinstance(threads.get("nodes"), list) else None,
+        "threads_more": bool((threads.get("pageInfo") or {}).get("hasNextPage")) if isinstance(threads.get("pageInfo"), dict) else True,
+        "head": commit.get("oid") if isinstance(commit, dict) else None,
+        "contexts": contexts.get("nodes") if isinstance(contexts, dict) and isinstance(contexts.get("nodes"), list) else None,
+        "contexts_more": bool((contexts.get("pageInfo") or {}).get("hasNextPage")) if isinstance(contexts, dict) and isinstance(contexts.get("pageInfo"), dict) else True,
+    }
+
+
+def _required_ok(ctx):
+    if ctx.get("name"):
+        return ctx.get("status") == "COMPLETED" and ctx.get("conclusion") == "SUCCESS"
+    return ctx.get("state") == "SUCCESS"
+
+
+def _required_pending(ctx):
+    if ctx.get("name"):
+        return ctx.get("status") in {"QUEUED", "IN_PROGRESS", "PENDING", "WAITING", "REQUESTED"} or (
+            ctx.get("status") != "COMPLETED" and not ctx.get("conclusion"))
+    return ctx.get("state") in {"PENDING", "EXPECTED", None, ""}
+
+
+def readiness_problems(pull, view, sha):
+    """Blockers other than this App's own review/gate status. Pending checks are separate from hard failures."""
+    problems = []
+    if not isinstance(pull, dict) or not isinstance(view, dict):
+        return ["checks-unknown"]
+    if pull.get("draft") is True:
+        problems.append("draft")
+    if pull.get("auto_merge"):
+        problems.append("auto-merge")
+    head = view.get("head")
+    if not isinstance(head, str) or head.lower() != sha.lower():
+        problems.append("head")
+    review_state = view.get("review")
+    if review_state in {"CHANGES_REQUESTED", "REVIEW_REQUIRED"}:
+        problems.append("review")
+    if view.get("threads_more") or not isinstance(view.get("threads"), list):
+        problems.append("threads-unknown")
+    elif any(not isinstance(item, dict) or item.get("isResolved") is not True for item in view["threads"]):
+        problems.append("thread")
+    if view.get("contexts_more") or not isinstance(view.get("contexts"), list):
+        problems.append("checks-unknown")
+    else:
+        failed = pending = False
+        seen_other = False
+        for ctx in view["contexts"]:
+            if not isinstance(ctx, dict) or ctx.get("isRequired") is not True:
+                continue
+            name = ctx.get("name") or ctx.get("context")
+            if name == CONTEXT:
+                continue
+            seen_other = True
+            if _required_ok(ctx):
+                continue
+            if _required_pending(ctx):
+                pending = True
+            else:
+                failed = True
+        if not seen_other:
+            problems.append("checks-unknown")
+        elif failed:
+            problems.append("checks-failed")
+        elif pending:
+            problems.append("checks-pending")
+    return problems
+
+
+def fetch_readiness(base, token, request, repo, number):
+    owner, name = repo.split("/", 1)
+    status, _, raw = request(
+        "POST", base + "/graphql",
+        {**_headers(token), "Content-Type": "application/json"},
+        {"query": READINESS_QUERY, "variables": {"owner": owner, "name": name, "number": int(number)}})
+    if status != 200:
+        raise subprocess.CalledProcessError(1, "readiness", stderr=f"HTTP {status}")
+    payload = json.loads(raw.decode() or "null")
+    parsed = parse_readiness(payload)
+    if parsed is None:
+        raise ValueError("readiness")
+    return parsed
+
+
+def poll_readiness(base, token, request, repo, number, read, sha, sleep, polls, wait):
+    """Re-read pending required checks a bounded number of times. Do not arm auto-merge."""
+    last = ["checks-unknown"]
+    for attempt in range(polls):
+        pull = read(f"repos/{repo}/pulls/{number}")
+        view = fetch_readiness(base, token, request, repo, number)
+        last = readiness_problems(pull, view, sha)
+        if "checks-pending" not in last or any(item != "checks-pending" for item in last):
+            return last
+        if attempt + 1 == polls:
+            return last
+        sleep(wait)
+    return last
+
+
+def merge_command(argv, env):
+    """Developer gh. The caller strips tokens from env. stderr is returned, not trusted."""
+    result = subprocess.run(argv, env=env, capture_output=True, timeout=120)
+    return result.returncode, result.stderr.decode("utf-8", "replace")
+
+
+def merge_child_env(env, secrets):
+    """gh's own login. GH_TOKEN and the App key must not ride along, and no secret value is copied."""
+    blocked = {"GH_TOKEN", "GITHUB_TOKEN", "REVIEW_GATE_APP_KEY", "REVIEW_GATE_APP_ID"}
+    hidden = [item for item in secrets if isinstance(item, str) and item]
+    child = {}
+    for key, value in env.items():
+        if key in blocked or not isinstance(value, str):
+            continue
+        if any(secret in value for secret in hidden):
+            continue
+        child[key] = value
+    child["GH_PROMPT_DISABLED"] = "1"
+    return child
+
+
+def _redact(text, secrets):
+    cleaned = text
+    for secret in secrets:
+        if isinstance(secret, str) and secret:
+            cleaned = cleaned.replace(secret, "[redacted]")
+    return cleaned
+
+
+def mint_and_post(base, app_id, key_path, repo, sha, state, request, now, sign=None, digest=None):
     """Installation token for this repository's statuses only, then one POST to this SHA."""
     jwt = build_jwt(app_id, key_path, now, sign)
     name = repo.split("/", 1)[1]
@@ -246,7 +512,7 @@ def mint_and_post(base, app_id, key_path, repo, sha, state, request, now, sign=N
     token = minted.get("token") if isinstance(minted, dict) else None
     if not isinstance(token, str) or token == "" or token == jwt:
         raise ValueError("token")
-    body = {"state": state, "context": CONTEXT, "description": f"review/gate {state} {sha}"}
+    body = {"state": state, "context": CONTEXT, "description": status_description(state, sha, digest)}
     status, _, raw = request(
         "POST", f"{base}/repos/{repo}/statuses/{sha}",
         {**_headers(token), "Content-Type": "application/json"}, body)
@@ -270,14 +536,45 @@ def _repo_ok(repo):
     return re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9_.-]+", repo or "") is not None and repo.split("/")[-1] not in {".", ".."}
 
 
-def run(argv, env, request, now=None, sign=None):
+def _key_ready(env):
+    app_id = parse_app_id(env.get("REVIEW_GATE_APP_ID"))
+    key = Path(env.get("REVIEW_GATE_APP_KEY") or "")
+    if app_id is None:
+        return None, None, "REVIEW_GATE_APP_ID"
+    if not env.get("REVIEW_GATE_APP_KEY"):
+        return None, None, "REVIEW_GATE_APP_KEY"
+    problem = key_problem(key, ROOT)
+    if problem:
+        return None, None, problem
+    return app_id, key, None
+
+
+def _emit(report, code):
+    print(json.dumps(report, ensure_ascii=False))
+    return code
+
+
+def _invalidate(base, app_id, key, repo, sha, request, now, sign):
+    """Post failure on the SHA that received success. Return the cleanup exception, or None."""
+    try:
+        mint_and_post(base, app_id, key, repo, sha, "failure", request, now, sign)
+    except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError, json.JSONDecodeError) as error:
+        print(f"review gate cleanup failed: {type(error).__name__}", file=sys.stderr)
+        return error
+    return None
+
+
+def run(argv, env, request, now=None, sign=None, merge=None, sleep=None, polls=POLL_LIMIT, poll_wait=POLL_WAIT):
     parser = argparse.ArgumentParser(description="Post review/gate for one pull request head.")
     parser.add_argument("--repo", required=True)
     parser.add_argument("--pr", required=True)
     parser.add_argument("--sha", required=True)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--merge", action="store_true")
     args = parser.parse_args(argv)
     now = time.time if now is None else now
+    sleep = time.sleep if sleep is None else sleep
+    merge = merge_command if merge is None else merge
     if env.get("GITHUB_ACTIONS"):
         print("review gate refused: GITHUB_ACTIONS is set", file=sys.stderr)
         return 2
@@ -291,38 +588,124 @@ def run(argv, env, request, now=None, sign=None):
     base = (env.get("REVIEW_GATE_API") or API).rstrip("/")
     reader = Reader(base, token, request)
     decision = decide(args.repo, args.pr, args.sha, reader.read)
-    report = {"result": "dry-run" if args.dry_run else "post", "kind": decision.kind,
-              "state": decision.state if decision.posts else None, "context": CONTEXT,
-              "repo": args.repo, "sha": decision.sha, "detail": decision.detail}
+    report = {"result": "dry-run" if args.dry_run else "merge" if args.merge else "post",
+              "kind": decision.kind, "state": decision.state if decision.posts else None,
+              "context": CONTEXT, "repo": args.repo, "sha": decision.sha, "detail": decision.detail}
     if args.dry_run or not decision.posts:
+        if args.dry_run and args.merge and decision.kind == "success":
+            try:
+                problems = poll_readiness(
+                    base, token, request, args.repo, args.pr, reader.read, decision.sha, sleep, 1, 0)
+            except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError, json.JSONDecodeError) as error:
+                report["kind"] = "unverified"
+                report["state"] = None
+                report["detail"] = type(error).__name__
+                print(f"review gate UNVERIFIED: {type(error).__name__}", file=sys.stderr)
+                return _emit(report, 2)
+            if problems:
+                report["kind"] = "blocked"
+                report["state"] = None
+                report["detail"] = ",".join(problems)
+                if "auto-merge" in problems:
+                    print("review gate refused: auto-merge is armed; disable it with "
+                          f"gh pr merge {args.pr} --repo {args.repo} --disable-auto", file=sys.stderr)
+                return _emit(report, 1)
         print(json.dumps(report, ensure_ascii=False))
         if not args.dry_run and decision.kind == "unverified":
             print(f"review gate UNVERIFIED: {decision.detail}", file=sys.stderr)
         return decision.code
-    problem = None
-    app_id = parse_app_id(env.get("REVIEW_GATE_APP_ID"))
-    key = Path(env.get("REVIEW_GATE_APP_KEY") or "")
-    if app_id is None:
-        problem = "REVIEW_GATE_APP_ID"
-    elif env.get("REVIEW_GATE_APP_KEY"):
-        problem = key_problem(key, ROOT)
-    else:
-        problem = "REVIEW_GATE_APP_KEY"
+    app_id, key, problem = _key_ready(env)
     if problem:
         print(f"review gate refused: {problem}", file=sys.stderr)
         return 2
+    secrets = [token, str(key)]
+    if decision.kind == "failure":
+        try:
+            mint_and_post(base, app_id, key, args.repo, decision.sha, "failure", request, now(), sign)
+        except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError, json.JSONDecodeError) as error:
+            print(f"review gate UNVERIFIED: {type(error).__name__}", file=sys.stderr)
+            return 2
+        return _emit(report, decision.code)
+    # Passing evidence. A plain run posts pending and does not merge.
+    snapshot = None
     try:
-        mint_and_post(base, app_id, key, args.repo, decision.sha, decision.state, request, now(), sign)
+        snapshot = take_snapshot(args.repo, args.pr, decision.sha, reader.read)
+    except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError, json.JSONDecodeError):
+        snapshot = None
+    digest = snapshot[1] if snapshot else None
+    if not args.merge:
+        try:
+            mint_and_post(base, app_id, key, args.repo, decision.sha, "pending", request, now(), sign, digest)
+        except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError, json.JSONDecodeError) as error:
+            print(f"review gate UNVERIFIED: {type(error).__name__}", file=sys.stderr)
+            return 2
+        report["kind"] = "pending"
+        report["state"] = "pending"
+        report["detail"] = "run --merge to post success and squash-merge this sha"
+        return _emit(report, 0)
+    try:
+        problems = poll_readiness(
+            base, token, request, args.repo, args.pr, reader.read, decision.sha, sleep, polls, poll_wait)
+    except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError, json.JSONDecodeError) as error:
+        print(f"review gate UNVERIFIED: {type(error).__name__}", file=sys.stderr)
+        report["kind"] = "unverified"
+        report["state"] = None
+        report["detail"] = type(error).__name__
+        return _emit(report, 2)
+    if problems:
+        report["kind"] = "blocked"
+        report["state"] = None
+        report["detail"] = ",".join(problems)
+        if "auto-merge" in problems:
+            print("review gate refused: auto-merge is armed; disable it with "
+                  f"gh pr merge {args.pr} --repo {args.repo} --disable-auto", file=sys.stderr)
+        elif "checks-pending" in problems:
+            print("review gate refused: required checks still pending; re-run --merge when they pass. "
+                  "Do not arm auto-merge.", file=sys.stderr)
+        return _emit(report, 1)
+    if snapshot is None:
+        print("review gate UNVERIFIED: snapshot", file=sys.stderr)
+        return 2
+    try:
+        mint_and_post(base, app_id, key, args.repo, decision.sha, "success", request, now(), sign, digest)
     except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError, json.JSONDecodeError) as error:
         print(f"review gate UNVERIFIED: {type(error).__name__}", file=sys.stderr)
         return 2
-    print(json.dumps(report, ensure_ascii=False))
-    return decision.code
+    try:
+        again = decide(args.repo, args.pr, decision.sha, reader.read)
+        checked = take_snapshot(args.repo, args.pr, decision.sha, reader.read)
+        if again.kind != "success" or again.sha.lower() != decision.sha.lower() or checked is None or checked[0] != snapshot[0]:
+            raise ValueError("recheck")
+    except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError, json.JSONDecodeError) as error:
+        cleanup = _invalidate(base, app_id, key, args.repo, decision.sha, request, now(), sign)
+        print(f"review gate recheck failed: {type(error).__name__}", file=sys.stderr)
+        report["kind"] = "failure"
+        report["state"] = None if cleanup else "failure"
+        report["detail"] = "recheck" if cleanup is None else "recheck; cleanup failed"
+        return _emit(report, 2 if cleanup else 1)
+    argv = ["gh", "pr", "merge", args.pr, "--repo", args.repo, "--squash", "--match-head-commit", decision.sha]
+    child = merge_child_env(env, secrets)
+    try:
+        code, stderr = merge(argv, child)
+    except (OSError, subprocess.SubprocessError) as error:
+        code, stderr = 1, type(error).__name__
+    if code != 0:
+        cleanup = _invalidate(base, app_id, key, args.repo, decision.sha, request, now(), sign)
+        print(f"review gate merge failed: {code} {_redact(stderr, secrets)}", file=sys.stderr)
+        report["kind"] = "failure"
+        report["state"] = None if cleanup else "failure"
+        report["detail"] = "merge" if cleanup is None else "merge; cleanup failed"
+        return _emit(report, 2 if cleanup else 1)
+    report["kind"] = "success"
+    report["state"] = "success"
+    report["detail"] = digest
+    return _emit(report, 0)
 
 
-def main(argv=None, env=None, request=None, now=None, sign=None):
+def main(argv=None, env=None, request=None, now=None, sign=None, merge=None, sleep=None,
+         polls=POLL_LIMIT, poll_wait=POLL_WAIT):
     return run(argv if argv is not None else sys.argv[1:], env if env is not None else os.environ,
-               request or http_request, now, sign)
+               request or http_request, now, sign, merge, sleep, polls, poll_wait)
 
 
 if __name__ == "__main__":

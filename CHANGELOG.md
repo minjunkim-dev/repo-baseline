@@ -2,7 +2,13 @@
 
 리뷰 모델의 현행은 「2026-11-06 — 역할 분담: 클라우드 기본, 활성 로스터」다. 그 아래의 리뷰 모델 절은 그 커밋 당시의 기록이다.
 
-Dependabot 현행은 「2026-11-06 — Dependabot PR은 다른 PR과 같다」다. 그 아래 날짜의 pin 전용 면제 문장은 당시 기록이다. 승인 댓글 편집의 현행은 「2026-11-06 — 승인 댓글 편집 감지와 댓글 재실행을 줄인다」다. 게이트가 `review/independent`·`review/security`를 요구하던 문장은 「2026-11-06 — 게이트는 근거 표와 승인 댓글만 본다」로 대체되었다. 신뢰 경계 경로의 Security 근거는 「2026-11-06 — Security 근거는 경로로 정한다」다. P0·P1 칸과 본문 편집 뒤의 `review/gate`는 「2026-11-07 — 열린 P0·P1과 본문 편집」이다.
+Dependabot 현행은 「2026-11-06 — Dependabot PR은 다른 PR과 같다」다. 그 아래 날짜의 pin 전용 면제 문장은 당시 기록이다. 승인 댓글 편집의 현행은 「2026-11-06 — 승인 댓글 편집 감지와 댓글 재실행을 줄인다」다. 게이트가 `review/independent`·`review/security`를 요구하던 문장은 「2026-11-06 — 게이트는 근거 표와 승인 댓글만 본다」로 대체되었다. 신뢰 경계 경로의 Security 근거는 「2026-11-06 — Security 근거는 경로로 정한다」다. P0·P1 칸과 본문 편집 뒤의 `review/gate`는 「2026-11-07 — 열린 P0·P1과 본문 편집」이다. 병합은 「2026-11-07 — 병합 직전에만 success를 올린다」다.
+
+## 2026-11-07 — 병합 직전에만 success를 올린다
+
+- `tools/post_review_gate.py`: `--merge`가 없는 실행은 success를 올리지 않는다. 근거가 통과하면 pending이고, 실패하면 failure다. `--dry-run`은 읽기만 한다. `--merge`는 준비된 PR, 걸려 있지 않은 auto-merge, `review/gate` 외의 필수 체크, 풀리지 않은 리뷰 스레드를 확인한 뒤에만 success를 올리고, 파싱된 작성 기록·표·승인 댓글을 다시 읽은 다음 개발자 `gh`로 `--squash --match-head-commit` 병합한다. 다시 읽기나 병합이 실패하면 그 SHA에 failure를 올린다. 정리가 실패하면 그 실패를 숨기지 않는다. 앱 설치 토큰은 `gh`에 넘기지 않는다. `GH_TOKEN`은 읽기 토큰으로 남고 개발자 `gh auth token`이 아니다.
+- 남은 위험: 검사·게시·재검사·병합은 원자적이지 않다. 본문 편집이 재검사와 겹칠 수 있다. success 뒤의 SIGKILL·전원 손실·네트워크 단절은 success를 남긴다. 같은 Mac 사용자와 키는 신뢰 경계다. 남은 success는 `--merge` 없이 다시 실행해 지운다. 사람이 `gh pr merge`만 실행하지 않는다. auto-merge는 예약하지 않는다. 절대적인 신선도 보장이 아니다. description의 digest는 감사 표식이고 GitHub가 병합 때 다시 검사하지 않는다.
+- 필수 체크와 `review/gate` `app_id` 5641238, 앱 권한은 바꾸지 않는다. webhook을 더하지 않는다.
 
 ## 2026-11-07 — 열린 P0·P1과 본문 편집
 
