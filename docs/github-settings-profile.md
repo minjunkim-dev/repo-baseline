@@ -67,6 +67,6 @@ python3 scripts/check_repo_baseline.py
 python3 -m unittest discover -s scripts -p 'test_*.py'
 ```
 
-이 두 명령은 검사기를 복사한 프로젝트의 복사본 검증이다. Python 3.11과 3.13을 둘 다 돌리라는 뜻이 아니다. 그 matrix는 이 저장소 `.github/workflows/check.yml`에만 있고 복사되지 않는다. 검사기를 복사하지 않은 프로젝트는 이 명령을 자신의 setup이나 test로 두지 않는다. 첫 명령은 복사 파일의 누락·변조·manifest 오류를 검사한다. 테스트는 합성 fixture로 API 비교 동작을 검사하고, 실제 프로젝트 기준선이 있으면 CodeQL workflow의 blob pin도 오프라인 검사한다. 서버 감사 `python3 scripts/check_github_settings.py`는 별도 권한이 필요한 읽기 작업이다. PR token 권한을 늘려 합성 테스트를 실제 서버 감사로 바꾸지 않는다.
+이 두 명령은 검사기를 복사한 프로젝트의 복사본 검증이다. Python 3.11과 3.13을 둘 다 돌리라는 뜻이 아니다. 그 matrix는 이 저장소 `.github/workflows/check.yml`에만 있고 복사되지 않는다. 이 저장소는 그 두 job을 필수 context로 유지하고, 필수가 아닌 job `Baseline checks`에서 Python 3.15 한 minor의 최신 patch도 돌린다. 검사기를 복사하지 않은 프로젝트는 이 명령을 자신의 setup이나 test로 두지 않는다. 첫 명령은 복사 파일의 누락·변조·manifest 오류를 검사한다. 테스트는 합성 fixture로 API 비교 동작을 검사하고, 실제 프로젝트 기준선이 있으면 CodeQL workflow의 blob pin도 오프라인 검사한다. 서버 감사 `python3 scripts/check_github_settings.py`는 별도 권한이 필요한 읽기 작업이다. PR token 권한을 늘려 합성 테스트를 실제 서버 감사로 바꾸지 않는다.
 
 공식 근거: [브랜치 보호의 요금제 지원](https://docs.github.com/en/rest/branches/branch-protection#get-branch-protection), [CodeQL 지원 언어](https://codeql.github.com/docs/codeql-overview/supported-languages-and-frameworks/). 실제 적용 때 최신 문서를 다시 확인한다.

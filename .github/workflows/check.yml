@@ -10,6 +10,8 @@ permissions:
   contents: read
 
 jobs:
+  # Live branch protection still requires these two context names. They run
+  # those minors for real. Do not point them at 3.15 or mark them success by hand.
   baseline:
     name: Baseline checks (Python ${{ matrix.python }})
     runs-on: ubuntu-24.04
@@ -25,6 +27,34 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ matrix.python }}
+      - name: Unit tests
+        run: python3 -m unittest discover -s scripts -p 'test_*.py'
+      - name: Tool and distribution tests
+        run: python3 -m unittest discover -s tools -p 'test_*.py'
+  # Not a required check. The name stays free of a version so a later patch
+  # does not rename the context. python-version 3.15 is one minor, not 3.x.
+  tooling:
+    name: Baseline checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.15'
+          check-latest: true
+      - name: Require CPython 3.15 final
+        run: |
+          python3 - <<'PY'
+          import sys
+          info = sys.version_info
+          gil = getattr(sys, "_is_gil_enabled", lambda: True)()
+          if info[:2] != (3, 15) or info.releaselevel != "final" or not gil:
+              raise SystemExit(f"refusing {sys.version}")
+          print(f"{info.major}.{info.minor}.{info.micro}")
+          PY
       - name: Unit tests
         run: python3 -m unittest discover -s scripts -p 'test_*.py'
       - name: Tool and distribution tests

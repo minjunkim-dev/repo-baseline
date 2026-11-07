@@ -36,7 +36,7 @@ sh check.sh
 
 작업 문서의 네 칸은 그 명령이거나 `N/A`와 이유다. 제품 기능은 사용자가 `/ask-matt`를 실행한 뒤에 시작한다. 첫 PR 본문은 복사된 `.github/pull_request_template.md`를 따른다. Evidence에 명령, 출력, head SHA, `N/A`를 적는다.
 
-`Baseline checks (Python 3.11)`와 `Baseline checks (Python 3.13)`는 이 저장소 `.github/workflows/check.yml`이 도구 unittest를 두 버전에서 돌리는 유지보수 CI다. 그 workflow는 복사 목록에 없다. 새 프로젝트의 언어 요구가 아니고, 필수 체크 목록에서도 이 문서가 빼지 않는다. 빼는 변경은 소유자 승인이 필요하다.
+`Baseline checks (Python 3.11)`와 `Baseline checks (Python 3.13)`는 이 저장소 workflow가 그 minor로 unittest를 실제로 돌리는 체크다. 2026-11-07에 `main` 보호가 그 두 context(`app_id` 15368)와 `review/gate`(`app_id` 5641238)를 요구했다. 그 이름을 선언에서 빼거나 workflow에서 지우면, 보호를 바꾸기 전에는 머지가 그 context를 기다리며 멈춘다. 이 변경은 그 두 job을 유지한다. 필수가 아닌 job `Baseline checks`만 더한다. 그 job은 Python 3.15의 최신 patch만 고르고, minor를 `3.x`로 옮기지 않는다. 필수 목록에 넣지 않았고 서버 보호도 적용하지 않는다. 새 프로젝트의 언어 요구가 아니다.
 
 해시가 필요하면 `templates/repo-baseline.core.json`을 대상의 `.github/repo-baseline.json`으로 두고, 이 저장소에서 `python3 tools/apply_baseline.py /path/to/project`를 실행한다. 그 Python은 템플릿을 복사하는 쪽의 도구다. 대상의 setup·test가 아니다. 코어 목록은 PR 본문 양식만 복사하므로 대상에 `.py`를 만들지 않는다.
 
