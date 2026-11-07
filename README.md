@@ -112,7 +112,7 @@
 같은 채팅에서 GitHub 초기 점검 → PR·CI/CD 셋업 → GitHub 최종 적용·검증 순서로 진행해. 중복 작업은 피하고 보류 항목까지 마무리해.
 공통값은 repo-baseline의 POLICY.md와 templates를 따르고, 공통 검사기는 tools/apply_baseline.py로 복사해. 값을 새로 고르지 마.
 
-프로필은 1인이다(팀이면 "팀"으로 바꿔 보낸다. POLICY.md §9). 별도 컨텍스트의 자체 리뷰를 기준으로 해. 공개 배포와 production 변경은 하지 마.
+프로필은 1인이다(팀이면 "팀"으로 바꿔 보낸다. POLICY.md §9). 별도 컨텍스트의 자체 리뷰를 기준으로 해. 개발은 Claude Code 단독 또는 Cursor 단독으로 끝까지 한다. Grok Bot의 접수·분해·배정·추적은 선택이다. 플랫폼만 다른 같은 모델 리뷰는 독립 리뷰가 아니다. 현행 main의 다른 패밀리 규칙을 따른다. 공개 배포와 production 변경은 하지 마.
 
 최종 독립 리뷰·필수 CI 후 위험별 병합 기준을 적용해. 문 판정은 `POLICY.md` §10만 따라. `POLICY.md` §5의 외부 리뷰 대상은 외부 리뷰(공개 저장소는 CodeRabbit)도 받고, 그 PR은 auto-merge하지 마. 되돌리기 어려움(one-way door: 되돌리기 어려운 결정)은 사람이 최종 head를 승인하게 하고, 1인 프로필은 §10의 승인 댓글을 남겨. 팀 프로필이면 POLICY.md §9의 승인 규칙을 따라. `disable-model-invocation: true`인 스킬은 사용자가 실행한다. 완료 항목과 미확인 항목을 구분해 보고해.
 ```
@@ -133,6 +133,8 @@
 ## 일상 개발 시작
 
 개발 절차는 Matt Pocock 스킬을 그대로 쓴다. 어떤 스킬로 시작할지는 사용자가 `/ask-matt`를 실행한다. `disable-model-invocation: true`인 스킬은 사용자가 실행한다. 처음 셋업과 이 기준이 더하는 `main` 경계는 [프로젝트 초기 설정과 일상 개발](docs/development-workflow.md)을 따른다. 트렁크(`main` 하나, squash, 선택적 피처 플래그)도 그 문서다.
+
+개발을 끝까지 하는 경로는 셋이다. Claude Code 단독, Cursor 단독, Grok Bot을 선택 보조로 쓰는 경로. 접수·Issue·작업 분해·배정·CI와 리뷰 추적·근거 확인·보고는 사람 또는 선택 조율자가 한다. Grok Bot은 그 선택이다. 없어도 사람 또는 그 작성 세션이 같은 절차를 끝낸다. 플랫폼만 다른 것은 같은 모델의 자기 승인이 아니다. 구현 에이전트와 리뷰 에이전트는 다르고, 현행 main에서 리뷰 패밀리는 작성 패밀리와 다르다. 같은 패밀리의 다른 모델 fallback은 미병합 PR #60의 제안이다. 이 문서는 그 통과를 적지 않는다. 정본은 `docs/development-workflow.md`의 세 경로와 Issue #61이다.
 
 ## 자체 리뷰와 회고
 
