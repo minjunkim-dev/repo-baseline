@@ -36,20 +36,34 @@
 
 누가 코드를 쓰는지, 어느 머신에서 쓰는지, 어느 모델로 리뷰하는지를 정한다. PR 안의 작성 절차는 Matt Pocock 스킬이 맡는다. 이 절은 그 절차를 약하게 하지 않는다. 시작은 사용자가 `/ask-matt`를 실행하는 것이다. 이어서 `/grill-with-docs`, `/to-spec`, `/to-tickets`, `/implement`다. Standards·Spec의 독립 리뷰 호출은 `/matt-code-review`다. pstack은 그 스킬이 비우는 칸만 쓴다. 칸은 `interrogate`, `blast-radius`, `create-verification-skill`, `correct`다. 배치는 아래 "pstack을 함께 쓸 때"다.
 
-- Grok Bot은 접수, Issue, 작업 분해, 배정, CI와 리뷰 추적, 근거 확인, 보고를 맡는다. 코드를 쓰지 않는다. 작성 도구가 아니다. Grok Bot이 PR을 열어도 `작성 도구`와 `작성 모델`은 코드를 쓴 쪽이다.
-- 코드는 Claude Code와 Cursor가 쓴다. 둘 다 작성 도구다.
+- 접수, Issue, 작업 분해, 배정, CI와 리뷰 추적, 근거 확인, 보고는 사람 또는 선택 조율자가 한다. Grok Bot은 그 선택 조율자다. 코드를 쓰지 않는다. 작성 도구가 아니다. 선택 조율자가 PR을 열어도 `작성 도구`와 `작성 모델`은 코드를 쓴 쪽이다. 이 역할이 없어도 아래 세 경로로 개발을 끝까지 한다.
+- 코드는 Claude Code와 Cursor가 쓴다. 둘 다 작성 도구다. 어느 한쪽만으로도 구현, 필수 테스트, 독립 리뷰, 근거 표, 소유자 승인, 게이트까지 진행한다.
 - 리뷰 모델의 패밀리는 작성 모델의 패밀리와 달라야 한다. 항상 그렇다. 플랫폼은 보지 않는다. Cursor 안의 Claude도 Claude다. 최종 작성 모델 또는 이전 작성 모델과 패밀리가 같으면 그 리뷰는 무효다.
+
+### 세 경로
+
+개발을 끝까지 하는 경로는 셋이다. Grok Bot은 필수 경로가 아니다.
+
+1. Claude Code 단독. 작성 도구는 `Claude Code`다. 접수·분해·배정·추적이 필요하면 사람 또는 그 세션이 한다.
+2. Cursor 단독. 작성 도구는 `Cursor` 또는 `Cursor 클라우드 에이전트`다. 같은 일을 사람 또는 그 세션이 한다.
+3. Grok Bot 선택 보조. 접수, Issue, 작업 분해, 배정, CI와 리뷰 추적, 근거 확인, 보고만 맡길 수 있다. 코드를 쓰지 않는다.
+
+어느 경로든 구현 에이전트와 리뷰 에이전트는 다르다. 리뷰 패밀리는 작성 패밀리와 다르다. 플랫폼만 바꿔 같은 모델을 리뷰에 쓰는 것은 독립 리뷰가 아니다. 단독 도구는 작성 모델의 자기 검토 면제가 아니다. 독립 검토를 실행하지 못하면 그 축은 `미실행`이고 충족이 아니다. 사용 한도가 소진된 모델을 그 축에 다시 실행하지 않는다. 다른 패밀리를 고르는 아래 문장은 이 문장으로 바꾸지 않는다. 필수 테스트, 독립 리뷰, 소유자 승인, `review/gate`, 근거 표의 정확한 head SHA는 같다. 시작 순서는 이 절 첫 문단의 Matt 스파인이다. pstack 칸은 아래 "pstack을 함께 쓸 때"만 정한다.
+
+재개에 쓰는 원본은 도구 세션의 기억이 아니다. 내부 업무, 요구, 수락 기준, 우선순위, 결정의 정본은 [Linear 운영원칙](https://linear.app/swiftyee/document/업무-운영원칙-lineargithub-및-역할승인-경계-2f8f93d02c1b)이다. 검증 추적은 [SWI-5](https://linear.app/swiftyee/issue/SWI-5)와 [SWI-6](https://linear.app/swiftyee/issue/SWI-6)이다. 코드, PR, 리뷰, CI 근거는 GitHub다. GitHub Issue는 이미 있는 기록의 참조이거나 외부 제보다. 같은 내부 업무를 GitHub Issue로 새로 만들지 않는다. 기존 Issue를 옮기거나 닫거나 저장소 설정을 바꾸는 일은 이 문장이 하지 않는다. Claude Code 단독이든 Cursor 단독이든 읽을 수 있는 Linear 링크, 결정, 미결, 승인 기록과 GitHub의 PR·근거 표를 읽고 같은 절차를 잇는다. Linear와 GitHub의 자동 연동은 확인하지 않았다. 필수 연동이나 새 API는 만들지 않는다. 이 문장은 2026-11-07에 그 원칙 문서와 SWI-5·SWI-6을 읽은 범위다. 단독 재개 시험은 그 이슈에 미실행으로 남아 있고, 이 문장이 그 시험을 끝낸 것은 아니다. 검사기가 `Refs #N`을 요구하는 PR 종류는 그대로다. 그 번호가 없을 때 GitHub Issue를 새로 만들어 검사를 통과시키는 일은 이 문장이 정하지 않는다. 번호가 없는 새 내부 업무와 그 요구가 겹치면 사람이 정한다.
+
+현행 `main`의 검사기는 리뷰 패밀리와 작성 패밀리가 같으면 실패한다. 아래 한도 문장이 적는 같은 패밀리 Opus·Sonnet 마지막 수단도, 그 문장대로 검사기가 거절하므로 병합을 열지 못한다. 2026-11-07 사용자 제안인 같은 패밀리의 다른 모델·다른 에이전트 fallback은 미병합 [PR #60](https://github.com/minjunkim-dev/repo-baseline/pull/60)과 [Issue #59](https://github.com/minjunkim-dev/repo-baseline/issues/59)다. 그 제안은 이 절의 현행이 아니다. 이 문서는 그 예외가 검사기를 통과한다고 적지 않는다. 이 구절의 정본 시각은 2026-11-07 19:12 KST 이번 요청이다. 그 이전 합의 원문은 이 구절의 근거가 아니다. [Issue #61](https://github.com/minjunkim-dev/repo-baseline/issues/61)은 저장소 결정 기록이다. 내부 업무의 정본은 아니다.
 
 머신은 Claude Code와 Cursor 둘 다 클라우드가 기본이다. 같은 모델의 사용량은 로컬과 클라우드가 같다. 머신은 그 작업에 필요한 능력으로 고른다. 비용으로 고르지 않는다.
 
 - Claude Code 클라우드의 진입은 `claude --cloud` 또는 claude.ai/code다. 작성 도구 값은 `Claude Code`다.
 - Cursor 클라우드 에이전트의 작성 도구 값은 `Cursor 클라우드 에이전트`다.
 - Mac은 다음 중 하나라도 필요할 때만 쓴다. iOS 시뮬레이터 또는 Xcode. 실기기. Keychain. 장기 비밀. 장기 비밀은 `gh`, review-gate pem, Claude 로그인이다.
-- 장기 비밀은 Mac에만 둔다. Cursor의 AWS VM, Claude의 Anthropic VM, Grok Bot이 쓰는 공유 컴퓨터에 두지 않는다.
+- 장기 비밀은 Mac에만 둔다. Cursor의 AWS VM, Claude의 Anthropic VM, 선택 조율자가 쓰는 공유 컴퓨터에 두지 않는다. Grok Bot을 쓸 때의 그 컴퓨터도 여기 속한다.
 - 넘기기는 양방향이다. 클라우드 작업이 시뮬레이터·실기기·Keychain·장기 비밀에서 막히면 남은 작업을 Mac으로 넘긴다. 비밀을 클라우드에 커밋하지 않고, 막힌 단계를 빼지 않는다. Mac 작업을 병렬이나 백그라운드로 옮길 때는 클라우드로 넘긴다.
 - 소유자가 그 자리에서 고치겠다면 Mac의 Cursor IDE도 작성 경로다. 작성 도구 값은 `Cursor`다. `Cursor`와 `Cursor 클라우드 에이전트`는 다른 경로다.
 
-구독은 2026-11-06에 소유자가 정한 둘이다. Claude Code Pro. X 구독 $30으로 쓰는 Cursor와 Grok Bot. Cursor 선불 크레딧은 쓰지 않는다. 그 크레딧으로만 고르는 Cursor 호스트 Claude, GPT, Codex, Gemini는 작성과 리뷰의 활성 로스터가 아니다. GPT는 Cursor 안에서 선불 크레딧으로만 고를 수 있다. 이 소유자는 그 크레딧을 쓰지 않으므로 GPT는 활성 로스터가 아니다. Codex 클라우드, ChatGPT, `codex` CLI로도 PR을 쓰거나 리뷰하지 않는다. 아래 런타임 표의 Codex 행은 그 런타임을 썼을 때의 기록이다. 배정과 리뷰의 대상이 아니다. 플랫폼은 패밀리를 바꾸지 않는다. Cursor 호스트 Claude를 쓰면 패밀리는 Claude다. 그 모델은 이 소유자의 활성 로스터에 없다.
+구독은 2026-11-06에 소유자가 정한 둘이다. Claude Code Pro. X 구독 $30으로 쓰는 Cursor와 Grok Bot. 그 목록의 Grok Bot은 위 3번 경로의 선택 보조다. 1번과 2번이 Grok Bot을 호출하는 조건은 아니다. 활성 로스터와 패밀리 규칙은 이 문장으로 바꾸지 않는다. Cursor 선불 크레딧은 쓰지 않는다. 그 크레딧으로만 고르는 Cursor 호스트 Claude, GPT, Codex, Gemini는 작성과 리뷰의 활성 로스터가 아니다. GPT는 Cursor 안에서 선불 크레딧으로만 고를 수 있다. 이 소유자는 그 크레딧을 쓰지 않으므로 GPT는 활성 로스터가 아니다. Codex 클라우드, ChatGPT, `codex` CLI로도 PR을 쓰거나 리뷰하지 않는다. 아래 런타임 표의 Codex 행은 그 런타임을 썼을 때의 기록이다. 배정과 리뷰의 대상이 아니다. 플랫폼은 패밀리를 바꾸지 않는다. Cursor 호스트 Claude를 쓰면 패밀리는 Claude다. 그 모델은 이 소유자의 활성 로스터에 없다.
 
 활성 작성 모델은 아래다. Haiku는 리뷰에 쓰지 않는다.
 
@@ -63,7 +77,7 @@
 
 effort는 각 모델의 제품 기본값만 쓴다. 설정에서 effort를 고정하지 않는다. 근거에 적는 허용 값은 `low`, `medium`, `high`, `xhigh`, `max`, `설정 없음`이다. 제품에 effort 설정이 없으면 `설정 없음`이다. 이 값은 리뷰 모델의 effort다. Bugbot 설정의 Low·Default·High·Smart와 같지 않고, 그 대응은 이 문서에 없다. Bugbot을 버그 찾기 도구로 쓰는지는 아래 런타임 표가 미확인인 동안 정하지 않는다. Cursor에 모델 effort 설정이 있는지는 확인하지 않았다(2026-11-04 문서).
 
-PR을 쓰는 곳은 아래 순서로 정한다. Grok Bot이 작업을 이슈 하나로 나눈 뒤에 보낸다. 에이전트 하나는 이슈 하나만 맡는다. 이슈가 여럿이면 병렬로 보낸다.
+PR을 쓰는 곳은 아래 순서로 정한다. 사람 또는 선택 조율자가 작업을 이슈 하나로 나눈 뒤에 보내도 된다. 그 분해와 배정은 선택이다. 한 경로가 이슈 하나를 끝까지 맡으면 그 배정 없이 진행한다. 에이전트 하나는 이슈 하나만 맡는다. 이슈가 여럿이면 병렬로 보낸다.
 
 1. 시뮬레이터, Xcode, 실기기, Keychain, 장기 비밀 중 하나라도 필요하면 Mac이다. 작성 도구는 Claude Code 또는 Cursor IDE다.
 2. 1이 아니면 클라우드가 기본이다. Claude Code 클라우드 또는 Cursor 클라우드 에이전트다. 맞는 작성 패밀리와 남은 한도를 보고 고른다. 둘 다 유효하다. 비밀이 없고 1의 조건인지도 아직 모르면 두 클라우드 중 어느 쪽에서 시작해도 된다. 그 이유로 Cursor 클라우드 에이전트만 고르거나, 작성 모델을 Grok으로 고정하지 않는다.
@@ -96,6 +110,8 @@ PR 본문에 `작성 도구`와 `작성 모델`이 없으면 리뷰를 시작하
 
 이 소유자의 활성 순서는 Opus, Sonnet, Composer, Grok이다. Gemini와 GPT는 이 순서에 없다. 최종 작성 모델과 `이전 작성 모델`의 패밀리를 모두 뺀다. 아래의 작성 패밀리는 그 합이다. 검사기도 그 패밀리를 작성으로 본다. 되돌리기 어려움의 첫 버그 찾기는 그 순서에서 지금 쓸 수 있는 첫 모델이다. Opus를 쓸 수 있으면 Sonnet은 그 첫 모델이 아니다. 작성 패밀리가 Grok이거나 Composer이면 그 첫 모델은 Opus(Claude Code)다. 그 패스는 버그 찾기를 본다. 신뢰 경계를 건드리면 같은 패스가 Security도 본다. 건드리지 않고 사람의 요청도 없으면 Security는 `해당 없음: 신뢰 경계 변경 아님`이고, 그 패스가 Security를 열지 않는다. 사람이 요청하면 그 패스 또는 그 다음 패스가 그 축을 연다. Standards·Spec도 그 Opus의 `/matt-code-review`다. 작성 패밀리가 Claude뿐이면 Opus와 Sonnet은 리뷰가 아니다. 그 첫 모델은 Composer다. 그 합에 Composer가 있으면 Composer는 건너뛰고 첫 모델은 Grok이다. 그 합이 Claude와 Grok이면 첫 모델은 Composer다.
 
+리뷰 범위, 현 head의 근거 표, 정확 SHA 승인은 서로 다른 조건이다. `prompts/pr-ci-setup.md` §5는 전체 한 번 뒤의 delta와 최종 전체 diff를 함께 적는다. 그 충돌에서 최종 의무를 고르는 문장은 그 프롬프트의 미적용 결정안이다. 이 절은 그 선택을 현행으로 넣지 않는다. 근거 표의 head SHA는 그 표가 덮는 현재 head다. 옛 표의 SHA만 바꾸는 것은 새 검토가 아니다. 정확 SHA 승인은 `POLICY.md` §10의 별도 조건이다.
+
 수정 라운드 뒤의 델타 재리뷰는 한 번이다. 그 한 번은 버그 찾기를 본다. 델타 전에 고친 뒤의 diff로 신뢰 경계를 다시 본다. 첫 패스가 Security를 실행했거나 사람이 그 축을 요청했으면 그 축도 같은 한 번에 본다. 수정이 외부 입력이나 권한 변경을 더하면, 첫 패스가 `해당 없음`이었고 사람의 요청이 없어도 Security를 그 한 번에 넣는다(`POLICY.md` §5). 검사기는 그 내용 신호는 보지 않는다. 경로 목록은 본다. 고친 diff가 신뢰 경계를 더하지 않고 Security가 `해당 없음`이며 사람의 요청도 없으면 델타도 그 축을 열지 않는다. 델타 모델의 패밀리가 작성 패밀리에 있으면 그 모델은 건너뛴다. 첫 모델이 Opus이면 델타는 Sonnet이다. Opus가 한도라 첫 모델이 Sonnet이면 델타는 활성 순서에서 그 다음이며 작성 패밀리와 다른 모델이다. 작성 패밀리가 Grok이면 Composer이고, 작성 패밀리가 Composer이면 Grok이다. 첫 모델이 Composer이면 같은 모델을 다시 쓰지 않는다. 델타는 Grok 한 번이고, 근거에 `보강: Composer → Grok, 이유: 되돌리기 어려움`을 적는다. Grok도 작성 패밀리면 그 델타는 없고 병합을 기다린다. 그 Grok 다음에 다른 델타를 요구하지 않는다.
 
 지정 모델이 사용 한도면 활성 순서의 다음 모델 가운데 작성 패밀리와 다른 것을 쓴다. Opus가 한도면 작성 패밀리가 Claude가 아닐 때의 다음은 Sonnet이다. Opus와 Sonnet이 둘 다 한도면 작성 패밀리가 Grok일 때 Composer, 작성 패밀리가 Composer일 때 Grok이다. 작성 패밀리가 Claude이고 Composer가 한도면 Grok이다. 근거에 `대체: <막힌 모델> → <쓴 모델>, 이유: 사용 한도`를 적는다. 다른 패밀리를 우선한다. 작성 패밀리와 리뷰 패밀리는 다르다. 한도로 다른 패밀리가 없으면 먼저 병합을 기다린다. 같은 패밀리의 다른 모델은 마지막 수단이고, 기다릴 수 있으면 그 리뷰보다 기다린다. 그 마지막 수단은 Opus와 Sonnet뿐이다. 작성 패밀리가 Claude가 아니면 Opus와 Sonnet은 다른 패밀리 리뷰다. 같은 모델이 그 축을 다시 보는 것은 금지다. 예: 작성 패밀리가 Composer이고 첫 모델이 Opus이며 Sonnet과 Grok이 한도면 Opus를 다시 쓰지 않는다. Sonnet이나 Grok이 풀릴 때까지 기다린다. 작성 패밀리가 Claude이고 Composer와 Grok이 둘 다 한도면 그 축은 `미실행`이고 병합을 기다린다. 그때만, 작성에 쓰지 않았고 그 축을 아직 보지 않은 Opus 또는 Sonnet을 마지막 수단으로 고를 수 있다. 근거에 `대체: <막힌 모델> → <쓴 모델>, 이유: 사용 한도, 마지막 수단`을 적는다. 검사기는 작성 패밀리와 같은 리뷰를 거절한다. 이 변경은 그 검사를 바꾸지 않는다. 그래서 그 마지막 수단은 병합을 열지 못한다. 다른 패밀리가 남아 있으면 기다리는 동안 그 축을 `미실행`으로 적지 않는다. 리뷰가 없으면 병합은 그 리뷰를 기다린다. 다른 패밀리로 대체했으면 한도 때문에 병합을 멈추지 않는다. Gemini와 GPT로 그 빈자리를 채우지 않는다. 되돌리기 어려움에서 더 강한 모델로 다시 보는 일은 후속 Issue에 적는다. 그 재리뷰를 할지는 소유자가 정한다. 실행한 리뷰의 근거가 있으면 그 Issue가 없어도 병합을 막지 않는다.
@@ -104,7 +120,7 @@ PR 본문에 `작성 도구`와 `작성 모델`이 없으면 리뷰를 시작하
 
 리뷰 근거는 PR 본문의 표다. 열은 축, 모델, effort, head SHA, P0, P1, P2다. head SHA는 그 표를 쓸 때의 PR head 전체 SHA다. 모델은 그 축에 실제로 쓴 모델 이름이다. P0와 P1은 그 축에서 아직 끝나지 않은 지적 수다. 수정, 기각, 한계 수용으로 끝난 지적과, 범위 밖이라 후속 Issue로 넘긴 Pre-existing P0·P1은 그 칸에 넣지 않는다. 끝낸 내용은 표 아래에 적는다. 기각은 파일과 줄 또는 인용한 문장과 이유를 적는다. 한계 수용은 아래 소유자 댓글이 있어야 한다. Security의 Pre-existing은 후속 Issue만으로 그 칸에서 빼지 않는다. 끝나지 않은 P0·P1이 없으면 그 칸은 0이다. P2는 그 축의 P2 지적 수다. 한도 대체는 표 아래에 적는다.
 
-검사의 나눔은 이렇다. CI는 리뷰 패밀리와 작성 패밀리가 같으면 실패한다. 그 검사는 #25가 넣는다. 모델을 적은 행의 P0나 P1이 0보다 크면, 또는 `result`가 실패면, 표만으로 실패한다. 본문에 기각, 한계 수용, 수정 SHA를 적어도 그 칸이 0보다 크면 실패다. 검사기는 그 문장을 읽지 않는다. P2가 0보다 큰 것은 그 칸만으로 실패하지 않는다. 관리자(Grok Bot)는 모델 이름이 실제로 돌린 모델과 같은지, P0·P1이 끝나지 않은 지적과 같은지, P2 수가 지적 목록과 같은지, 0으로 뺀 기각·한계 수용이 그 지적과 맞는지를 본다. CI는 그 사실 여부를 보지 않는다.
+검사의 나눔은 이렇다. CI는 리뷰 패밀리와 작성 패밀리가 같으면 실패한다. 그 검사는 #25가 넣는다. 모델을 적은 행의 P0나 P1이 0보다 크면, 또는 `result`가 실패면, 표만으로 실패한다. 본문에 기각, 한계 수용, 수정 SHA를 적어도 그 칸이 0보다 크면 실패다. 검사기는 그 문장을 읽지 않는다. P2가 0보다 큰 것은 그 칸만으로 실패하지 않는다. 사람 또는 선택 조율자는 모델 이름이 실제로 돌린 모델과 같은지, P0·P1이 끝나지 않은 지적과 같은지, P2 수가 지적 목록과 같은지, 0으로 뺀 기각·한계 수용이 그 지적과 맞는지를 본다. Grok Bot은 그 확인의 선택이다. CI는 그 사실 여부를 보지 않는다.
 
 P0와 P1은 지적마다 아래 셋 중 하나로 끝낸다. 어느 것도 아닌 P0·P1이 있으면 병합 가능이 아니다. 셋업 프롬프트의 "P0/P1은 해결"은 이 셋을 말한다.
 
@@ -118,11 +134,11 @@ P2는 이 절에서 병합을 막지 않는다. P2의 처리 방식은 셋업 �
 
 `review/independent`와 `review/security`는 게이트 조건이 아니다. 참고로 남기는 사람은 아래 "리뷰 status를 남기는 사람"을 따른다. 근거 표를 쓴 에이전트는 그 status를 찍지 않는다. 게이트가 보는 기록은 근거 표다.
 
-PR이 열린 뒤의 루프는 Grok Bot이 맡는다. 사람이 연 세션이 같은 일을 해도 된다. 일정을 이 저장소에 두지 않는다(`POLICY.md` §8). 별도 상시 감시 서비스를 이 저장소에 만들었다고 보고하지 않는다. 주간 점검(`prompts/weekly-check.md`)은 읽기 전용이다. 점검으로 고칠 것이 생기면 코드를 쓰는 쪽이 PR로 반영한다.
+PR이 열린 뒤의 루프는 사람 또는 선택 조율자가 맡는다. Grok Bot은 그 선택이다. 사람이 연 세션이 같은 일을 해도 되고, 그 세션만으로 이 루프를 끝낼 수 있다. 일정을 이 저장소에 두지 않는다(`POLICY.md` §8). 별도 상시 감시 서비스를 이 저장소에 만들었다고 보고하지 않는다. 주간 점검(`prompts/weekly-check.md`)은 읽기 전용이다. 점검으로 고칠 것이 생기면 코드를 쓰는 쪽이 PR로 반영한다.
 
 맡는 일:
 
-- 관리자(Grok Bot)는 근거 표의 모델 이름, 끝나지 않은 P0·P1 수, P2 수, 0으로 뺀 P1 기각 이유가 사실인지를 본다. CI는 패밀리가 같거나, 모델을 적은 행의 P0·P1이 0보다 크거나, `result`가 실패면 실패한다(#25, 근거 표).
+- 사람 또는 선택 조율자는 근거 표의 모델 이름, 끝나지 않은 P0·P1 수, P2 수, 0으로 뺀 P1 기각 이유가 사실인지를 본다. Grok Bot은 그 확인의 선택이다. CI는 패밀리가 같거나, 모델을 적은 행의 P0·P1이 0보다 크거나, `result`가 실패면 실패한다(#25, 근거 표).
 - Dependabot PR을 매주 처리한다(`POLICY.md` §2). 문 유형은 `POLICY.md` §10, 리뷰는 §5를 따른다.
 - 외부 리뷰 대상 PR은 CodeRabbit 리뷰가 끝날 때까지 기다린다. 병합 전에 달린 CodeRabbit 스레드는 PR 종류와 관계없이 답하고 해결한다. 병합 뒤에 달린 지적은 후속 PR로 처리한다. CodeRabbit check가 SKIPPED이거나 `Review paused`이면 외부 리뷰는 끝나지 않았고, `@coderabbitai full review`를 요청한다. 예외는, CodeRabbit 리뷰가 끝난 head와 견줘 바뀐 것이 이미 리뷰된 PR들 사이의 충돌을 푼 main 병합뿐인 head다. 소유자는 그 사실을 승인에 적고 외부 리뷰를 다시 받지 않고 승인할 수 있다.
 - 1인 프로필에서 근거 표가 이 head를 덮으면 `Review status`를 다시 돌린다. `review/gate` success는 `tools/post_review_gate.py --merge`만 올린다. 그 명령은 success 직후 같은 SHA를 squash로 병합한다. `--merge`가 없으면 success를 올리지 않고, 근거가 통과하면 pending이다. auto-merge는 예약하지 않는다. `edited`로 다시 도는 `Review status`는 필수 체크가 아니고 그 status를 올리지 않는다. 본문을 고쳤거나 success가 남았으면, 그 SHA가 아직 열린 PR의 head이고 조회가 성공할 때만 `--merge` 없이 다시 실행해 pending 또는 failure로 지운다. head가 바뀌거나 PR이 닫히거나 조회가 실패하면 그 실행은 옛 success를 지우지 않는다. failure 정리는 한 번이라 그 게시가 실패하면 success가 남을 수 있다. 아직 그 head라면 그 다음에 `--merge`로 병합한다. 검사와 병합은 원자적이지 않고, 죽은 프로세스가 success를 남길 수 있다. 절대적인 신선도 보장이 아니다. `review/independent`와 `review/security`를 남기지 않아도 그 job은 그 이유로 실패하지 않는다. 참고로 남긴다면 아래 "리뷰 status를 남기는 사람"대로 소유자가 남긴다. 수단은 Mac의 `gh`다. 서버의 앱은 `review/gate`만 올린다. 에이전트는 자기 PR에 그 status를 찍지 않는다. 1인 되돌리기 어려움은 소유자가 새 승인 댓글을 단 뒤에 `Review status`를 직접 다시 돌리고, 병합은 `tools/post_review_gate.py --merge`로 한다. 댓글은 그 job을 자동으로 다시 돌리지 않는다. 편집한 댓글은 무효다. `updated_at`이 `created_at`과 다르면 무효다. 같은 초 편집은 시각이 같아 구분하지 않으므로 댓글을 고치지 말고 새 댓글을 단다. 기준 브랜치 갱신으로 멈춘 PR과, 병합 뒤의 main CI를 확인한다.
@@ -196,7 +212,7 @@ Cursor 공식 문서(2026-11-04 읽음, 이 저장소 PR에서 실행하지 않�
 
 ## 리뷰 status를 남기는 사람
 
-1인 프로필에서 `review/independent`와 `review/security`를 참고로 남긴다면 Grok Bot이 근거를 확인한 뒤에 소유자가 남긴다. 수단은 Mac의 `gh`다. 서버의 앱은 `review/gate`만 올리고 이 status는 올리지 않는다. 게이트가 보는 근거는 리뷰 결과, 리뷰한 모델 이름, 근거 표의 head SHA다. 팀 프로필에서 그 status를 남긴다면 그 PR을 구현하지 않은 사람이 남긴다. 코드를 쓴 에이전트는 자기 PR에 통과를 찍지 않는다. `Review status` workflow는 이 status를 쓰지도 읽지도 않는다(`POLICY.md` §5). 이 저장소의 `.github/repository-settings.json`은 `Review status`를 필수 체크로 두지 않는다. 필수 체크는 Baseline checks 둘과 `review/gate`(`app_id` 5641238)다. 이 파일의 PR은 branch protection을 쓰지 않는다. 병합 뒤 소유자가 Mac에서 적용한다. 적용되어도 그 두 status 없이 병합된다. 근거 표와, 게이트 경로일 때의 승인 댓글, 그리고 `review/gate`가 조건이다. smallnext, BGLike, mobile-runtime은 repo-baseline에 보호 규칙을 적용하고, 카나리 시험(같은 이름 체크 위장, 이전 실패 run이 남은 head의 병합 가능 여부)을 통과하고, status 작성자·편집된 승인 댓글 검사기 수정이 병합·재적용된 뒤에 카나리 결과는 Issue #32 댓글 하나에 적는다. 그 기록이 없으면 멈춘다. 이 PR은 그 세 저장소의 `.github/repository-settings.json`을 바꾸지 않는다. `Review status`를 필수로 넣지 않는다. 그 세 저장소의 `Review status` workflow는 그대로 둔다. 검사기는 그 두 status의 작성자를 보지 않는다. 다른 SHA의 근거 표도 이 head의 근거가 아니다. 1인 프로필의 승인 댓글은 편집하면 무효다. REST `updated_at`이 `created_at`과 같아야 한다. 같은 초 편집은 구분하지 않으므로 댓글을 고치지 말고 새 댓글을 단다. 그 다음 단계가 `review/gate`다. 권장: **게이트 전용 읽기 `GH_TOKEN` + Keychain에서 꺼낸 PEM + `origin/main`의 깨끗한 checkout**에서 `tools/post_review_gate.py`를 실행한다(상세는 `docs/review-gate-app.md`). 예전 **봉인 사본·reviewgate 전용 계정**은 레거시다. 먼저 `--dry-run`이다. 이 명령만 commit status `review/gate`를 올린다. 같은 UID에서 에이전트가 돌면 임시 PEM이 있는 순간 키가 노출될 수 있다. 저장소와 Actions에 두지 않는다. 에이전트는 이 명령을 실행하지 않는다. `Review status` 체크가 초록이어도 그 결론을 게이트의 근거로 쓰지 않는다.
+1인 프로필에서 `review/independent`와 `review/security`를 참고로 남긴다면 사람 또는 선택 조율자가 근거를 확인한 뒤에 소유자가 남긴다. Grok Bot은 그 확인의 선택이고, 없어도 소유자가 같은 확인 뒤에 남긴다. 수단은 Mac의 `gh`다. 서버의 앱은 `review/gate`만 올리고 이 status는 올리지 않는다. 게이트가 보는 근거는 리뷰 결과, 리뷰한 모델 이름, 근거 표의 head SHA다. 팀 프로필에서 그 status를 남긴다면 그 PR을 구현하지 않은 사람이 남긴다. 코드를 쓴 에이전트는 자기 PR에 통과를 찍지 않는다. `Review status` workflow는 이 status를 쓰지도 읽지도 않는다(`POLICY.md` §5). 이 저장소의 `.github/repository-settings.json`은 `Review status`를 필수 체크로 두지 않는다. 필수 체크는 Baseline checks 둘과 `review/gate`(`app_id` 5641238)다. 이 파일의 PR은 branch protection을 쓰지 않는다. 병합 뒤 소유자가 Mac에서 적용한다. 적용되어도 그 두 status 없이 병합된다. 근거 표와, 게이트 경로일 때의 승인 댓글, 그리고 `review/gate`가 조건이다. smallnext, BGLike, mobile-runtime은 repo-baseline에 보호 규칙을 적용하고, 카나리 시험(같은 이름 체크 위장, 이전 실패 run이 남은 head의 병합 가능 여부)을 통과하고, status 작성자·편집된 승인 댓글 검사기 수정이 병합·재적용된 뒤에 카나리 결과는 Issue #32 댓글 하나에 적는다. 그 기록이 없으면 멈춘다. 이 PR은 그 세 저장소의 `.github/repository-settings.json`을 바꾸지 않는다. `Review status`를 필수로 넣지 않는다. 그 세 저장소의 `Review status` workflow는 그대로 둔다. 검사기는 그 두 status의 작성자를 보지 않는다. 다른 SHA의 근거 표도 이 head의 근거가 아니다. 1인 프로필의 승인 댓글은 편집하면 무효다. REST `updated_at`이 `created_at`과 같아야 한다. 같은 초 편집은 구분하지 않으므로 댓글을 고치지 말고 새 댓글을 단다. 그 다음 단계가 `review/gate`다. 권장: **게이트 전용 읽기 `GH_TOKEN` + Keychain에서 꺼낸 PEM + `origin/main`의 깨끗한 checkout**에서 `tools/post_review_gate.py`를 실행한다(상세는 `docs/review-gate-app.md`). 예전 **봉인 사본·reviewgate 전용 계정**은 레거시다. 먼저 `--dry-run`이다. 이 명령만 commit status `review/gate`를 올린다. 같은 UID에서 에이전트가 돌면 임시 PEM이 있는 순간 키가 노출될 수 있다. 저장소와 Actions에 두지 않는다. 에이전트는 이 명령을 실행하지 않는다. `Review status` 체크가 초록이어도 그 결론을 게이트의 근거로 쓰지 않는다.
 
 ## Mac Studio에서 팀으로 옮길 때
 
