@@ -26,6 +26,37 @@ Dependabot 현행은 「2026-11-06 — Dependabot PR은 다른 PR과 같다」�
 - Dependabot의 `scripts/workflow_policy.py` 본문 건너뜀은 근거 표의 작성 기록을 빼지 않는다. 버전 전용 예외는 없다.
 - 필수 체크와 `review/gate` `app_id` 5641238은 바꾸지 않는다.
 
+## 2026-11-07 — 호출 이름과 변경 기록 시점을 구분한다
+
+- 「시작 범위는 PR 양식 하나와 참조 계약이다」의 메타 이슈 문장은 그 절을 쓴 시점의 기록이라고 고쳤다. 현재 링크는 「실행 추적은 이슈 58이다」다.
+- `docs/start.md`: `/ask-matt` 같은 짧은 이름은 순서다. Claude Code 플러그인의 호출은 `docs/development-workflow.md`의 `/mattpocock-skills:ask-matt`다. 설치는 그 문서의 「처음 한 번」이고 코어가 하지 않는다. `vendor/mattpocock-skills/matt-code-review/`는 리뷰 스킬 원본이고 전체 manifest만 복사한다.
+
+## 2026-11-07 — 실행 추적은 이슈 58이다
+
+- README와 `docs/start.md`는 [이슈 #58](https://github.com/minjunkim-dev/repo-baseline/issues/58)만 연결한다. 열린 이슈 목록은 그 이슈가 정본이다. 이 저장소 문서는 시작 절차의 정본이고 그 목록을 복사하지 않는다. 이슈를 새로 만들거나 닫지 않는다.
+
+## 2026-11-07 — 시작 범위는 PR 양식 하나와 참조 계약이다
+
+- `docs/start.md`, README, `docs/development-workflow.md`, `prompts/pr-ci-setup.md`: 코어가 복사하는 파일은 `.github/pull_request_template.md` 하나다. Matt 절차, `POLICY.md`, 명령 네 칸은 설치가 아니라 참조다. format·lint·type·test·build는 대상 스택이거나 `N/A`와 이유다. 포매터와 새 의존성은 스택 선택 없이 넣지 않는다. 예제는 POSIX `sh`와 Git clone이다. Git이 없는 환경과 POSIX 셸이 없는 Windows는 지원 범위가 아니다.
+- 이 원본의 독립 패밀리 리뷰, 라운드 상한 3, `review/gate`, `POLICY.md` §10은 코어 복사가 약하게 하지 않는다. 외부 리뷰와 스레드 규칙은 §5 그대로다.
+- 이 절을 쓴 시점에는 메타 이슈 URL이 없어 README에 링크를 만들지 않았다. 그 문장은 그때의 기록이다. 현재 링크는 위 「2026-11-07 — 실행 추적은 이슈 58이다」가 정한다. 필수 체크와 workflow의 3.11·3.13 job, `review/gate` `app_id` 5641238은 이 절에서 바꾸지 않았다.
+
+## 2026-11-07 — Python 3.15 검사를 필수 목록 밖에 더한다
+
+- `.github/workflows/check.yml`: `Baseline checks (Python 3.11)`과 `Baseline checks (Python 3.13)`은 그 minor로 unittest를 계속 실행한다. 새 버전으로 바꿔 성공을 위장하지 않는다. job `Baseline checks`를 더한다. `python-version`은 `3.15`이고 `check-latest: true`다. `3.x`, prerelease, free-threaded는 쓰지 않는다. 이 job은 필수 체크가 아니다.
+- 선택 이유: 2026-11-07에 Python 개발자 가이드와 python.org 다운로드는 3.15를 bugfix, 최신 patch 3.15.2(2026-10-25)로 적는다. 3.14.10도 bugfix다. 3.13·3.11은 security다. 3.16은 pre-release다. 공식 LTS는 없다. 개인 도구 CI의 한 minor는 가장 최근 stable bugfix인 3.15다. `actions/python-versions` manifest에서 3.15.2는 `stable: true`이고 3.15.0-rc.3은 `stable: false`다.
+- `.github/repository-settings.json`의 필수 체크는 바꾸지 않는다. `review/gate` `app_id` 5641238도 바꾸지 않는다. 서버 보호는 적용하지 않는다.
+- `scripts/test_workflow_policy.py`: 깊이 제한을 넘는 JSON은 여전히 종료 코드 1과 `FAIL`이다. 3.15에서는 `RecursionError` 대신 객체·flags 형식 거부로 끝날 수 있다. `scripts/workflow_policy.py`는 바꾸지 않는다. 소비 프로젝트에 다시 적용하지는 않는다.
+- 남은 순서: 이 bridge가 `main`에 있고 새 job이 성공한 뒤, 별도 승인으로 live 필수 context를 `Baseline checks`와 `review/gate`로 바꾼다. 그 적용과 readback 다음에야 옛 matrix를 빼는 PR을 낸다. 그 전에 옛 job을 지우면 보호가 없는 context를 기다린다.
+
+## 2026-11-07 — 언어와 무관한 시작과 코어 복사 목록
+
+- `docs/start.md`: 새 프로젝트의 공통 순서. 완료 기준은 Matt spec·ticket이다. `eval.md`를 요구하지 않는다. 검증자와 리뷰어를 나눈다. 명령 네 칸은 프로젝트 스택이고, 없으면 `N/A`다. 리뷰 라운드 상한 3은 유지한다. 병합 큐·단계 배포·상시 감시는 선택이다.
+- `templates/repo-baseline.core.json`: PR 본문 양식만 복사한다. Python 검사기와 그 테스트는 넣지 않는다. `templates/repo-baseline.json` 전체는 GitHub·검사기 프로필로 남는다. 기존 manifest를 코어 파일로 바꾸지 않는다.
+- 기본 시작 명령은 `cp`와 대상 스택의 검사다. 그 명령은 Python이 아니다. 해시 복사, 정책 검사, 게이트 서명은 Python 도구로 남고 기본 명령에 넣지 않는다. Python 3.11·3.13 matrix는 `.github/workflows/check.yml`의 이 저장소 도구 CI로 유지한다. 그 workflow와 `.github/repository-settings.json`의 필수 체크는 바꾸지 않는다. 새 프로젝트에 그 job 이름을 복사하지 않는다. 두 버전을 고른 이유나 지원 계약 문서는 이 저장소에 없다.
+- 게이트 파일, `.github/repository-settings.json`, `review/gate` `app_id` 5641238, 검사기 동작은 바꾸지 않는다. 서버 설정과 앱은 적용하지 않는다.
+- 다시 적용: 새 프로젝트만 코어 목록으로 시작할 수 있다. smallnext, BGLike, mobile-runtime은 기존 manifest를 유지한다. 이 변경은 그 저장소에 복사할 검사기 변경이 없다.
+
 ## 2026-11-06 — Security 근거는 경로로 정한다
 
 - `scripts/check_review_status.py`: 공통 경로, 의존성 파일 이름, 기준 브랜치의 `.github/trust-boundary-paths`에 걸리면 Security 칸의 `해당 없음`은 실패다. compare가 목록을 주지 않거나 경로 이름이 없으면 실패다. 그 파일 읽기가 404가 아닌 오류면 확인 불가다. 버그 찾기의 `해당 없음`은 그대로다. `review/independent`와 `review/security` status는 읽지 않는다.
