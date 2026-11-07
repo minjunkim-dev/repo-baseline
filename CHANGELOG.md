@@ -1,12 +1,55 @@
 # 변경 기록
 
-리뷰 모델의 현행은 「2026-11-06 — 역할 분담: 클라우드 기본, 활성 로스터」다. 그 아래의 리뷰 모델 절은 그 커밋 당시의 기록이다.
+리뷰 모델의 현행은 「2026-11-07 — 같은 패밀리의 다른 모델 예외」다. 그 아래 「2026-11-06 — 역할 분담: 클라우드 기본, 활성 로스터」의 같은 패밀리 문장은 그날의 기록이다. 그날 문장이 검사기 거절과 Opus·Sonnet 한정을 말한 것은 당시 문서이고, 사용자 승인 원문이 확인된 이전 합의는 아니다.
 
-Dependabot 현행은 「2026-11-06 — Dependabot PR은 다른 PR과 같다」다. 그 아래 날짜의 pin 전용 면제 문장은 당시 기록이다. 승인 댓글 편집의 현행은 「2026-11-06 — 승인 댓글 편집 감지와 댓글 재실행을 줄인다」다. 게이트가 `review/independent`·`review/security`를 요구하던 문장은 「2026-11-06 — 게이트는 근거 표와 승인 댓글만 본다」로 대체되었다. 신뢰 경계 경로의 Security 근거는 「2026-11-06 — Security 근거는 경로로 정한다」다. P0·P1 칸과 본문 편집 뒤의 `review/gate`는 「2026-11-07 — 열린 P0·P1과 본문 편집」이다. 병합은 「2026-11-07 — 병합 직전에만 success를 올린다」다.
+Dependabot 현행은 「2026-11-06 — Dependabot PR은 다른 PR과 같다」다. 그 아래 날짜의 pin 전용 면제 문장은 당시 기록이다. 승인 댓글 편집의 현행은 「2026-11-06 — 승인 댓글 편집 감지와 댓글 재실행을 줄인다」다. 게이트가 `review/independent`·`review/security`를 요구하던 문장은 「2026-11-06 — 게이트는 근거 표와 승인 댓글만 본다」로 대체되었다. 신뢰 경계 경로의 Security 근거는 「2026-11-06 — Security 근거는 경로로 정한다」다. P0·P1 칸과 본문 편집 뒤의 `review/gate`는 「2026-11-07 — 열린 P0·P1과 본문 편집」이다. 병합은 「2026-11-07 — 병합 직전에만 success를 올린다」다. Grok Bot을 필수 조율자로 적던 문장의 현행은 「2026-11-07 — Grok Bot은 선택 조율이다」다. 리뷰 범위와 근거 표와 승인 SHA를 구분하는 문장은 「2026-11-07 — 재개 원본과 세 조건의 구분」이다. 그 절은 최종 full의 의무를 고르지 않는다. 재개 원본을 GitHub Issue로만 적은 문장은 「2026-11-07 — 정본은 Linear와 GitHub로 나눈다」가 좁힌다. 주어와 정본 이름을 고친 문장은 「2026-11-07 — 오독되는 이름을 고친다」다. 그 절은 지적의 해소나 수용이 아니다. 읽기 자격과 준비 상태 GraphQL의 현행은 「2026-11-07 — 읽기는 개발자 gh, 서명은 앱 PEM」이다.
+
+## 2026-11-07 — 읽기는 개발자 gh, 서명은 앱 PEM
+
+- 권장 일상 경로: 개발자 `gh`가 읽기와 squash 병합을 한다. Keychain의 앱 PEM이 전용 앱 `review/gate`를 서명한다. 이 저장소의 핀은 `app_id` 5641238이다. 별도 읽기 PAT, `reviewgate` UID, 봉인, 해시, sudoers, `git archive`는 권장 경로가 아니다.
+- `tools/post_review_gate.py`는 `GH_TOKEN`이 비어 있으면 거절한다. 거부 문장은 `GH_TOKEN must be set for reads`다. 권장 경로는 그 값을 그 프로세스 안에서만 `gh auth token`으로 채운다. 스크립트는 `gh auth token`을 호출하지 않고, 토큰이 다른 계정인지 검사하지 않는다. 개발자 토큰은 읽기 전용으로 좁혀져 있지 않다. `gh pr merge` 자식에는 `GH_TOKEN`을 넘기지 않는다. 앱 설치 토큰은 status POST에만 쓴다.
+- 근거·diff·승인 댓글 시각은 REST GET이다. 승인 댓글 편집은 `updated_at`이 `created_at`과 같은지이고 GraphQL `lastEditedAt`이 아니다. `--merge`의 준비 상태(필수 체크, 리뷰 스레드, `reviewDecision`)는 같은 토큰의 GraphQL CheckRun이다. 예시 `--dry-run`은 `--merge`가 아니라서 그 GraphQL을 보지 않는다.
+- `--merge`의 SHA 고정 squash, 파싱된 작성 기록·표·승인 댓글의 재검사, 풀리지 않은 스레드, 양의 정수 앱 핀, 본문 경주·SIGKILL·전원·응답 없는 네트워크는 그대로다. 신호 핸들러와 P2 파서는 이 변경이 건드리지 않는다.
+- 1인 프로필의 게이트 경로는 소유자 SHA 댓글이다. 팀 프로필은 그 댓글을 요구하지 않고 `POLICY.md` §9의 사람 승인이다. 검사기 동작은 바꾸지 않았다.
+- 헬퍼의 병합·핀·재검사 동작은 바꾸지 않았다. 빈 `GH_TOKEN` 거절은 그대로다.
+
+## 2026-11-07 — 오독되는 이름을 고친다
+
+- Linear는 내부 업무의 정본이다. Issue #61은 저장소 결정 기록이다. 같은 말이 아니다.
+
+## 2026-11-07 — 정본은 Linear와 GitHub로 나눈다
+
+- 바로 아래 절은 재개 원본을 GitHub Issue, PR 본문, 근거 표, 저장소 밖 리뷰 산출물로 적었다. 그 문장은 그 커밋의 기록이다. 내부 업무, 요구, 수락 기준, 우선순위, 결정의 정본은 Linear다. Issue #61은 그 요청의 저장소 결정 기록이다. 내부 업무의 정본이 아니다. 코드, PR, 리뷰, CI 근거는 GitHub다. GitHub Issue는 이미 있는 기록의 참조이거나 외부 제보다. 같은 내부 업무를 GitHub Issue로 새로 만들지 않는다.
+- 읽은 원본은 [Linear 운영원칙](https://linear.app/swiftyee/document/업무-운영원칙-lineargithub-및-역할승인-경계-2f8f93d02c1b), [SWI-5](https://linear.app/swiftyee/issue/SWI-5), [SWI-6](https://linear.app/swiftyee/issue/SWI-6)이다. 그 문서가 적은 Linear–GitHub 자동 연동 미확인과, 단독 재개 시험 미실행을 실행 완료로 바꾸지 않는다. 필수 연동, 새 API, 기존 Issue 이관·폐쇄, 설정 변경은 없다.
+- 검사기의 `Refs #N` 요구는 그대로다. 번호가 없는 새 내부 업무와 그 요구가 겹치면 사람이 정한다. 이 절은 그 번호를 면제하지 않는다.
+
+## 2026-11-07 — 재개 원본과 세 조건의 구분
+
+- 정본은 2026-11-07 사용자 요청 t100·t104와, 같은 날의 필요성 사전검증 둘이다. 그 검증은 3단계 등급, 표현만 변경의 독립 검토 면제, 최종 full 의무의 선택을 시행하지 않았다. 이 절도 그 선택을 현행으로 넣지 않는다.
+- 재개 원본은 GitHub Issue, PR 본문, 근거 표, 저장소 밖 리뷰 산출물이다. Claude Code 단독과 Cursor 단독이 그 기록으로 잇는다. 단독 도구는 작성 모델의 자기 검토 면제가 아니다. 독립 검토를 못 하면 `미실행`이다. 한도가 소진된 모델은 다시 실행하지 않는다. 패밀리 규칙과 검사기는 바꾸지 않는다.
+- `prompts/pr-ci-setup.md` §5의 두 문장(전체 한 번 뒤 delta, 최종 전체 diff)은 그대로 두고, 리뷰 범위·현 head 근거 표·정확 SHA 승인을 서로 다른 조건으로 적는다. 원 full과 delta와 통합 확인으로 충분한지, 최종 별도 full이 필수인지는 미적용 결정안이다.
+
+## 2026-11-07 — Grok Bot은 선택 조율이다
+
+- 정본은 2026-11-07 19:12 KST 사용자 요청(t46~t50)이다. 그 이전 합의 원문을 확인한 기록이 아니다. 결정 기록은 Issue #61이다. Issue #58에는 기존 본문을 유지한 채 포인터만 덧붙인다. #59와 PR #60은 다른 결정이다.
+- 접수·Issue·작업 분해·배정·CI와 리뷰 추적·근거 확인·보고는 사람 또는 선택 조율자다. Grok Bot은 그 선택 보조다. Claude Code 단독과 Cursor 단독으로 개발을 끝까지 한다.
+- 플랫폼 단독은 같은 모델의 자기 승인이 아니다. 구현 에이전트와 리뷰 에이전트, 다른 패밀리, 필수 테스트, 독립 리뷰, 소유자 승인, 게이트, 정확한 head SHA는 유지한다. Matt 스파인과 pstack 배치는 그대로다. 검사기, 스크립트, 설치, 인증, 결제, 보호, `review/gate` `app_id` 5641238은 바꾸지 않는다. 현행 main의 검사기는 같은 패밀리 리뷰를 거절한다.
+- 단독 경로는 구현 경로다. 리뷰는 작성 패밀리와 다른 패밀리가 한다. Claude Code로 쓰면 Claude 밖(Composer·Grok), Cursor의 Composer·Grok으로 쓴 되돌리기 어려움은 첫 버그 찾기·Security에 Opus가 필요하다. 한 도구만으로 독립 리뷰까지 끝난다고 적지 않는다.
+- 같은 패밀리의 다른 모델·다른 에이전트 예외는 PR #60으로 병합됐다(Issue #59). 이 절의 표현은 그 예외를 전제로 한다. 다른 패밀리를 쓸 수 없을 때만 쓰고, 근거 표에 `같은 패밀리 예외:` 블록이 있어야 한다.
+- 고친 파일: `README.md`, `POLICY.md`, `docs/development-workflow.md`, `prompts/pr-ci-setup.md`. `docs/review-gate-app.md`의 키 보관 금지 위치(Grok Bot의 컴퓨터)는 필수 경로 문장이 아니라 그대로 둔다.
+
+## 2026-11-07 — 같은 패밀리의 다른 모델 예외
+
+- 합의 정본은 2026-11-07 18:21 KST 사용자의 직접 승인이다. 18:22 KST에 이슈와 문서에 남기기로 했다. 결정 기록은 Issue #59다. #58의 본문은 바꾸지 않는다.
+- 기본은 리뷰 패밀리가 작성 패밀리와 다른 것이다. 다른 패밀리를 쓸 수 없을 때만 같은 패밀리의 다른 모델이 독립 리뷰를 한다. 구현 에이전트와 리뷰 에이전트는 달라야 한다. 같은 모델은 불가하다. Opus·Sonnet만의 예외는 두지 않는다. Haiku를 일괄 금지하지 않고, Security와 어려운 버그 찾기는 Haiku로 통과하지 않는다. 적합한 다른 모델이 없으면 `미실행`으로 기다린다.
+- `scripts/check_review_status.py`는 `같은 패밀리 예외:` 블록의 문자열만 본다. 다른 패밀리 행은 블록 없이 통과한다. 이유, 검토 SHA, 에이전트 증빙, 작성·리뷰 모델이 빠지거나 같으면 실패한다. 가용성은 추정하지 않고, 에이전트 식별은 조회하지 않는다. 소유자 승인, 필수 축, P0·P1, 표의 head SHA, `result`는 그대로다.
+- `tools/post_review_gate.py`의 스냅샷에 그 블록을 넣는다. 블록을 고치면 병합 직전 재읽기가 달라진다. success를 올리는 조건, auto-merge, `review/gate`의 `app_id` 5641238, 필수 체크는 바꾸지 않는다. 이 변경은 branch protection을 쓰지 않고 status를 올리지 않는다.
+- 비목표: 게이트 면제, 구독·플랫폼 확대, Gemini·GPT를 활성 로스터에 넣기, PR #57 head `251d34933ae2c26b1cfb3f04c99729409ab6b160`의 수정. 이 PR이 병합되기 전에 다른 PR이 이 예외로 게이트를 통과했다고 말하지 않는다.
+- 다시 적용할 프로젝트: smallnext, BGLike, mobile-runtime. 병합 뒤 `scripts/check_review_status.py`와 `scripts/test_review_status.py`를 `tools/apply_baseline.py`로 다시 복사한다. `tools/post_review_gate.py`는 복사하지 않는다. 그 복사는 이 변경이 실행하지 않는다.
 
 ## 2026-11-07 — 병합 직전에만 success를 올린다
 
-- `tools/post_review_gate.py`: `--merge`가 없는 실행은 success를 올리지 않는다. 근거가 통과하면 pending이고, 실패하면 failure다. `--dry-run`은 읽기만 한다. `--merge`는 준비된 PR, 걸려 있지 않은 auto-merge, `review/gate` 외의 필수 체크, 풀리지 않은 리뷰 스레드를 확인한 뒤에만 success를 올리고, 파싱된 작성 기록·표·승인 댓글을 다시 읽은 다음 개발자 `gh`로 `--squash --match-head-commit` 병합한다. `isRequired`는 pull request 번호가 있어야 한다. 필수 체크의 이름과 앱은 기본 브랜치의 `.github/repository-settings.json`이다. PR head의 그 파일은 쓰지 않는다. 시도의 순서는 시작 시각이고, 같은 시각에 결과가 갈리면 실패로 닫는다. success를 올리려 한 뒤의 예외와 SIGINT·SIGTERM·SIGHUP·SIGQUIT는 failure 게시가 끝날 때까지 미룬다. openssl 서명은 다른 세션이라 터미널이 이 프로세스 그룹에 보낸 신호로 죽지 않는다. 병합 중 그 신호는 gh를 끊는다. 정리에 들어갈 때, defer를 켜기 전이나 켜는 줄에서 신호가 나도 failure 게시와 이전 핸들러 복원은 계속된다. 그 게시는 한 번이고 원자적이지 않다. SIGKILL은 잡지 못한다. 지원하는 앱 id는 양의 정수다. `-1`은 고정이 아니라서 거절한다. 병합 여부는 종료 코드가 아니라 PR을 다시 읽어 정한다. 정리가 실패하면 그 실패를 숨기지 않는다. `gh`와 `openssl`에는 허용한 환경 변수만 넘긴다. 앱 설치 토큰은 `gh`에 넘기지 않는다. `GH_TOKEN`은 읽기 토큰으로 남고 개발자 `gh auth token`이 아니다. `Review status` workflow는 `review/gate`를 올리지 않는다.
+- `tools/post_review_gate.py`: `--merge`가 없는 실행은 success를 올리지 않는다. 근거가 통과하면 pending이고, 실패하면 failure다. `--dry-run`은 읽기만 한다. `--merge`는 준비된 PR, 걸려 있지 않은 auto-merge, `review/gate` 외의 필수 체크, 풀리지 않은 리뷰 스레드를 확인한 뒤에만 success를 올리고, 파싱된 작성 기록·표·승인 댓글을 다시 읽은 다음 개발자 `gh`로 `--squash --match-head-commit` 병합한다. `isRequired`는 pull request 번호가 있어야 한다. 필수 체크의 이름과 앱은 기본 브랜치의 `.github/repository-settings.json`이다. PR head의 그 파일은 쓰지 않는다. 시도의 순서는 시작 시각이고, 같은 시각에 결과가 갈리면 실패로 닫는다. success를 올리려 한 뒤의 예외와 SIGINT·SIGTERM·SIGHUP·SIGQUIT는 failure 게시가 끝날 때까지 미룬다. openssl 서명은 다른 세션이라 터미널이 이 프로세스 그룹에 보낸 신호로 죽지 않는다. 병합 중 그 신호는 gh를 끊는다. 정리에 들어갈 때, defer를 켜기 전이나 켜는 줄에서 신호가 나도 failure 게시와 이전 핸들러 복원은 계속된다. 그 게시는 한 번이고 원자적이지 않다. SIGKILL은 잡지 못한다. 지원하는 앱 id는 양의 정수다. `-1`은 고정이 아니라서 거절한다. 병합 여부는 종료 코드가 아니라 PR을 다시 읽어 정한다. 정리가 실패하면 그 실패를 숨기지 않는다. `gh`와 `openssl`에는 허용한 환경 변수만 넘긴다. 앱 설치 토큰은 `gh`에 넘기지 않는다. 그 문장의 `GH_TOKEN`은 개발자 `gh auth token`이 아니다는 위 「읽기는 개발자 gh, 서명은 앱 PEM」로 대체되었다. 병합 제약 자체는 이 절이 현행이다. `Review status` workflow는 `review/gate`를 올리지 않는다.
 - 남은 위험: 검사·게시·재검사·병합은 원자적이지 않다. 본문 편집이 재검사와 겹칠 수 있다. success 뒤의 SIGKILL·전원 손실·네트워크 단절은 success를 남긴다. 같은 Mac 사용자와 키는 신뢰 경계다. 그 SHA가 아직 열린 PR의 head이고 조회가 성공할 때만 `--merge` 없이 다시 실행해 지울 수 있다. head가 바뀌거나, PR이 닫히거나, 조회가 실패하면 옛 success는 지워지지 않는다. failure 정리는 한 번뿐이고, 그 게시가 실패하면 success가 남을 수 있다. 사람이 `gh pr merge`만 실행하지 않는다. auto-merge는 예약하지 않는다. 절대적인 신선도 보장이 아니다. description의 digest는 감사 표식이고 GitHub가 병합 때 다시 검사하지 않는다.
 - 필수 체크와 `review/gate` `app_id` 5641238, 앱 권한은 바꾸지 않는다. webhook을 더하지 않는다.
 
@@ -74,7 +117,7 @@ Dependabot 현행은 「2026-11-06 — Dependabot PR은 다른 PR과 같다」�
 
 - `scripts/check_review_status.py`: 승인 댓글은 REST `updated_at`이 `created_at`과 같은 문자열일 때만 인정한다. GraphQL `lastEditedAt`·`includesCreatedEdit`는 보지 않는다. REST 시각은 초 단위라 같은 초 편집은 구분하지 않는다. 하드 도어의 SHA 전체 댓글 요구는 그대로다. 댓글을 고치지 말고 새 댓글을 단다.
 - `templates/review-status.yml`과 `.github/workflows/review-status.yml`: `issue_comment` 트리거와 재실행 job을 뺐다. `scripts/rerun_review_status.py`는 삭제했다. 승인 댓글은 `Review status`와 `review/gate`를 자동으로 다시 돌리지 않는다. 새 댓글 뒤에 그 head의 `Review status`를 직접 다시 돌리거나 `tools/post_review_gate.py`로 게이트를 다시 올린다.
-- `tools/post_review_gate.py`: 승인 댓글은 REST GET으로 읽는다. `POST /graphql`은 쓰지 않는다.
+- `tools/post_review_gate.py`: 승인 댓글은 REST GET으로 읽는다. 승인 댓글 편집 판정에 `POST /graphql`은 쓰지 않는다. `--merge` 준비 상태의 CheckRun GraphQL은 「2026-11-07 — 읽기는 개발자 gh, 서명은 앱 PEM」이다.
 - 이벤트 정책 템플릿은 `issue_comment` 허용을 남겨 둔다. 그 허용은 구독이 아니다. 필수 체크와 `.github/repository-settings.json`은 바꾸지 않는다. 이 변경은 branch protection을 쓰지 않는다.
 - 다시 적용할 프로젝트: smallnext, BGLike, mobile-runtime. `scripts/check_review_status.py`, `scripts/test_review_status.py`를 `tools/apply_baseline.py`로 다시 복사한다. `templates/review-status.yml`을 `.github/workflows/review-status.yml`로 다시 복사한다. 소비 저장소의 `scripts/rerun_review_status.py`는 지운다. `tools/post_review_gate.py`는 복사하지 않는다. 카나리 E는 다시 열지 않는다. `.github/repository-settings.json`의 필수 체크는 그대로다.
 
@@ -98,7 +141,7 @@ Dependabot 현행은 「2026-11-06 — Dependabot PR은 다른 PR과 같다」�
 
 ## 2026-11-06 — 게이트 문서: Keychain 우선·합의(문서만)
 
-- `docs/review-gate-app.md`: 1인·소규모 팀의 **권장 경로**를 **개발자 macOS Keychain의 앱 PEM**(실행 시에만 임시 파일로 꺼냄) + **개발자 `gh`로 증거 status** + **`GH_TOKEN` 게이트 전용 읽기 토큰(`tools/post_review_gate.py` 현행)** + **기본 브랜치의 깨끗한 checkout에서 `post_review_gate.py`**로 다시 썼다. **unset GH_TOKEN**과 “별도 읽기 토큰 불필요”는 코드와 어긋나서 뺐다. 체크아웃은 `git status --porcelain`·`git reset --hard origin/main`(또는 핀 SHA)로 고정. 같은 **UID 에이전트**와의 격리 한계·Keychain 과장 없음·PEM을 argv에 넣지 않는 설명을 추가했다. **멀티라인 PEM**은 `security -w` 대화형 한 줄 입력에 맞지 않으므로 **Keychain Access GUI**(또는 0600 파일→GUI)만 권장하고, 대화형 `-w`로 PEM 붙여넣기는 금지했다. **게이트 `GH_TOKEN` 스코프**는 `Reader`의 REST·GraphQL 호출에 맞춘다. 증거 `gh api` 전에 **`unset GH_TOKEN GITHUB_TOKEN`**. 예전 **reviewgate 전용 UID·봉인(seal)·sudoers·git archive** 중심 절차는 **레거시(선택)**로 남겼다.
+- 과거 문서. 별도 읽기 토큰을 권장 경로로 둔 문장은 「2026-11-07 — 읽기는 개발자 gh, 서명은 앱 PEM」로 대체되었다. 그때 `docs/review-gate-app.md`는 1인·소규모 팀의 **권장 경로**를 **개발자 macOS Keychain의 앱 PEM**(실행 시에만 임시 파일로 꺼냄) + **개발자 `gh`로 증거 status** + **`GH_TOKEN` 게이트 전용 읽기 토큰(`tools/post_review_gate.py` 현행)** + **기본 브랜치의 깨끗한 checkout에서 `post_review_gate.py`**로 다시 썼다. **unset GH_TOKEN**과 “별도 읽기 토큰 불필요”는 코드와 어긋나서 뺐다. 체크아웃은 `git status --porcelain`·`git reset --hard origin/main`(또는 핀 SHA)로 고정. 같은 **UID 에이전트**와의 격리 한계·Keychain 과장 없음·PEM을 argv에 넣지 않는 설명을 추가했다. **멀티라인 PEM**은 `security -w` 대화형 한 줄 입력에 맞지 않으므로 **Keychain Access GUI**(또는 0600 파일→GUI)만 권장하고, 대화형 `-w`로 PEM 붙여넣기는 금지했다. **게이트 `GH_TOKEN` 스코프**는 `Reader`의 REST·GraphQL 호출에 맞춘다. 증거 `gh api` 전에 **`unset GH_TOKEN GITHUB_TOKEN`**. 예전 **reviewgate 전용 UID·봉인(seal)·sudoers·git archive** 중심 절차는 **레거시(선택)**로 남겼다.
 - `prompts/pr-ci-setup.md`, `docs/development-workflow.md`: 권장 경로를 위와 맞추고 **봉인 사본** 문장을 **레거시**로 표시했다.
 - `POLICY.md` §5·§9, `README.md`, `docs/github-settings-profile.md`: repo-baseline의 `review/gate` `app_id` 기록이 **5641238**(#44)이므로, `REPLACE:<APP_ID>`는 **다른 저장소·채우기 전**의 자리표시자로만 쓴다고 고쳤다. 합의의 나머지(증거-in-gate·Dependabot·편집 댓글 규칙·코드 삭제 순서)는 **후속 PR**이다. Python 게이트 로직·`.github/repository-settings.json` 필수 목록 변경은 이 PR에 없다.
 
@@ -131,7 +174,7 @@ Dependabot 현행은 「2026-11-06 — Dependabot PR은 다른 PR과 같다」�
 ## 2026-11-06 — 이름 변경은 버전 전용이 아니고 게이트는 봉인 사본으로 실행한다
 
 - 과거 동작. 2026-11-06 「Dependabot PR은 다른 PR과 같다」로 대체되었다. 그때 `only_versions`는 `previous_filename`이 있거나 `status`가 `modified`가 아니면 거절했다. 워크플로 밖으로 pin만 바꿔 이름을 옮겨도 Dependabot 면제가 아니었다.
-- 게이트 실행은 체크아웃이 아니다. 봉인 트리는 `tools/post_review_gate.py`, `scripts/check_review_status.py`, `scripts/pr_author.py`이고 `python3 -I`로 돌린다. `GH_TOKEN`은 게이트 계정의 읽기 전용 토큰이다(`docs/review-gate-app.md`).
+- 과거 배치. 봉인 트리와 게이트 계정 읽기 토큰은 권장 일상 경로가 아니다. 현행은 「2026-11-07 — 읽기는 개발자 gh, 서명은 앱 PEM」이다. 그때는 게이트 실행을 체크아웃이 아니라고 적었고, 봉인 트리는 `tools/post_review_gate.py`, `scripts/check_review_status.py`, `scripts/pr_author.py`이며 `python3 -I`로 돌렸다. `GH_TOKEN`은 게이트 계정의 읽기 전용 토큰이라고 적었다.
 
 ## 2026-11-06 — review/gate 앱 ID와 봇 근거, 버전 전용 diff
 
