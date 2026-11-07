@@ -6,14 +6,14 @@ Dependabot 현행은 「2026-11-06 — Dependabot PR은 다른 PR과 같다」�
 
 ## 2026-11-07 — 병합 직전에만 success를 올린다
 
-- `tools/post_review_gate.py`: `--merge`가 없는 실행은 success를 올리지 않는다. 근거가 통과하면 pending이고, 실패하면 failure다. `--dry-run`은 읽기만 한다. `--merge`는 준비된 PR, 걸려 있지 않은 auto-merge, `review/gate` 외의 필수 체크, 풀리지 않은 리뷰 스레드를 확인한 뒤에만 success를 올리고, 파싱된 작성 기록·표·승인 댓글을 다시 읽은 다음 개발자 `gh`로 `--squash --match-head-commit` 병합한다. 다시 읽기나 병합이 실패하면 그 SHA에 failure를 올린다. 정리가 실패하면 그 실패를 숨기지 않는다. 앱 설치 토큰은 `gh`에 넘기지 않는다. `GH_TOKEN`은 읽기 토큰으로 남고 개발자 `gh auth token`이 아니다.
+- `tools/post_review_gate.py`: `--merge`가 없는 실행은 success를 올리지 않는다. 근거가 통과하면 pending이고, 실패하면 failure다. `--dry-run`은 읽기만 한다. `--merge`는 준비된 PR, 걸려 있지 않은 auto-merge, `review/gate` 외의 필수 체크, 풀리지 않은 리뷰 스레드를 확인한 뒤에만 success를 올리고, 파싱된 작성 기록·표·승인 댓글을 다시 읽은 다음 개발자 `gh`로 `--squash --match-head-commit` 병합한다. `isRequired`는 pull request 번호가 있어야 한다. 필수 체크는 최신 시도만 보고, Baseline 둘은 Actions 앱 15368이어야 한다. 한쪽만 초록이거나 목록이 잘리면 병합하지 않는다. success를 올리려 한 뒤의 예외, SIGINT, SIGTERM은 그 SHA에 failure를 올린다. 병합 여부는 종료 코드가 아니라 PR을 다시 읽어 정한다. 정리가 실패하면 그 실패를 숨기지 않는다. `gh`와 `openssl`에는 허용한 환경 변수만 넘긴다. 앱 설치 토큰은 `gh`에 넘기지 않는다. `GH_TOKEN`은 읽기 토큰으로 남고 개발자 `gh auth token`이 아니다. `Review status` workflow는 `review/gate`를 올리지 않는다.
 - 남은 위험: 검사·게시·재검사·병합은 원자적이지 않다. 본문 편집이 재검사와 겹칠 수 있다. success 뒤의 SIGKILL·전원 손실·네트워크 단절은 success를 남긴다. 같은 Mac 사용자와 키는 신뢰 경계다. 남은 success는 `--merge` 없이 다시 실행해 지운다. 사람이 `gh pr merge`만 실행하지 않는다. auto-merge는 예약하지 않는다. 절대적인 신선도 보장이 아니다. description의 digest는 감사 표식이고 GitHub가 병합 때 다시 검사하지 않는다.
 - 필수 체크와 `review/gate` `app_id` 5641238, 앱 권한은 바꾸지 않는다. webhook을 더하지 않는다.
 
 ## 2026-11-07 — 열린 P0·P1과 본문 편집
 
 - 근거 표의 P0와 P1은 아직 수정·기각·한계 수용으로 끝나지 않은 수다. 끝난 지적과, Security가 아닌 범위 밖 Pre-existing은 그 칸에 넣지 않고 표 아래에 적는다. 칸이 0보다 크면 실패다. 기각 문장이나 한계 수용 문장은 그 수를 지우지 않는다. P2가 0보다 커도 그 칸만으로는 실패하지 않는다.
-- `review/gate` success는 그 실행이 읽은 본문이다. 이후 본문 편집은 SHA를 바꾸지 않고 success를 지우지 않는다. `Review status`의 `edited` 재실행은 필수 체크가 아니고 그 status를 올리지 않는다. 본문을 고친 뒤에는 `tools/post_review_gate.py`를 다시 실행한다. 본문 편집을 받는 새 webhook이나 앱 권한은 없다.
+- 본문 편집이 `review/gate`를 자동으로 지우지는 않는다. `Review status`의 `edited` 재실행은 필수 체크가 아니고 그 status를 올리지 않는다. success를 누가 올리는지는 위 「병합 직전에만 success를 올린다」가 정한다. 본문 편집을 받는 새 webhook이나 앱 권한은 없다.
 - Dependabot의 `scripts/workflow_policy.py` 본문 건너뜀은 근거 표의 작성 기록을 빼지 않는다. 버전 전용 예외는 없다.
 - 필수 체크와 `review/gate` `app_id` 5641238은 바꾸지 않는다.
 
