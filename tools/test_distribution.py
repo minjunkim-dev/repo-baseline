@@ -35,7 +35,7 @@ class DistributionTests(unittest.TestCase):
         for name, entry in core["files"].items():
             self.assertEqual(full["files"][name], entry)
             self.assertTrue((ROOT / entry["source"]).is_file())
-        for optional in (
+        copied_by_full = (
             "scripts/check_repo_baseline.py",
             "scripts/test_repo_baseline.py",
             "scripts/check_github_settings.py",
@@ -45,10 +45,14 @@ class DistributionTests(unittest.TestCase):
             ".agents/skills/matt-code-review/SKILL.md",
             ".claude/skills/matt-code-review/SKILL.md",
             ".github/dependabot.yml",
-            ".github/workflows/check.yml",
-        ):
-            self.assertIn(optional, full["files"]) if optional.startswith("scripts/") or optional.startswith(".agents/") or optional.startswith(".claude/") or optional.endswith("dependabot.yml") else self.assertNotIn(optional, full["files"])
-            self.assertNotIn(optional, core["files"])
+        )
+        not_in_either = (".github/workflows/check.yml",)
+        for name in copied_by_full:
+            self.assertIn(name, full["files"], name)
+            self.assertNotIn(name, core["files"], name)
+        for name in not_in_either:
+            self.assertNotIn(name, full["files"], name)
+            self.assertNotIn(name, core["files"], name)
         self.assertEqual(set(core["files"]), {".github/pull_request_template.md"})
         workflow = (ROOT / ".github/workflows/check.yml").read_text(encoding="utf-8")
         self.assertIn("python: ['3.11', '3.13']", workflow)
@@ -90,6 +94,9 @@ class DistributionTests(unittest.TestCase):
         self.assertIn("https://github.com/minjunkim-dev/repo-baseline/issues/58", readme)
         self.assertIn("https://github.com/minjunkim-dev/repo-baseline/issues/58", start)
         self.assertNotIn("없는 주소를 적어 두지 않는다.", readme)
+        self.assertIn("/mattpocock-skills:ask-matt", start)
+        self.assertIn("vendor/mattpocock-skills/matt-code-review/", start)
+        self.assertIn("그때의 기록이다.", (ROOT / "CHANGELOG.md").read_text(encoding="utf-8"))
 
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)

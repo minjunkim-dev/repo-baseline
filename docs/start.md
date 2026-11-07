@@ -9,7 +9,7 @@
 공통 계약, 언어 어댑터, 제품 옵션을 한 설치로 섞지 않는다.
 
 - 공통 계약에서 코어가 복사하는 파일은 `.github/pull_request_template.md` 하나다. `templates/repo-baseline.core.json`도 그 파일만 가리킨다. 그 양식은 GitHub pull request 본문이다. GitHub PR을 쓰지 않으면 그 파일을 필수로 두지 않고, 네 칸과 `POLICY.md` §10의 문 판정만 자기 문서에 적는다.
-- 설치하지 않고 읽는 것: `POLICY.md`, `docs/development-workflow.md`, Matt `/ask-matt` 다음 `/grill-with-docs`, `/to-spec`, `/to-tickets`, `/implement`. `disable-model-invocation: true`인 스킬은 사용자가 실행한다. `eval.md`는 만들지 않는다.
+- 설치하지 않고 읽는 것: `POLICY.md`, `docs/development-workflow.md`, 그리고 그 문서의 Matt 순서(`/ask-matt` 다음 `/grill-with-docs`, `/to-spec`, `/to-tickets`, `/implement`). 짧은 이름은 순서의 이름이다. 그 문자열이 설치 전의 호출 명령은 아니다. Claude Code 플러그인으로 설치한 뒤의 호출은 `docs/development-workflow.md`가 적는 `/mattpocock-skills:ask-matt`이다. 다른 런타임은 같은 문서대로 설치된 스킬 원문의 문법을 따른다. 설치 절차는 그 문서의 「처음 한 번」이고 코어 `cp`가 하지 않는다. `disable-model-invocation: true`인 스킬은 사용자가 실행한다. `eval.md`는 만들지 않는다. 이 저장소에 물리 파일로 있는 Matt 스킬은 `vendor/mattpocock-skills/matt-code-review/`뿐이다. 전체 manifest가 그것을 `.agents/skills/matt-code-review/`와 `.claude/skills/matt-code-review/`로 복사한다. 코어 manifest에는 없다. 그 복사본의 `/matt-code-review` 호출은 `docs/development-workflow.md` 「도구 설치와 확인」이 정한다.
 - 언어 어댑터는 `setup`, `check`, `test`, `build`다. format, lint, type, test, build 도구는 그 스택이 이미 가진 것만 쓴다. 이 저장소는 포매터나 새 의존성을 스택 선택 없이 넣지 않는다. 없는 칸은 `N/A`와 이유다.
 - 제품 옵션은 아래 선택 프로필이다. GitHub 전체 manifest, Dependabot, Claude 설정, 리뷰 게이트 앱, pstack, 병합 큐, 단계 배포는 코어 `cp`가 켜지 않는다.
 - 이 저장소 자신을 고칠 때의 독립 패밀리 리뷰, 라운드 상한 3, `review/gate`, `POLICY.md` §10은 이 원본의 안전 정책이다. 새 프로젝트의 제품 옵션과 이름이 같아도 코어 복사가 그 정책을 설치하거나 약하게 하지 않는다. GitHub 프로필을 켜면 그 절차가 `POLICY.md`를 따른다. 외부 리뷰와 병합 전 스레드 규칙은 `POLICY.md` §5에 그대로 있다.
@@ -21,7 +21,7 @@
 ## 항상 하는 일
 
 1. 기준 브랜치는 `main` 하나다. 작업 브랜치는 짧다. 병합은 squash다. 절차는 `docs/development-workflow.md`의 트렁크다.
-2. 기능을 구현하기 전에 완료 기준을 적는다. 위치는 사용자가 승인한 Matt spec·ticket이다. `eval.md`나 그와 병렬인 검증 루프 파일을 만들지 않는다. 시작은 사용자가 `/ask-matt`를 실행하는 것이다. 이어서 `/grill-with-docs`, `/to-spec`, `/to-tickets`, `/implement`다. `disable-model-invocation: true`인 스킬은 사용자가 실행한다.
+2. 기능을 구현하기 전에 완료 기준을 적는다. 위치는 사용자가 승인한 Matt spec·ticket이다. `eval.md`나 그와 병렬인 검증 루프 파일을 만들지 않는다. 순서는 `/ask-matt` 다음 `/grill-with-docs`, `/to-spec`, `/to-tickets`, `/implement`다. 호출 문법과 설치는 위 「세 층」과 `docs/development-workflow.md`를 따른다. `disable-model-invocation: true`인 스킬은 사용자가 실행한다.
 3. 프로젝트 문서에 명령 네 칸을 적는다. `setup`, `check`, `test`, `build`. 명령은 그 저장소의 스택이 정한다. 이 저장소는 패키지 매니저나 언어를 지정하지 않는다. Python을 쓰지 않는 프로젝트는 Python setup, `python3 -m unittest`, Python 3.11·3.13 matrix를 이 칸에 넣지 않는다. 없는 칸은 `N/A`와 이유다. `미실행`으로 적지 않는다.
 4. 완료 주장은 그 명령의 출력이다. 구현자와 다른 컨텍스트의 검증자는 그 기준의 통과와 실패만 본다. 리뷰어는 그 기준이 놓친 결함을 본다. 두 역할의 결과를 한 기록으로 합치지 않는다. 구현 세션의 자체 점검은 독립 리뷰가 아니다. 리뷰 패밀리는 작성 패밀리와 다르다. 모델 이름은 `docs/development-workflow.md` 역할 분담을 따른다. 그 제품에서 고를 수 없으면 `미실행`이고, 실행한 것으로 적지 않는다.
 5. 결정적 검사(복사 해시, 형식, CI)를 에이전트 규칙과 사람 리뷰보다 앞에 둔다. 반복 실수는 `POLICY.md` §6 순서로 구조와 정적 검사에 먼저 반영한다. 새 규칙은 사용자가 고른 것만 넣는다.

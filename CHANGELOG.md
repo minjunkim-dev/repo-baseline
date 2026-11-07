@@ -17,6 +17,11 @@ Dependabot 현행은 「2026-11-06 — Dependabot PR은 다른 PR과 같다」�
 - Dependabot의 `scripts/workflow_policy.py` 본문 건너뜀은 근거 표의 작성 기록을 빼지 않는다. 버전 전용 예외는 없다.
 - 필수 체크와 `review/gate` `app_id` 5641238은 바꾸지 않는다.
 
+## 2026-11-07 — 호출 이름과 변경 기록 시점을 구분한다
+
+- 「시작 범위는 PR 양식 하나와 참조 계약이다」의 메타 이슈 문장은 그 절을 쓴 시점의 기록이라고 고쳤다. 현재 링크는 「실행 추적은 이슈 58이다」다.
+- `docs/start.md`: `/ask-matt` 같은 짧은 이름은 순서다. Claude Code 플러그인의 호출은 `docs/development-workflow.md`의 `/mattpocock-skills:ask-matt`다. 설치는 그 문서의 「처음 한 번」이고 코어가 하지 않는다. `vendor/mattpocock-skills/matt-code-review/`는 리뷰 스킬 원본이고 전체 manifest만 복사한다.
+
 ## 2026-11-07 — 실행 추적은 이슈 58이다
 
 - README와 `docs/start.md`는 [이슈 #58](https://github.com/minjunkim-dev/repo-baseline/issues/58)만 연결한다. 열린 이슈 목록은 그 이슈가 정본이다. 이 저장소 문서는 시작 절차의 정본이고 그 목록을 복사하지 않는다. 이슈를 새로 만들거나 닫지 않는다.
@@ -25,7 +30,7 @@ Dependabot 현행은 「2026-11-06 — Dependabot PR은 다른 PR과 같다」�
 
 - `docs/start.md`, README, `docs/development-workflow.md`, `prompts/pr-ci-setup.md`: 코어가 복사하는 파일은 `.github/pull_request_template.md` 하나다. Matt 절차, `POLICY.md`, 명령 네 칸은 설치가 아니라 참조다. format·lint·type·test·build는 대상 스택이거나 `N/A`와 이유다. 포매터와 새 의존성은 스택 선택 없이 넣지 않는다. 예제는 POSIX `sh`와 Git clone이다. Git이 없는 환경과 POSIX 셸이 없는 Windows는 지원 범위가 아니다.
 - 이 원본의 독립 패밀리 리뷰, 라운드 상한 3, `review/gate`, `POLICY.md` §10은 코어 복사가 약하게 하지 않는다. 외부 리뷰와 스레드 규칙은 §5 그대로다.
-- 메타 이슈 URL은 아직 없어 README에 링크를 만들지 않는다. 필수 체크와 workflow의 3.11·3.13 job, `review/gate` `app_id` 5641238은 바꾸지 않는다.
+- 이 절을 쓴 시점에는 메타 이슈 URL이 없어 README에 링크를 만들지 않았다. 그 문장은 그때의 기록이다. 현재 링크는 위 「2026-11-07 — 실행 추적은 이슈 58이다」가 정한다. 필수 체크와 workflow의 3.11·3.13 job, `review/gate` `app_id` 5641238은 이 절에서 바꾸지 않았다.
 
 ## 2026-11-07 — Python 3.15 검사를 필수 목록 밖에 더한다
 
