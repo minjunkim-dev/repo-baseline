@@ -1,10 +1,11 @@
 """Mac-side review/gate poster. HTTP is mocked. No key material is committed."""
 
 import base64
-from contextlib import redirect_stderr
+from contextlib import redirect_stderr, redirect_stdout
 import http.client
 import io
 import json
+import linecache
 import os
 from pathlib import Path
 import signal
@@ -1091,15 +1092,18 @@ class SignalCleanupTests(unittest.TestCase):
         real_openssl = subprocess.run(["which", "openssl"], check=True, capture_output=True, text=True).stdout.strip()
         signer = Path(bindir.name) / "openssl"
         signer.write_text(
-            "#!/bin/sh\n"
-            "here=$(dirname \"$0\")\n"
-            "real=$(cat \"$here/openssl-real\")\n"
-            "if [ -f \"$here/openssl-hold\" ]; then\n"
-            "  ps -o sid= -p $$ > \"$here/openssl-sid\"\n"
-            "  : > \"$here/openssl-held\"\n"
-            "  while [ -f \"$here/openssl-hold\" ]; do sleep 0.05; done\n"
-            "fi\n"
-            "exec \"$real\" \"$@\"\n",
+            "#!" + sys.executable + "\n"
+            "import os, sys, time\n"
+            "from pathlib import Path\n"
+            "here = Path(__file__).resolve().parent\n"
+            "real = (here / 'openssl-real').read_text(encoding='utf-8').strip()\n"
+            "if (here / 'openssl-hold').exists():\n"
+            "    (here / 'openssl-sid').write_text(\n"
+            "        str(os.getsid(0)) + '\\n' + str(os.getpid()) + '\\n', encoding='utf-8')\n"
+            "    (here / 'openssl-held').touch()\n"
+            "    while (here / 'openssl-hold').exists():\n"
+            "        time.sleep(0.05)\n"
+            "os.execv(real, [real, *sys.argv[1:]])\n",
             encoding="utf-8")
         signer.chmod(0o755)
         (Path(bindir.name) / "openssl-real").write_text(real_openssl + "\n", encoding="utf-8")
@@ -1118,12 +1122,158 @@ class SignalCleanupTests(unittest.TestCase):
                 break
             time.sleep(0.05)
         self.assertTrue(held.exists(), "signer did not reach the cleanup window")
-        signer_sid = sid_path.read_text(encoding="utf-8").strip()
+        signer_sid, signer_pid = sid_path.read_text(encoding="utf-8").split()
+        self.assertTrue(signer_sid.isdigit() and signer_pid.isdigit())
+        self.assertEqual(signer_sid, signer_pid)
         self.assertNotEqual(signer_sid, str(proc.pid))
         signal_group(proc, signal.SIGHUP)
         hold.unlink()
         self.assertNotEqual(proc.wait(timeout=15), 0)
         self.assertEqual(server.states, ["success", "failure"])
+
+    def test_forced_signal_before_cleanup_deferral_still_settles(self):
+        directory, key = _key()
+        self.addCleanup(directory.cleanup)
+        previous = {number: signal.getsignal(number) for number in _SignalGate_numbers()}
+        self.addCleanup(lambda: _restore_signal_handlers(previous))
+
+        def scenario(merge, fail_post=None):
+            files = [{"filename": "README.md", "patch": "@@\n-a\n+b\n"}]
+            hub = FakeHub(pull(), files, [])
+            hub.graphql = [ready_payload()]
+            hub.fail_post = fail_post
+            fired = {"n": 0, "defer_before": None}
+
+            def tracer(frame, event, arg):
+                if event != "line" or not frame.f_code.co_filename.endswith("post_review_gate.py"):
+                    return tracer
+                text = linecache.getline(frame.f_code.co_filename, frame.f_lineno)
+                if "signals.defer = True" not in text:
+                    return tracer
+                signals = frame.f_locals.get("signals")
+                if signals is None or signals.defer or fired["n"]:
+                    return tracer
+                fired["defer_before"] = signals.defer
+                fired["n"] = 1
+                signal.raise_signal(signal.SIGINT)
+                return tracer
+
+            stdout, stderr = io.StringIO(), io.StringIO()
+            escaped = None
+            sys.settrace(tracer)
+            try:
+                with redirect_stdout(stdout), redirect_stderr(stderr):
+                    try:
+                        gate.main(
+                            ["--repo", REPO, "--pr", "7", "--sha", HEAD, "--merge"],
+                            {"GH_TOKEN": "ghp_mac_read", "REVIEW_GATE_APP_ID": "424242",
+                             "REVIEW_GATE_APP_KEY": str(key), "REVIEW_GATE_API": API, "PATH": "/usr/bin"},
+                            hub, now=lambda: 1700000000, sign=lambda data, path: b"sig",
+                            merge=merge, sleep=lambda _seconds: None, polls=3, poll_wait=0,
+                            who=lambda _env, _secrets: OWNER)
+                    except gate.CaughtSignal as error:
+                        escaped = error.number
+            finally:
+                sys.settrace(None)
+            states = [item[3]["state"] for item in hub.calls
+                      if "/statuses/" in item[1] and isinstance(item[3], dict)]
+            return fired, escaped, states, stderr.getvalue(), _handler_labels()
+
+        refused, escaped, states, stderr, after = scenario(lambda argv, env: (1, "merge refused"))
+        self.assertEqual(refused, {"n": 1, "defer_before": False})
+        self.assertEqual(escaped, signal.SIGINT)
+        self.assertEqual(states, ["success", "failure"])
+        self.assertEqual(after, _handler_labels(previous))
+        self.assertNotIn("method:handle", " ".join(after.values()))
+
+        cell = {}
+
+        def merge_marks(argv, env):
+            cell["hub"].pull["state"] = "closed"
+            cell["hub"].pull["merged"] = True
+            return 0, ""
+
+        fired, escaped, states, stderr, after = _run_armed(self, key, merge_marks, cell)
+        self.assertEqual(fired["n"], 1)
+        self.assertIs(fired["defer_before"], False)
+        self.assertEqual(escaped, signal.SIGINT)
+        self.assertEqual(states, ["success"])
+        self.assertEqual(after, _handler_labels(previous))
+
+        fired, escaped, states, stderr, after = _run_armed(
+            self, key, lambda argv, env: (7, "merge refused ghp_mac_read"), {}, fail_post="failure")
+        self.assertEqual(fired["n"], 1)
+        self.assertEqual(states[0], "success")
+        self.assertIn("failure", states)
+        self.assertIn("cleanup failed", stderr)
+        self.assertNotIn("ghp_mac_read", stderr)
+        self.assertEqual(after, _handler_labels(previous))
+
+
+def _SignalGate_numbers():
+    return (signal.SIGINT, signal.SIGHUP, signal.SIGTERM, signal.SIGQUIT)
+
+
+def _handler_labels(saved=None):
+    labels = {}
+    for number in _SignalGate_numbers():
+        current = saved[number] if saved is not None else signal.getsignal(number)
+        if current == signal.SIG_DFL:
+            labels[number] = "SIG_DFL"
+        elif current == signal.SIG_IGN:
+            labels[number] = "SIG_IGN"
+        else:
+            labels[number] = type(current).__name__ + ":" + getattr(current, "__name__", "")
+    return labels
+
+
+def _restore_signal_handlers(previous):
+    for number, handler in previous.items():
+        signal.signal(number, handler)
+
+
+def _run_armed(case, key, merge, cell, fail_post=None):
+    files = [{"filename": "README.md", "patch": "@@\n-a\n+b\n"}]
+    hub = FakeHub(pull(), files, [])
+    hub.graphql = [ready_payload()]
+    hub.fail_post = fail_post
+    cell["hub"] = hub
+    fired = {"n": 0, "defer_before": None}
+
+    def tracer(frame, event, arg):
+        if event != "line" or not frame.f_code.co_filename.endswith("post_review_gate.py"):
+            return tracer
+        text = linecache.getline(frame.f_code.co_filename, frame.f_lineno)
+        if "signals.defer = True" not in text:
+            return tracer
+        signals = frame.f_locals.get("signals")
+        if signals is None or signals.defer or fired["n"]:
+            return tracer
+        fired["defer_before"] = signals.defer
+        fired["n"] = 1
+        signal.raise_signal(signal.SIGINT)
+        return tracer
+
+    stdout, stderr = io.StringIO(), io.StringIO()
+    escaped = None
+    sys.settrace(tracer)
+    try:
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            try:
+                gate.main(
+                    ["--repo", REPO, "--pr", "7", "--sha", HEAD, "--merge"],
+                    {"GH_TOKEN": "ghp_mac_read", "REVIEW_GATE_APP_ID": "424242",
+                     "REVIEW_GATE_APP_KEY": str(key), "REVIEW_GATE_API": API, "PATH": "/usr/bin"},
+                    hub, now=lambda: 1700000000, sign=lambda data, path: b"sig",
+                    merge=merge, sleep=lambda _seconds: None, polls=3, poll_wait=0,
+                    who=lambda _env, _secrets: OWNER)
+            except gate.CaughtSignal as error:
+                escaped = error.number
+    finally:
+        sys.settrace(None)
+    states = [item[3]["state"] for item in hub.calls
+              if "/statuses/" in item[1] and isinstance(item[3], dict)]
+    return fired, escaped, states, stderr.getvalue(), _handler_labels()
 
 
 if __name__ == "__main__":

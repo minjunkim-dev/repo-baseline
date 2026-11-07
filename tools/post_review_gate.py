@@ -19,13 +19,15 @@ unresolved review thread. Each of those checks must use a positive pinned app
 id. review/gate itself may still be pending. It posts success only then,
 re-reads the parsed snapshot, and squash-merges with --match-head-commit.
 Once that post is attempted, an ordinary exception or SIGINT, SIGTERM, SIGHUP,
-or SIGQUIT posts failure unless the pull request is confirmed merged. The
-openssl signer runs in its own session so a terminal signal to this process
-group does not kill it. Later signals wait until that failure post and the
-handler restore finish. The failure post is one attempt. SIGKILL, power loss,
-and a network failure that never returns are not cleared. A plain run clears
-an older success only when that SHA is still the open head and the reads
-succeed.
+or SIGQUIT posts failure unless the pull request is confirmed merged. During
+the merge those signals still raise, so an in-flight gh is aborted. Deferral
+is armed inside the cleanup try. A signal on that arming line is caught, the
+failure post still runs, and the previous handlers are restored before the
+signal is raised again. Later signals wait until that post and the restore
+finish. The failure post is one attempt. This is not an atomic post. SIGKILL,
+power loss, and a network failure that never returns are not cleared. A plain
+run clears an older success only when that SHA is still the open head and the
+reads succeed.
 Required check names and app ids come from the default branch settings file,
 not from the pull request. A body edit can still race the recheck. There is
 no webhook and no new App permission. The installation token is used for the
@@ -188,6 +190,36 @@ class _SignalGate:
         pending = self.pending
         self.pending = []
         return pending
+
+
+def _arm_cleanup(signals, clear):
+    """Arm deferral, run clear, then restore the previous handlers.
+
+    clear() deletes a published success when the merge is not confirmed. A
+    catchable signal on the arming line raises before that store. The handler
+    has already recorded it and set deferral, and this function still runs
+    clear(). Signals during clear() and restore() are recorded, not raised.
+    Handlers are put back, not ignored. The merge itself is outside this
+    function, so a signal there still aborts gh. The post is one attempt and
+    is not atomic."""
+    started = False
+
+    def once():
+        nonlocal started
+        signals.defer = True
+        if started:
+            return
+        started = True
+        clear()
+
+    try:
+        once()
+    except CaughtSignal:
+        signals.defer = True
+        once()
+    finally:
+        pending = signals.restore()
+    return pending
 
 
 def _on_signal(number, _frame):
@@ -955,6 +987,19 @@ def run(argv, env, request, now=None, sign=None, merge=None, sleep=None, polls=P
     merge_code = None
     merge_text = ""
     cleanup_error = None
+
+    def clear_published():
+        nonlocal merged_ok, cleanup_error, interrupt
+        if guard.attempted and not merged_ok:
+            try:
+                if _observe_merge(reader.read, args.repo, args.pr, decision.sha) is True:
+                    merged_ok = True
+            except (KeyboardInterrupt, CaughtSignal) as error:
+                interrupt = interrupt or error
+            if not merged_ok:
+                cleanup_error = _invalidate(
+                    base, app_id, key, args.repo, decision.sha, request, now(), sign)
+
     try:
         try:
             mint_and_post(
@@ -990,19 +1035,10 @@ def run(argv, env, request, now=None, sign=None, merge=None, sleep=None, polls=P
             else:
                 primary = type(error).__name__
     finally:
-        # A second catchable signal must not abort the failure post or the handler restore.
-        signals.defer = True
-        try:
-            if guard.attempted and not merged_ok:
-                try:
-                    if _observe_merge(reader.read, args.repo, args.pr, decision.sha) is True:
-                        merged_ok = True
-                except (KeyboardInterrupt, CaughtSignal) as error:
-                    interrupt = interrupt or error
-                if not merged_ok:
-                    cleanup_error = _invalidate(base, app_id, key, args.repo, decision.sha, request, now(), sign)
-        finally:
-            pending = signals.restore()
+        # Arming deferral is inside _arm_cleanup. A signal on that line cannot skip
+        # the failure post or the handler restore. gh has already returned or been
+        # aborted; this is not the in-flight merge.
+        pending = _arm_cleanup(signals, clear_published)
     if interrupt is None and pending:
         interrupt = CaughtSignal(pending[0])
     if merged_ok:
