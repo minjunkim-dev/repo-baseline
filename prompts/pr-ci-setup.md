@@ -22,7 +22,7 @@ GitHub 설정 프롬프트나 이전 기록이 없으면 누락을 기록하고 
 
 - 실제 Git remote·기본 브랜치·스택·Issue 규칙·현재 CI/CD를 확인해. 열린 PR·worktree·dirty 상태를 확인하고 다른 작업자의 변경을 보존해. 적절한 깨끗한 worktree를 재사용하거나 필요한 경우 격리해.
 - branch push·PR 생성·main 병합 전에 공개 자동 배포 연결을 확인해. 공개 배포를 유발하는 동작은 보류해. 기존 배포 pipeline·production 설정·보호를 임의로 해제하지 마.
-- 실제 구현된 빌드·테스트·패키징 단위에 맞춰 적용해. 존재하지 않는 플랫폼의 구현·기기·배포를 검증했다고 보고하지 마.
+- 실제 구현된 빌드·테스트·패키징 단위에 맞춰 적용해. 존재하지 않는 플랫폼의 구현·기기·배포를 검증했다고 보고하지 마. 원본의 `Baseline checks (Python 3.11)`와 `Baseline checks (Python 3.13)`는 이 저장소 도구 CI다. 대상의 필수 체크로 복사하지 마. Python을 쓰지 않는 프로젝트의 자체 setup·test에는 Python setup이나 원본 unittest를 넣지 마. GitHub 프로필로 검사기를 복사하면 대상 CI는 그 복사본과 테스트를 프로젝트가 고른 python3 하나로 돌린다. 코어 복사와 포매터 경계는 `docs/start.md`다. 없는 포매터를 넣지 마.
 - ChatGPT/Codex Cloud 계정과 서비스 저장소 목록은 탐색하지 마. 대상 저장소의 실제 자동 리뷰 연결은 GitHub 인계 기록을 사용해. 필요한 최신 상태만 다시 확인해.
 - 설치된 관련 스킬의 실제 지침을 확인해. 사용자 경로와 대체 설치 경로를 확인하고 미확인과 미설치를 구분해. 사용하지 않은 스킬이나 리뷰를 실행했다고 보고하지 마.
 - Matt Pocock 스킬은 설치된 원문대로 써. 이 프롬프트에서 스킬의 단계를 다시 정하지 마. `disable-model-invocation: true`인 스킬은 사용자가 실행한다. 목록은 `docs/development-workflow.md`에 있다. 에이전트는 실행을 요청만 해. 어떤 스킬로 시작할지는 사용자가 `/ask-matt`를 실행해 정한다.
@@ -33,7 +33,7 @@ GitHub 설정 프롬프트나 이전 기록이 없으면 누락을 기록하고 
 
 1. 프로젝트의 `AGENTS.md`를 공통 길잡이로 정리해. 기존 `CLAUDE.md`는 `repo-baseline`의 `docs/development-workflow.md` "처음 한 번"대로 `AGENTS.md`로 옮겨. 프로젝트 식별·`POLICY.md` §9의 프로필 한 줄·작업별 문서 경로·제품 결정·승인 경계만 짧게 남겨.
 2. 구현 에이전트는 확정 Issue·완료 조건·필요한 코드와 도메인·작업 절차를 읽게 해. 전체 코딩 규칙과 리뷰 체크리스트를 구현 시작마다 상시 주입하지 마.
-3. 코딩·설계 기준과 P0/P1/P2 판단은 별도 코딩 규칙에 둬. 리뷰 입력·보고·수정·검증·병합은 별도 리뷰 문서에 둬. Issue·협업·검증 명령은 작업 문서에 둬. 실제 기존 파일을 재사용해. docs/coding-standards.md·docs/agents/review.md 등은 역할의 예시이며 고정 경로가 아니다.
+3. 코딩·설계 기준과 P0/P1/P2 판단은 별도 코딩 규칙에 둬. 리뷰 입력·보고·수정·검증·병합은 별도 리뷰 문서에 둬. Issue·협업·검증 명령은 작업 문서에 둬. 기능의 수락 기준은 사용자가 승인한 spec·ticket에 둔다. `eval.md`를 만들지 않는다. 검증자는 fresh context에서 그 기준의 통과와 실패만 실행 증거로 남기고, 리뷰어는 그 기준 밖의 결함을 본다. 두 결과를 한 리뷰로 합치지 않는다. 반복 실수는 `POLICY.md` §6 순서로 구조와 결정적 검사에 먼저 반영한다. 새 규칙은 사용자가 고른 것만 넣는다. 실제 기존 파일을 재사용해. docs/coding-standards.md·docs/agents/review.md 등은 역할의 예시이며 고정 경로가 아니다.
 4. 원문·제품·보안·권리·접근성·기기 검증·작업 시작 preflight·위험별 승인 기준을 보존해. README·CONTRIBUTING·스크립트·테스트의 이동 경로와 anchor를 확인해.
 5. 도구별 지침이 중복돼 있으면 고유 내용을 보존하고 실제 로딩을 확인한 뒤 정리해. `AGENTS.md` 외의 지침 파일을 새로 만들지 마. 예외는 `repo-baseline`의 `docs/development-workflow.md`에 적은 검증 스킬 하나다. `.github/repo-baseline.json`이 관리하는 스킬 사본(`.agents/skills/`, `.claude/skills/`)은 지침 파일 정리 대상이 아니다. 지우거나 합치지 마. `.claude/settings.json` 같은 런타임 설정 파일은 지침 파일이 아니다. `@AGENTS.md` 한 줄만 있는 `CLAUDE.md`는 둬도 된다. 내용을 복제한 shim이나 symlink는 만들지 마. 개인·전역·관리자 지침은 보존해.
 6. 기존 피처 플래그·데이터 호환·OFF/ON·접근성 계약을 보존해. 브랜치와 병합은 `docs/development-workflow.md`의 트렁크다. `main` 하나, 짧은 브랜치, squash, 병합 후 삭제다. GitFlow의 `develop` 브랜치와 `release` 브랜치는 만들지 마. 미완성 기능을 병합하면 실제 진입점의 기본값을 OFF로 두고 담당자·완료 조건·제거 조건을 기록해. 사용처 없는 공통 플래그 체계를 만들지 마. 플래그 파일 CI는 검사기 기본이 켠다. `.github/workflow-policy.json`이 없으면 `config/feature-flags.json`을 본다. 그 레지스트리가 없으면 검사는 실패한다. `feature_flags`가 `false`이거나 `null`이면 읽기를 건너뛰므로 파일을 요구하지 마. repo-baseline은 `false`다. 값이 상대 경로면 그 파일을 본다.

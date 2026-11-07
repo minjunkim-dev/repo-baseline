@@ -3,6 +3,8 @@
 1인 개발과 소규모 팀(2~6명) 저장소의 GitHub 설정·CI 기준을 한 곳에서 관리하는 원본 저장소다. 두 프로필의 차이는 `POLICY.md` §9에 있고, 기본은 1인 프로필이다.
 새 프로젝트를 셋업하거나 기존 프로젝트를 다시 맞출 때 같은 결과가 나오게 한다.
 
+언어와 스택이 달라도 바로 시작하는 경로는 [새 프로젝트 시작](docs/start.md)이다. 코어가 복사하는 파일은 PR 본문 양식 하나다. Matt 절차, `POLICY.md`, 명령 네 칸은 읽는 계약이고 그 복사에 들어 있지 않다. format·lint·type·test·build는 대상 스택의 명령이거나 `N/A`와 이유다. 예제 명령은 POSIX `sh`이고 Git clone을 가정한다. Git이 없는 환경과 POSIX 셸이 없는 Windows는 확인하지 않았다. 이미 전체 manifest를 쓰는 저장소는 코어 파일로 바꾸지 않는다. 이 저장소의 GitHub 보호, `review/gate`, 필수 체크는 그대로다. 실행 상태의 정본은 [이슈 #58](https://github.com/minjunkim-dev/repo-baseline/issues/58)이다. 시작 절차의 정본은 이 저장소 문서이고, 이슈 목록은 여기에 다시 적지 않는다.
+
 ## 구조
 
 | 경로 | 역할 | 프로젝트로 복사 |
@@ -12,7 +14,9 @@
 | `prompts/pr-ci-setup.md` | 문서·CI·리뷰·병합 절차 | 아니요. 에이전트 채팅에 첨부한다 |
 | `prompts/weekly-check.md` | 적용 중인 프로젝트의 주간 읽기 전용 점검 | 아니요. 이 저장소에서 에이전트에게 준다 |
 | `templates/dependabot.yml`, `templates/dependabot-ecosystem.yml` | Dependabot 설정 원본 | 예. manifest의 `ecosystems` 목록으로 `.github/dependabot.yml`을 생성한다 |
-| `templates/repo-baseline.json` | 복사 목록(manifest) 시작점 | 예. `.github/repo-baseline.json`으로 둔다 |
+| `templates/repo-baseline.json` | GitHub 프로필의 복사 목록(manifest) | 예. 그 프로필을 켤 때 `.github/repo-baseline.json`으로 둔다. 코어 목록으로 덮어쓰지 않는다 |
+| `templates/repo-baseline.core.json` | PR 본문 양식만 있는 첫 복사 목록. Python 검사기는 없다 | 예. 해시가 필요할 때 `.github/repo-baseline.json`으로 둔다. 기본 시작은 `docs/start.md`의 `cp`다 |
+| `docs/start.md` | 프로젝트 언어를 정하지 않는 시작 절차. 기본 명령은 Python이 아니다. 검사기와 게이트 도구는 Python이다 | 아니요. 읽고 따른다 |
 | `templates/repository-settings.json` | GitHub 설정 기준선 시작점(1인 프로필 값) | 예. `.github/repository-settings.json`으로 두고 `REPLACE` 값과 저장소 정보를 채운다. 팀 프로필은 `POLICY.md` §9의 값으로 바꾼다 |
 | `templates/review-status.yml` | 리뷰 status를 경로로 검사하는 workflow | 예. `.github/workflows/review-status.yml`로 둔다. 프로젝트 파일이라 해시로 검사하지 않고 Dependabot이 pin을 올린다 |
 | `templates/pr-policy.yml` | PR 제목·브랜치·본문 양식을 검사하는 workflow | 예. `.github/workflows/pr-policy.yml`로 둔다. 프로젝트 파일이라 해시로 검사하지 않는다 |
@@ -31,7 +35,9 @@
 
 ## 새 프로젝트에 적용
 
-1. `templates/repo-baseline.json`을 프로젝트의 `.github/repo-baseline.json`으로 복사한다.
+이 절은 GitHub 프로필이다. 언어만 맞추는 첫 복사는 `docs/start.md`의 `templates/repo-baseline.core.json`이다. 게이트, Actions 이벤트 정책, 전용 앱, 서버 설정 쓰기는 이 절에 있으며 소유자 승인 없이 적용하지 않는다. 이미 전체 manifest가 있으면 코어 파일로 바꾸지 않는다.
+
+1. `templates/repo-baseline.json`을 프로젝트의 `.github/repo-baseline.json`으로 복사한다. 코어 manifest를 이미 둔 프로젝트는 이 파일에만 있는 항목을 더한다. 통째로 교체해 해시 대상을 줄이지 않는다.
 2. `templates/claude-settings.json`을 프로젝트의 `.claude/settings.json`으로 둔다. 이미 있으면 합친다.
    공개 저장소는 `review-status.yml`을 기본 브랜치에 병합하기 전에 Actions 이벤트 정책을 만든다. 비공개 저장소는 이 단락을 건너뛴다. 이 저장소 루트에서, 대상 프로젝트의 `OWNER/NAME`으로 실행한다. 쓰기는 저장소 관리자 승인을 받는다. 먼저 조회하고, 같은 workflow 경로에 `pull_request_target`과 `issue_comment`만 허용하는 정책이 있으면 다시 만들지 않는다. PUT은 `source_type`이 Repository이고 `workflow_path.include`가 `.github/workflows/review-status.yml`뿐인 정책만 한다. 더 넓은 대상은 PUT하지 않는다. `include`의 glob이 그 파일에 맞으면 그 정책의 대상이다. `*`는 `/`를 넘지 않고 `**`는 넘는다. 그 파일을 `pull_request_target`만 허용하는 상위 정책이나 더 넓은 정책이 있으면 명령이 실패한다. 패턴을 판별할 수 없으면 POST하지 않고 멈춘다.
 
@@ -164,7 +170,7 @@
    python3 -m unittest discover -s tools -p 'test_*.py'
    ```
 
-   원본 단위 테스트는 합성 fixture를 사용한다. 도구 테스트는 깨끗한 임시 Git 원본을 만들고 default·advanced·미지원 설정의 프로젝트에 실제 복사한 뒤 테스트·출처 SHA·해시 drift·재적용·CodeQL pin 실패를 검사한다. 개인 프로젝트·GitHub 인증·네트워크는 필요 없다. 자체 CI는 같은 명령을 Python 3.11·3.13에서 실행한다. 실제 서버 감사·지원 여부·스킬 실행은 이 테스트의 검증 범위 밖이다.
+   원본 단위 테스트는 합성 fixture를 사용한다. 도구 테스트는 깨끗한 임시 Git 원본을 만들고 default·advanced·미지원 설정의 프로젝트에 실제 복사한 뒤 테스트·출처 SHA·해시 drift·재적용·CodeQL pin 실패를 검사한다. 개인 프로젝트·GitHub 인증·네트워크는 필요 없다. 자체 CI는 같은 unittest를 Python 3.11과 3.13에서 실제로 실행하고, 필수가 아닌 job `Baseline checks`에서 Python 3.15의 최신 patch로도 실행한다. `3.x`로 minor를 옮기지 않는다. `.github/repository-settings.json`의 필수 체크는 `Baseline checks (Python 3.11)`, `Baseline checks (Python 3.13)`, `review/gate`(`app_id` 5641238)로 둔다. 그 선언을 서버에 적용하는 일은 이 변경이 하지 않는다. workflow는 `templates/`가 복사하지 않는다. 새 프로젝트의 언어 요구가 아니다. 실제 서버 감사·지원 여부·스킬 실행은 이 테스트의 검증 범위 밖이다.
 
 2. 변경을 PR로 올려 `main`에 병합한 뒤, 최신 `main`을 받아 각 프로젝트에 다시 적용하고 프로젝트별 PR을 올린다. `apply_baseline.py`는 commit하지 않은 변경이 있으면 멈춘다. 병합 전 브랜치에서 적용하면 squash 병합 뒤 `main`에 없는 커밋이 출처로 기록된다. `.github/repository-settings.json`은 복사 대상이 아니다. 이 저장소는 `Review status`를 필수 체크에서 뺐다. smallnext, BGLike, mobile-runtime은 repo-baseline에 보호 규칙을 적용하고, 카나리 시험(같은 이름 체크 위장, 이전 실패 run이 남은 head의 병합 가능 여부)을 통과하고, status 작성자·편집된 승인 댓글 검사기 수정이 병합·재적용된 뒤에 카나리 결과는 Issue #32 댓글 하나에 적는다. 그 기록이 없으면 멈춘다. 이 PR은 그 세 저장소의 `.github/repository-settings.json`을 바꾸지 않는다. `Review status`를 필수로 넣지 않는다. 그 세 저장소의 `Review status` workflow는 그대로 둔다.
 3. `CHANGELOG.md`에 바뀐 점과 다시 적용할 프로젝트를 적는다.
