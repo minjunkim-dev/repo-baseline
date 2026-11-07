@@ -20,7 +20,8 @@ Dependabot 현행은 「2026-11-06 — Dependabot PR은 다른 PR과 같다」�
 ## 2026-11-07 — 언어와 무관한 시작과 코어 복사 목록
 
 - `docs/start.md`: 새 프로젝트의 공통 순서. 완료 기준은 Matt spec·ticket이다. `eval.md`를 요구하지 않는다. 검증자와 리뷰어를 나눈다. 명령 네 칸은 프로젝트 스택이고, 없으면 `N/A`다. 리뷰 라운드 상한 3은 유지한다. 병합 큐·단계 배포·상시 감시는 선택이다.
-- `templates/repo-baseline.core.json`: 해시 검사와 PR 본문 양식만 복사한다. `templates/repo-baseline.json` 전체는 GitHub 프로필로 남는다. 기존 manifest를 코어 파일로 바꾸지 않는다.
+- `templates/repo-baseline.core.json`: PR 본문 양식만 복사한다. Python 검사기와 그 테스트는 넣지 않는다. `templates/repo-baseline.json` 전체는 GitHub·검사기 프로필로 남는다. 기존 manifest를 코어 파일로 바꾸지 않는다.
+- 기본 시작 명령은 `cp`와 대상 스택의 검사다. 그 명령은 Python이 아니다. 해시 복사, 정책 검사, 게이트 서명은 Python 도구로 남고 기본 명령에 넣지 않는다. Python 3.11·3.13 matrix는 `.github/workflows/check.yml`의 이 저장소 도구 CI로 유지한다. 그 workflow와 `.github/repository-settings.json`의 필수 체크는 바꾸지 않는다. 새 프로젝트에 그 job 이름을 복사하지 않는다. 두 버전을 고른 이유나 지원 계약 문서는 이 저장소에 없다.
 - 게이트 파일, `.github/repository-settings.json`, `review/gate` `app_id` 5641238, 검사기 동작은 바꾸지 않는다. 서버 설정과 앱은 적용하지 않는다.
 - 다시 적용: 새 프로젝트만 코어 목록으로 시작할 수 있다. smallnext, BGLike, mobile-runtime은 기존 manifest를 유지한다. 이 변경은 그 저장소에 복사할 검사기 변경이 없다.
 
