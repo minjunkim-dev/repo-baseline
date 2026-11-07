@@ -21,13 +21,13 @@ re-reads the parsed snapshot, and squash-merges with --match-head-commit.
 Once that post is attempted, an ordinary exception or SIGINT, SIGTERM, SIGHUP,
 or SIGQUIT posts failure unless the pull request is confirmed merged. During
 the merge those signals still raise, so an in-flight gh is aborted. Deferral
-is armed inside the cleanup try. A signal on that arming line is caught, the
-failure post still runs, and the previous handlers are restored before the
-signal is raised again. Later signals wait until that post and the restore
-finish. The failure post is one attempt. This is not an atomic post. SIGKILL,
-power loss, and a network failure that never returns are not cleared. A plain
-run clears an older success only when that SHA is still the open head and the
-reads succeed.
+is armed inside the cleanup try, before the failure post. A signal before that
+try is active, or on the arming line, still runs the failure post, and the
+previous handlers are restored before the signal is raised again. Later signals
+wait until that post and the restore finish. The failure post is one attempt.
+This is not an atomic post. SIGKILL, power loss, and a network failure that
+never returns are not cleared. A plain run clears an older success only when
+that SHA is still the open head and the reads succeed.
 Required check names and app ids come from the default branch settings file,
 not from the pull request. A body edit can still race the recheck. There is
 no webhook and no new App permission. The installation token is used for the
@@ -166,6 +166,7 @@ class _SignalGate:
         self.previous = {}
         self.defer = False
         self.pending = []
+        self.clear_started = False
 
     def install(self):
         for number in self.NUMBERS:
@@ -193,30 +194,28 @@ class _SignalGate:
 
 
 def _arm_cleanup(signals, clear):
-    """Arm deferral, run clear, then restore the previous handlers.
+    """Arm deferral, run clear once, then restore the previous handlers.
 
-    clear() deletes a published success when the merge is not confirmed. A
-    catchable signal on the arming line raises before that store. The handler
-    has already recorded it and set deferral, and this function still runs
-    clear(). Signals during clear() and restore() are recorded, not raised.
-    Handlers are put back, not ignored. The merge itself is outside this
-    function, so a signal there still aborts gh. The post is one attempt and
-    is not atomic."""
-    started = False
-
-    def once():
-        nonlocal started
-        signals.defer = True
-        if started:
-            return
-        started = True
-        clear()
-
+    The try is the first work. clear() deletes a published success when the
+    merge is not confirmed. Deferral is armed before that call. A catchable
+    signal on the arming line raises before the store; the handler has already
+    recorded it and armed deferral, and this function still runs clear(). A
+    signal before this try is active leaves the function without clear() or
+    restore(). The caller catches that signal and calls again. Deferral is
+    already armed, so the second entry does not raise out of the prologue.
+    Signals during clear() and restore() are recorded, not raised. Handlers
+    are put back, not ignored. The merge itself is outside this function, so a
+    signal there still aborts gh. The post is one attempt and is not atomic."""
     try:
-        once()
+        signals.defer = True
+        if not signals.clear_started:
+            signals.clear_started = True
+            clear()
     except CaughtSignal:
         signals.defer = True
-        once()
+        if not signals.clear_started:
+            signals.clear_started = True
+            clear()
     finally:
         pending = signals.restore()
     return pending
@@ -987,6 +986,7 @@ def run(argv, env, request, now=None, sign=None, merge=None, sleep=None, polls=P
     merge_code = None
     merge_text = ""
     cleanup_error = None
+    pending = []
 
     def clear_published():
         nonlocal merged_ok, cleanup_error, interrupt
@@ -1034,11 +1034,17 @@ def run(argv, env, request, now=None, sign=None, merge=None, sleep=None, polls=P
                 primary = "posted-status"
             else:
                 primary = type(error).__name__
-    finally:
-        # Arming deferral is inside _arm_cleanup. A signal on that line cannot skip
-        # the failure post or the handler restore. gh has already returned or been
-        # aborted; this is not the in-flight merge.
+        finally:
+            # gh has already returned or been aborted. A signal before
+            # _arm_cleanup's try, or on the deferral assignment, still reaches
+            # the except below or the try inside _arm_cleanup. Either path posts
+            # failure and restores the previous handlers.
+            pending = _arm_cleanup(signals, clear_published)
+    except CaughtSignal as error:
+        signals.defer = True
         pending = _arm_cleanup(signals, clear_published)
+        if isinstance(error.__context__, (SystemExit, GeneratorExit)):
+            raise error.__context__
     if interrupt is None and pending:
         interrupt = CaughtSignal(pending[0])
     if merged_ok:

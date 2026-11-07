@@ -1209,6 +1209,55 @@ class SignalCleanupTests(unittest.TestCase):
         self.assertNotIn("ghp_mac_read", stderr)
         self.assertEqual(after, _handler_labels(previous))
 
+    def test_signal_at_cleanup_entry_still_settles(self):
+        """SIGINT, SIGHUP, SIGTERM, or SIGQUIT before _arm_cleanup's try still posts failure.
+
+        The injection is the call into _arm_cleanup, while deferral is still off.
+        That is the prologue before the cleanup try, not the deferral assignment.
+        """
+        directory, key = _key()
+        self.addCleanup(directory.cleanup)
+        previous = {number: signal.getsignal(number) for number in _SignalGate_numbers()}
+        self.addCleanup(lambda: _restore_signal_handlers(previous))
+
+        for number in _SignalGate_numbers():
+            fired, escaped, states, stderr, after = _run_at_entry(
+                self, key, lambda argv, env: (1, "merge refused"), {}, number)
+            self.assertEqual(fired["n"], 1, number)
+            self.assertIs(fired["defer_before"], False)
+            self.assertEqual(escaped, number)
+            self.assertEqual(states, ["success", "failure"])
+            self.assertEqual(after, _handler_labels(previous))
+            self.assertNotIn("method:handle", " ".join(after.values()))
+            self.assertNotIn("ghp_mac_read", stderr)
+
+        cell = {}
+
+        def merge_marks(argv, env):
+            cell["hub"].pull["state"] = "closed"
+            cell["hub"].pull["merged"] = True
+            return 0, ""
+
+        fired, escaped, states, stderr, after = _run_at_entry(
+            self, key, merge_marks, cell, signal.SIGHUP)
+        self.assertEqual(fired["n"], 1)
+        self.assertIs(fired["defer_before"], False)
+        self.assertEqual(escaped, signal.SIGHUP)
+        self.assertEqual(states, ["success"])
+        self.assertEqual(after, _handler_labels(previous))
+
+        fired, escaped, states, stderr, after = _run_at_entry(
+            self, key, lambda argv, env: (7, "merge refused ghp_mac_read"), {},
+            signal.SIGQUIT, fail_post="failure")
+        self.assertEqual(fired["n"], 1)
+        self.assertEqual(states[0], "success")
+        self.assertIn("failure", states)
+        self.assertEqual(states.count("failure"), 1)
+        self.assertIn("cleanup failed", stderr)
+        self.assertNotIn("ghp_mac_read", stderr)
+        self.assertNotIn("ghs_test_token", stderr)
+        self.assertEqual(after, _handler_labels(previous))
+
 
 def _SignalGate_numbers():
     return (signal.SIGINT, signal.SIGHUP, signal.SIGTERM, signal.SIGQUIT)
@@ -1252,6 +1301,52 @@ def _run_armed(case, key, merge, cell, fail_post=None):
         fired["defer_before"] = signals.defer
         fired["n"] = 1
         signal.raise_signal(signal.SIGINT)
+        return tracer
+
+    stdout, stderr = io.StringIO(), io.StringIO()
+    escaped = None
+    sys.settrace(tracer)
+    try:
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            try:
+                gate.main(
+                    ["--repo", REPO, "--pr", "7", "--sha", HEAD, "--merge"],
+                    {"GH_TOKEN": "ghp_mac_read", "REVIEW_GATE_APP_ID": "424242",
+                     "REVIEW_GATE_APP_KEY": str(key), "REVIEW_GATE_API": API, "PATH": "/usr/bin"},
+                    hub, now=lambda: 1700000000, sign=lambda data, path: b"sig",
+                    merge=merge, sleep=lambda _seconds: None, polls=3, poll_wait=0,
+                    who=lambda _env, _secrets: OWNER)
+            except gate.CaughtSignal as error:
+                escaped = error.number
+    finally:
+        sys.settrace(None)
+    states = [item[3]["state"] for item in hub.calls
+              if "/statuses/" in item[1] and isinstance(item[3], dict)]
+    return fired, escaped, states, stderr.getvalue(), _handler_labels()
+
+
+def _run_at_entry(case, key, merge, cell, number, fail_post=None):
+    """Run --merge and raise `number` on the call into _arm_cleanup, before its try."""
+    files = [{"filename": "README.md", "patch": "@@\n-a\n+b\n"}]
+    hub = FakeHub(pull(), files, [])
+    hub.graphql = [ready_payload()]
+    hub.fail_post = fail_post
+    cell["hub"] = hub
+    fired = {"n": 0, "defer_before": None}
+
+    def tracer(frame, event, arg):
+        if event != "call" or frame.f_code.co_name != "_arm_cleanup" or fired["n"]:
+            return tracer
+        parent = frame.f_back
+        signals = parent.f_locals.get("signals") if parent is not None else None
+        if signals is None or signals.defer:
+            return tracer
+        current = signal.getsignal(number)
+        if not callable(current):
+            raise AssertionError("refusing to raise a signal without the gate handler")
+        fired["defer_before"] = signals.defer
+        fired["n"] = 1
+        signal.raise_signal(number)
         return tracer
 
     stdout, stderr = io.StringIO(), io.StringIO()
