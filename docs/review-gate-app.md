@@ -25,7 +25,7 @@ Dependabot PR은 다른 PR과 같은 근거다. 브랜치 보호는 작성자별
 
 검사기와 이 게이트는 `review/independent`와 `review/security`를 읽지 않는다. 없어도, failure여도, `[bot]`이 올렸어도 게이트는 그 이유로 실패하지 않는다. 앱은 `review/gate`만 올린다. 근거 표의 head SHA는 이 head여야 한다. 이전 head의 표는 통과하지 못한다. 승인 댓글의 작성자가 `[bot]`이면 그 댓글은 승인이 아니다.
 
-합의(증거-in-gate, 2026-11-06 Adopt-with-tweak): 게이트는 별도 필수 `review/independent`·`review/security` status에 의존하지 않는다. PR 본문 근거 표(필요한 축마다 모델 또는 `해당 없음:`)와, 필요할 때의 하드도어 승인 댓글로 판정한 뒤 `review/gate`만 올린다. 그 둘의 status는 참고로 남길 수 있다. 품질 기준(Standards·Spec은 Composer, 버그 찾기와 Security는 Opus, 패밀리는 작성과 다름)은 status와 별개로 `docs/development-workflow.md`에 있다.
+합의(증거-in-gate, 2026-11-06 Adopt-with-tweak): 게이트는 별도 필수 `review/independent`·`review/security` status에 의존하지 않는다. PR 본문 근거 표(필요한 축마다 모델 또는 `해당 없음:`)와, 필요할 때의 하드도어 승인 댓글로 판정한 뒤 `review/gate`만 올린다. 그 둘의 status는 참고로 남길 수 있다. 품질 기준(Standards·Spec은 Composer, 버그 찾기와 Security는 Opus, 패밀리는 작성과 다른 것이 기본)은 status와 별개로 `docs/development-workflow.md`에 있다. 2026-11-07 같은 패밀리 예외는 Issue #59다. 그 예외는 `review/gate` 면제나 auto-merge가 아니다.
 
 ## 권장: 개발자 gh(읽기·병합) + Keychain(앱 PEM) + 기본 브랜치 checkout
 

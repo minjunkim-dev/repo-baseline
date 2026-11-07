@@ -427,10 +427,10 @@ def status_description(state, sha, digest=None):
 
 
 def evidence_snapshot(body, head, comment_pages, owner):
-    """Parsed author, table, and unedited owner approvals. None when that parse is incomplete.
+    """Parsed author, table, same-family exception blocks, and unedited owner approvals.
 
-    HTML comments and other prose are not part of the snapshot. Callers compare this object,
-    not the raw pull request body."""
+    None when that parse is incomplete. HTML comments and other prose are not part of the
+    snapshot. Callers compare this object, not the raw pull request body."""
     if not isinstance(body, str) or not review.full_oid(head):
         return None
     text = review.visible_text(body.replace("\r\n", "\n").replace("\r", "\n"))
@@ -486,6 +486,8 @@ def evidence_snapshot(body, head, comment_pages, owner):
         "author": [record[0], record[1]] if record else None,
         "previous": list(previous),
         "rows": canonical,
+        "exceptions": review.exception_blocks(text[:review.BODY_LIMIT]),
+        "door": review.door_kind(text[:review.BODY_LIMIT]),
         "approvals": approvals,
     }
     raw = json.dumps(payload, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode()
