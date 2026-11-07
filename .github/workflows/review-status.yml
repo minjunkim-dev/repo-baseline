@@ -8,6 +8,8 @@ name: Review status
 # Safe only while no step checks out or runs the PR head.
 # edited re-runs this job when the pull request body changes. ready_for_review re-runs it when a draft becomes ready,
 # even if the body was not edited. The checker parses that body and does not execute it.
+# That rerun does not post or clear review/gate. A body edit leaves a previous App success
+# on the same SHA until tools/post_review_gate.py runs again.
 # This workflow does not subscribe to issue_comment. Creating, editing, or deleting an approval comment does not
 # re-run Review status and does not post review/gate. A hard door still needs a new owner comment whose first line
 # is the prefix plus the full head SHA. Do not edit an old approval. Post a new comment, then re-run this workflow

@@ -253,6 +253,9 @@ class ReviewStatusTests(unittest.TestCase):
         app = [{"filename": "src/app.py"}]
         self.assertEqual(run(api(app, [OK], author=bot)), [])
         self.assertEqual(run(api(app, [OK], body="", author=bot)), [tool.EVIDENCE])
+        without_author = "\n".join(passing_body(HEAD).split("\n")[1:])
+        self.assertIn("author", tool.evidence_problems(without_author, HEAD))
+        self.assertEqual(run(api(app, [OK], body=without_author, author=bot)), [tool.EVIDENCE])
         approved = comment(f"되돌리기 어려움 승인: {HEAD}")
         covered = [OK, (SECURITY, "success")]
         self.assertEqual(run(api(workflow, covered, author=bot, comments=[approved])), [])
@@ -536,6 +539,12 @@ class ReviewStatusTests(unittest.TestCase):
         self.assertIn("p2", tool.evidence_problems(table("Sonnet 5.5", head).replace("| 0 | pass |", "| note | pass |", 1), head))
         self.assertIn("open", tool.evidence_problems(table("Sonnet 5.5", head, p0="1"), head))
         self.assertIn("open", tool.evidence_problems(table("Sonnet 5.5", head, p1="2"), head))
+        dismissed = table("Sonnet 5.5", head, p0="1") + "기각. 오탐. docs/development-workflow.md:105\n한계 수용: " + head + "\n"
+        self.assertIn("open", tool.evidence_problems(dismissed, head))
+        closed = table("Sonnet 5.5", head) + "기각. 오탐. docs/development-workflow.md:105\n"
+        self.assertEqual(tool.evidence_problems(closed, head), [])
+        historical_p2 = table("Sonnet 5.5", head).replace("| 0 | 0 | 0 | pass |", "| 0 | 0 | 3 | pass |", 1)
+        self.assertEqual(tool.evidence_problems(historical_p2, head), [])
         self.assertIn("result", tool.evidence_problems(table("Sonnet 5.5", head).replace("| pass |", "| FAIL |", 1), head))
         self.assertIn("effort", tool.evidence_problems(table("Sonnet 5.5", head).replace("| high |", "|  |", 1), head))
         commented = "<!--\n" + table("Sonnet 5.5", other) + "-->\n" + table("Composer 2.5", head)

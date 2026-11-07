@@ -14,6 +14,11 @@ single status POST and is requested only for this repository's statuses.
 It does not read review/independent or review/security. It does not mint a
 token and does not POST. A conclusive failure on a real run POSTs state
 failure on that head so an older success from this App does not remain.
+Success attests the body read on that run. A later pull request body edit
+keeps the same SHA and leaves the status in place. Review status may rerun
+and fail; it is not a required check and does not post this context. Run this
+script again after a body edit. This file does not listen for pull_request
+events and does not add App permissions.
 A head mismatch, a closed pull request, or a base that is not the default
 branch posts nothing. Transport and key errors post nothing.
 """

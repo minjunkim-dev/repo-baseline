@@ -10,9 +10,12 @@ comment fails closed. Every required axis needs a model, or `해당 없음:` whe
 allows it. Standards and Spec do not allow `해당 없음`. Security does not allow it when a
 trust-boundary path changed or the path list cannot be classified. The table must name this
 head. A named-model row with P0 or P1 above 0, or an explicit failure result, does not pass.
-A 1-person pull request that changes a POLICY.md §10 gate path also needs the repository owner's
-approval comment on this head. Dependabot follows the same evidence table and
-owner comment as any other author. A version or hash bump is not a separate success path.
+P0 and P1 are open counts. Rejection, acceptance, or a fix SHA in the body does not clear a
+count above zero. A 1-person pull request that changes a POLICY.md §10 gate path also needs
+the repository owner's approval comment on this head. Dependabot follows the same evidence
+table, author record, and owner comment as any other author. workflow_policy skipping
+Dependabot body sections does not skip that record. A version or hash bump is not a
+separate success path.
 Advisory review statuses are not required for either author.
 That comment is not reused from an older head. An edited comment
 is not approval when REST updated_at differs from created_at. Timestamps are whole seconds, so a
@@ -426,7 +429,9 @@ def evidence_table(body):
 
 
 def _row_results(row, problems):
-    """Record blocking counts and an explicit failure result. P2 may be above zero."""
+    """Record open P0/P1 counts and an explicit failure result. P2 may be above zero.
+
+    The cells are the counts still open. This function does not read disposition text."""
     for column in ("p0", "p1", "p2"):
         count = _count(row.get(column, ""))
         if count is None:
