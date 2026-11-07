@@ -1004,6 +1004,8 @@ class SignalCleanupTests(unittest.TestCase):
             "GATE_GH_EXIT": "0",
         })
         env.pop("GH_HOST", None)
+        env.pop("GITHUB_ACTIONS", None)
+        env.pop("GITHUB_TOKEN", None)
 
         def launch(mode, gh_exit):
             server.states = []
