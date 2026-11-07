@@ -1,15 +1,22 @@
 #!/usr/bin/env python3
-"""Fail when a pull request head lacks the review statuses its changed paths need (POLICY.md §5).
-Paths only: content signals stay a reviewer judgement. On a 1-person profile, review/independent
-and review/security count only when creator.login is the repository owner or a login in
-STATUS_ACTORS (empty). The review-gate app is not listed: it posts review/gate only.
-Another creator is failure, not a missing context, so an older success on this SHA is not used.
-The same account still cannot tell a person from an agent. A team profile does not look at the creator.
-A new head SHA needs success posted on that exact SHA. A prior head, an identical diff, a line-number
-shift, a base update, and a force-push do not inherit it. Diff text and post-change blob ids are not evidence.
-A 1-person pull request that changes a POLICY.md §10 gate path also needs the repository owner's
-approval comment on this head. Dependabot follows the same evidence table, review statuses, and
-owner comment as any other author. A version or hash bump is not a separate success path.
+"""Fail when a pull request head lacks the review evidence the gate needs (POLICY.md §5).
+
+review/independent and review/security are advisory commit statuses. This checker does not read
+them. A missing status, a failure, and a status from another creator do not fail the gate.
+The review-gate app posts review/gate only. The owner may still post the advisory statuses.
+The pull request body is parsed for the review evidence table. It is never executed.
+HTML comments are removed before the author line and the table are read. An unclosed
+comment fails closed. Every required axis needs a model, or `해당 없음:` where that axis
+allows it. Standards and Spec do not allow `해당 없음`. Security does not allow it when a
+trust-boundary path changed or the path list cannot be classified. The table must name this
+head. A named-model row with P0 or P1 above 0, or an explicit failure result, does not pass.
+P0 and P1 are open counts. Rejection, acceptance, or a fix SHA in the body does not clear a
+count above zero. A 1-person pull request that changes a POLICY.md §10 gate path also needs
+the repository owner's approval comment on this head. Dependabot follows the same evidence
+table, author record, and owner comment as any other author. workflow_policy skipping
+Dependabot body sections does not skip that record. A version or hash bump is not a
+separate success path.
+Advisory review statuses are not required for either author.
 That comment is not reused from an older head. An edited comment
 is not approval when REST updated_at differs from created_at. Timestamps are whole seconds, so a
 same-second edit is not distinguished. Post a new comment, then re-run this job or post the gate
@@ -30,8 +37,6 @@ import sys
 
 from pr_author import parse_author
 
-INDEPENDENT = "review/independent"
-SECURITY = "review/security"
 # Not a commit status. The job fails with this name when the owner comment is missing.
 # A status posted under this name does not count: the same account can post one without the comment.
 OWNER = "review/owner-approval"
@@ -41,10 +46,6 @@ EVIDENCE = "review/evidence"
 # repository default branch. A status posted under this name does not count.
 BASE_REF = "review/base-branch"
 TEAM_LINE = "프로필: 팀"
-# Solo-profile logins that may post review/independent and review/security, besides the
-# repository owner. The review-gate app is not added here. This file runs from the default
-# branch, so a pull request cannot add a login. A team profile does not read this tuple.
-STATUS_ACTORS = ()
 # Exact first-line prefixes. The second is deprecated and means the same approval.
 APPROVAL_LINE = re.compile(
     r"(?:되돌리기 어려움 승인:|한쪽 문 승인:)"
@@ -101,6 +102,11 @@ def matches(path, patterns):
 
 
 def project_paths(repo, base, read):
+    """Patterns from the base branch's trust-boundary file.
+
+    A 404 means the repository has no extra paths. Any other read error is raised so the
+    gate does not treat an unreadable list as empty. These patterns do not require a
+    commit status."""
     try:
         found = read(f"repos/{repo}/contents/{PROJECT_PATHS}?ref={base}")
     except subprocess.CalledProcessError as error:
@@ -237,43 +243,9 @@ def repository_owner(repo, read):
     return owner
 
 
-def status_actors(repo, read):
-    """Owner plus STATUS_ACTORS. Blank entries are not logins. Solo profile only."""
-    extra = tuple(login for login in STATUS_ACTORS if isinstance(login, str) and login != "")
-    return (repository_owner(repo, read), *extra)
-
-
 def bot_creator(login):
     """True for a GitHub App or Actions login. Those accounts do not post review evidence."""
     return isinstance(login, str) and login.casefold().endswith("[bot]")
-
-
-def status_actor(status):
-    creator = status.get("creator") if isinstance(status, dict) else None
-    login = creator.get("login") if isinstance(creator, dict) else None
-    if not isinstance(login, str) or login == "":
-        return None
-    return login
-
-
-def reviewed_state(status, allowed):
-    """State that counts for one review context.
-
-    A [bot] login is failure on every profile, including a team profile where allowed is None.
-    allowed is None on a team profile: a human creator is not checked.
-    On a 1-person profile, a creator outside allowed is failure. The newest state per
-    context on this SHA counts. Dropping that status would reveal an older success
-    on the same SHA."""
-    actor = status_actor(status)
-    if bot_creator(actor):
-        print(f"review status untrusted {status.get('context')} from {actor} is not success")
-        return "failure"
-    if allowed is None:
-        return status["state"]
-    if any(same_login(actor, login) for login in allowed):
-        return status["state"]
-    print(f"review status untrusted {status.get('context')} from {actor or 'unknown'} is not success")
-    return "failure"
 
 
 def comment_unedited(comment):
@@ -312,24 +284,6 @@ def owner_approved(repo, number, head, read):
                     and approval_sha(comment.get("body")) == wanted):
                 return True
     return False
-
-
-def status_list(pages):
-    """Newest-first status objects from GET /commits/{sha}/statuses.
-
-    Each page is a list. The combined status object is a dict and has no creator,
-    so it is not this list and must not count as success."""
-    if not isinstance(pages, list):
-        raise ValueError("commit statuses")
-    flat = []
-    for page in pages:
-        if not isinstance(page, list):
-            raise ValueError("commit statuses")
-        for status in page:
-            if not isinstance(status, dict) or "context" not in status:
-                raise ValueError("commit statuses")
-            flat.append(status)
-    return flat
 
 
 # Alias, then family. Opus and Sonnet are both Claude. Two families in one name is unknown.
@@ -391,6 +345,55 @@ def _not_applicable(model):
     return text.startswith("해당 없음:") and text.split(":", 1)[1].strip() != ""
 
 
+def _count(value):
+    text = value.strip() if isinstance(value, str) else ""
+    if not _integer(text):
+        return None
+    return int(text)
+
+
+# Explicit failure in the optional result column. Empty and pass do not use this set.
+# P2 above zero is not a failure by itself.
+_FAIL_RESULT = {"fail", "failed", "failure", "실패"}
+_HTML_COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
+
+
+def visible_text(text):
+    """Body with HTML comments removed. None when a comment is left unclosed."""
+    stripped = _HTML_COMMENT.sub("", text)
+    if "<!--" in stripped:
+        return None
+    return stripped
+
+
+def _path_names(entry):
+    if not isinstance(entry, dict):
+        return None
+    names = []
+    for key in ("filename", "previous_filename"):
+        value = entry.get(key)
+        if isinstance(value, str) and value != "":
+            names.append(value)
+    return names
+
+
+def security_evidence_required(files, extra):
+    """True when Security `해당 없음` cannot cover this diff.
+
+    files is None when compare did not return a classifiable list. An entry with no
+    path name is the same: the gate cannot show the change is outside the trust boundary."""
+    if files is None:
+        return True
+    patterns = COMMON_PATHS + DEPENDENCY_FILES + tuple(extra)
+    for entry in files:
+        names = _path_names(entry)
+        if not names:
+            return True
+        if any(matches(name, patterns) for name in names):
+            return True
+    return False
+
+
 def evidence_table(body):
     """Rows of the last evidence table. An earlier table does not hide a later one. Parse only."""
     lines = body.split("\n")
@@ -425,11 +428,34 @@ def evidence_table(body):
     return chosen
 
 
-def evidence_problems(body, head):
-    """Why the evidence table does not cover this head. Empty means it does. The body is not executed."""
+def _row_results(row, problems):
+    """Record open P0/P1 counts and an explicit failure result. P2 may be above zero.
+
+    The cells are the counts still open. This function does not read disposition text."""
+    for column in ("p0", "p1", "p2"):
+        count = _count(row.get(column, ""))
+        if count is None:
+            problems.append(column)
+        elif column != "p2" and count > 0:
+            problems.append("open")
+    if row.get("effort", "").strip() == "":
+        problems.append("effort")
+    result = row.get("result")
+    if isinstance(result, str) and result.strip().casefold() in _FAIL_RESULT:
+        problems.append("result")
+
+
+def evidence_problems(body, head, security_required=False):
+    """Why the evidence table does not cover this head. Empty means it does. The body is not executed.
+
+    security_required is true when a trust-boundary path changed or the path list cannot
+    be classified. It does not read commit statuses."""
     if not isinstance(body, str):
         return ["body"]
-    text = body.replace("\r\n", "\n").replace("\r", "\n")[:BODY_LIMIT]
+    text = visible_text(body.replace("\r\n", "\n").replace("\r", "\n"))
+    if text is None:
+        return ["comment"]
+    text = text[:BODY_LIMIT]
     problems = []
     record, previous, author_errors = parse_author(text)
     if any("person author" in error for error in author_errors):
@@ -478,10 +504,15 @@ def evidence_problems(body, head):
             continue
         reviewer = row.get("model", "")
         if _not_applicable(reviewer):
-            if key in ("standards", "spec"):
-                problems.append("not-applicable")
+            if key in ("standards", "spec") or (key == "security" and security_required):
+                problems.append("not-applicable" if key != "security" else "security-required")
             if any(row.get(column, "").strip() != "0" for column in ("p0", "p1", "p2")):
                 problems.append("p0")
+            if row.get("effort", "").strip() == "":
+                problems.append("effort")
+            result = row.get("result")
+            if isinstance(result, str) and result.strip().casefold() in _FAIL_RESULT:
+                problems.append("result")
         elif reviewer.strip() == "" or reviewer.strip() == "미실행":
             problems.append("model")
         else:
@@ -490,10 +521,7 @@ def evidence_problems(body, head):
                 problems.append("unknown-family")
             elif family in families:
                 problems.append("same-family")
-            if not _integer(row.get("p0", "")):
-                problems.append("p0")
-            if not _integer(row.get("p1", "")):
-                problems.append("p1")
+            _row_results(row, problems)
         sha = row.get("sha", "").strip()
         if not re.fullmatch(r"[0-9a-fA-F]{40}", sha) or sha.lower() != wanted:
             problems.append("sha")
@@ -507,43 +535,20 @@ def missing(repo, number, head, base, read=read_api):
     default = default_base(repo, pull, read)
     if default is None or not event_base_on_default(repo, base, default, read):
         return [BASE_REF]
-    # None means a team profile: any creator still counts. A 1-person profile counts the owner
-    # and STATUS_ACTORS only, and treats every other creator as failure.
+    # A team profile does not require the owner comment. A 1-person profile does, on a gate path.
     solo = not team_profile(repo, base, read)
-    allowed = status_actors(repo, read) if solo else None
     # The open pull request's file and commit lists follow its current head, which can move
-    # after this event. review/independent and review/security follow compare(base, head).
-    patterns = COMMON_PATHS + DEPENDENCY_FILES + project_paths(repo, base, read)
+    # after this event. The owner comment follows compare(base, head). Advisory review
+    # statuses are not read: missing, failed, or untrusted review/independent and
+    # review/security do not change this result.
     pinned, _ = pinned_change(repo, base, head, read)
+    # None means compare could not be classified, so Security 해당 없음 is not evidence.
+    # project_paths raises on a read error other than 404. Advisory statuses are not read.
     if pinned is None:
-        touched = True
+        needs_security = True
     else:
-        touched = any(matches(entry.get(key, ""), patterns) for entry in pinned
-                      for key in ("filename", "previous_filename"))
-    needed = [INDEPENDENT]
-    # Compare stops at 300 files. A hidden path cannot be ruled out.
-    # Dependabot uses this same path rule. A version bump is not exempt.
-    if pinned is None or touched:
-        needed.append(SECURITY)
-    statuses = status_list(read(f"repos/{repo}/commits/{head}/statuses?per_page=100"))
-    # The list is newest first. An older success does not erase a newer failure.
-    # An untrusted creator is failure, so it also does not reveal an older trusted success.
-    newest = {}
-    for status in statuses:
-        context = status["context"]
-        if context in newest:
-            continue
-        if context in (INDEPENDENT, SECURITY):
-            newest[context] = reviewed_state(status, allowed)
-        else:
-            newest[context] = status["state"]
-    present = set(newest)
-    for context in (INDEPENDENT, SECURITY):
-        if context not in needed and context in present:
-            needed.append(context)
-    passed = {context for context, state in newest.items() if state == "success"}
-    # Success counts only when it is posted on this head. A prior SHA is not evidence.
-    result = [context for context in needed if context not in passed]
+        needs_security = security_evidence_required(pinned, project_paths(repo, base, read))
+    result = []
     # The owner comment is tied to this SHA. A posted status under another name does not replace it.
     if pinned is None:
         needs_owner = True
@@ -555,7 +560,7 @@ def missing(repo, number, head, base, read=read_api):
     # The body is the current pull request text. This run's head is the event SHA, not a later push.
     # Dependabot is included. An empty body is not evidence.
     if isinstance(pull, dict):
-        found = evidence_problems(pull.get("body"), head)
+        found = evidence_problems(pull.get("body"), head, needs_security)
         if found:
             detail = ", ".join(found)
             if "unknown-family" in found:
@@ -583,7 +588,7 @@ def main(env=os.environ, read=read_api):
             print(f"review status FAIL on {head}: base is not the repository default branch")
         else:
             print(f"review status MISSING on {head}: " + ", ".join(absent)
-                  + "; run the review, set the status on this head, then re-run this job")
+                  + "; fix the evidence table or the owner approval comment on this head, then re-run this job")
         return 1
     print(f"review status PASS on {head}")
     return 0

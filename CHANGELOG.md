@@ -2,11 +2,38 @@
 
 리뷰 모델의 현행은 「2026-11-06 — 역할 분담: 클라우드 기본, 활성 로스터」다. 그 아래의 리뷰 모델 절은 그 커밋 당시의 기록이다.
 
-Dependabot 현행은 「2026-11-06 — Dependabot PR은 다른 PR과 같다」다. 그 아래 날짜의 pin 전용 면제 문장은 당시 기록이다. 승인 댓글 편집의 현행은 「2026-11-06 — 승인 댓글 편집 감지와 댓글 재실행을 줄인다」다.
+Dependabot 현행은 「2026-11-06 — Dependabot PR은 다른 PR과 같다」다. 그 아래 날짜의 pin 전용 면제 문장은 당시 기록이다. 승인 댓글 편집의 현행은 「2026-11-06 — 승인 댓글 편집 감지와 댓글 재실행을 줄인다」다. 게이트가 `review/independent`·`review/security`를 요구하던 문장은 「2026-11-06 — 게이트는 근거 표와 승인 댓글만 본다」로 대체되었다. 신뢰 경계 경로의 Security 근거는 「2026-11-06 — Security 근거는 경로로 정한다」다. P0·P1 칸과 본문 편집 뒤의 `review/gate`는 「2026-11-07 — 열린 P0·P1과 본문 편집」이다. 병합은 「2026-11-07 — 병합 직전에만 success를 올린다」다.
+
+## 2026-11-07 — 병합 직전에만 success를 올린다
+
+- `tools/post_review_gate.py`: `--merge`가 없는 실행은 success를 올리지 않는다. 근거가 통과하면 pending이고, 실패하면 failure다. `--dry-run`은 읽기만 한다. `--merge`는 준비된 PR, 걸려 있지 않은 auto-merge, `review/gate` 외의 필수 체크, 풀리지 않은 리뷰 스레드를 확인한 뒤에만 success를 올리고, 파싱된 작성 기록·표·승인 댓글을 다시 읽은 다음 개발자 `gh`로 `--squash --match-head-commit` 병합한다. `isRequired`는 pull request 번호가 있어야 한다. 필수 체크의 이름과 앱은 기본 브랜치의 `.github/repository-settings.json`이다. PR head의 그 파일은 쓰지 않는다. 시도의 순서는 시작 시각이고, 같은 시각에 결과가 갈리면 실패로 닫는다. success를 올리려 한 뒤의 예외와 SIGINT·SIGTERM·SIGHUP·SIGQUIT는 failure 게시가 끝날 때까지 미룬다. openssl 서명은 다른 세션이라 터미널이 이 프로세스 그룹에 보낸 신호로 죽지 않는다. 병합 중 그 신호는 gh를 끊는다. 정리에 들어갈 때, defer를 켜기 전이나 켜는 줄에서 신호가 나도 failure 게시와 이전 핸들러 복원은 계속된다. 그 게시는 한 번이고 원자적이지 않다. SIGKILL은 잡지 못한다. 지원하는 앱 id는 양의 정수다. `-1`은 고정이 아니라서 거절한다. 병합 여부는 종료 코드가 아니라 PR을 다시 읽어 정한다. 정리가 실패하면 그 실패를 숨기지 않는다. `gh`와 `openssl`에는 허용한 환경 변수만 넘긴다. 앱 설치 토큰은 `gh`에 넘기지 않는다. `GH_TOKEN`은 읽기 토큰으로 남고 개발자 `gh auth token`이 아니다. `Review status` workflow는 `review/gate`를 올리지 않는다.
+- 남은 위험: 검사·게시·재검사·병합은 원자적이지 않다. 본문 편집이 재검사와 겹칠 수 있다. success 뒤의 SIGKILL·전원 손실·네트워크 단절은 success를 남긴다. 같은 Mac 사용자와 키는 신뢰 경계다. 그 SHA가 아직 열린 PR의 head이고 조회가 성공할 때만 `--merge` 없이 다시 실행해 지울 수 있다. head가 바뀌거나, PR이 닫히거나, 조회가 실패하면 옛 success는 지워지지 않는다. failure 정리는 한 번뿐이고, 그 게시가 실패하면 success가 남을 수 있다. 사람이 `gh pr merge`만 실행하지 않는다. auto-merge는 예약하지 않는다. 절대적인 신선도 보장이 아니다. description의 digest는 감사 표식이고 GitHub가 병합 때 다시 검사하지 않는다.
+- 필수 체크와 `review/gate` `app_id` 5641238, 앱 권한은 바꾸지 않는다. webhook을 더하지 않는다.
+
+## 2026-11-07 — 열린 P0·P1과 본문 편집
+
+- 근거 표의 P0와 P1은 아직 수정·기각·한계 수용으로 끝나지 않은 수다. 끝난 지적과, Security가 아닌 범위 밖 Pre-existing은 그 칸에 넣지 않고 표 아래에 적는다. 칸이 0보다 크면 실패다. 기각 문장이나 한계 수용 문장은 그 수를 지우지 않는다. P2가 0보다 커도 그 칸만으로는 실패하지 않는다.
+- 본문 편집이 `review/gate`를 자동으로 지우지는 않는다. `Review status`의 `edited` 재실행은 필수 체크가 아니고 그 status를 올리지 않는다. success를 누가 올리는지는 위 「병합 직전에만 success를 올린다」가 정한다. 본문 편집을 받는 새 webhook이나 앱 권한은 없다.
+- Dependabot의 `scripts/workflow_policy.py` 본문 건너뜀은 근거 표의 작성 기록을 빼지 않는다. 버전 전용 예외는 없다.
+- 필수 체크와 `review/gate` `app_id` 5641238은 바꾸지 않는다.
+
+## 2026-11-06 — Security 근거는 경로로 정한다
+
+- `scripts/check_review_status.py`: 공통 경로, 의존성 파일 이름, 기준 브랜치의 `.github/trust-boundary-paths`에 걸리면 Security 칸의 `해당 없음`은 실패다. compare가 목록을 주지 않거나 경로 이름이 없으면 실패다. 그 파일 읽기가 404가 아닌 오류면 확인 불가다. 버그 찾기의 `해당 없음`은 그대로다. `review/independent`와 `review/security` status는 읽지 않는다.
+- 근거 표의 HTML 주석은 Author 줄과 표 둘 다 보기 전에 뺀다. 닫히지 않은 주석은 실패다. 모델을 적은 행은 P0·P1·P2가 정수여야 하고, P0나 P1이 0보다 크면 실패다. P2가 0보다 커도 그 칸만으로는 실패하지 않는다. effort가 비어 있으면 실패다. `result`가 `fail`, `failed`, `failure`, `실패`이면 실패다.
+- `review/independent`와 `review/security` 상수 이름은 검사기에서 뺐다. status는 advisory다. 필수 체크와 `review/gate` `app_id` 5641238은 바꾸지 않는다. Dependabot 면제는 없다. 승인 댓글의 REST 시각 비교는 그대로다.
+
+## 2026-11-06 — 게이트는 근거 표와 승인 댓글만 본다
+
+- `scripts/check_review_status.py`와 `tools/post_review_gate.py`: `review/independent`와 `review/security`를 읽지 않는다. 없거나 failure여도 게이트는 그 이유로 실패하지 않는다. 성공 조건은 PR 본문 근거 표와, 1인 프로필에서 게이트 경로를 바꾼 head의 승인 댓글이다. Dependabot PR도 그 표와 승인 댓글을 다른 PR과 같이 요구한다. pin 전용 면제는 없다. 표의 축은 Standards, Spec, 버그 찾기, Security다. 모델이거나, 그 축이 허용하는 `해당 없음:`이어야 한다. Standards와 Spec은 `해당 없음`으로 비우지 않는다. 앱은 `review/gate`만 올린다. 소유자는 그 두 status를 참고로 남겨도 된다.
+- 승인 댓글 규칙은 앞 절 그대로다. REST `updated_at`이 `created_at`과 같은 문자열일 때만 인정한다. 같은 초 편집은 구분하지 않는다. GraphQL `lastEditedAt`은 보지 않는다. 댓글은 `Review status`나 `review/gate`를 자동으로 다시 돌리지 않는다.
+- 품질 기준은 status와 별개다. Standards·Spec의 기본은 Composer이고, 버그 찾기와 Security의 기본은 Opus다. 리뷰 패밀리는 작성 패밀리와 다르다(`docs/development-workflow.md`).
+- `.github/repository-settings.json`의 필수 체크는 바꾸지 않는다. Baseline checks (Python 3.11), Baseline checks (Python 3.13), `review/gate`(`app_id` 5641238)다. `Review status`는 필수 목록에 없다. 이 변경은 branch protection을 쓰지 않고 commit status를 올리지 않는다. 카나리 E는 다시 열지 않는다.
+- 다시 적용할 프로젝트: smallnext, BGLike, mobile-runtime. `scripts/check_review_status.py`와 `scripts/test_review_status.py`를 `tools/apply_baseline.py`로 다시 복사한다. `tools/post_review_gate.py`는 복사하지 않는다.
 
 ## 2026-11-06 — Dependabot PR은 다른 PR과 같다
 
-- 합의(2026-11-06, Dependabot=normal): 2026-11-04의 pin 전용 Dependabot 면제를 거둔다. `scripts/check_review_status.py`는 버전·해시 줄 비교, `uses:` pin 모양, web-flow 커밋터, 주 버전 판정으로 `review/independent`·`review/security`·근거 표·승인 댓글을 빼지 않는다. Dependabot PR도 그 넷을 다른 PR과 같이 요구한다. 경로에 걸리면 `review/security`가 필요하고, 게이트 경로면 사람 승인 댓글이 필요하다. `tools/post_review_gate.py`는 그 diff만으로 success를 올리지 않는다. 자동 성공 경로는 없다.
+- 합의(2026-11-06, Dependabot=normal): 2026-11-04의 pin 전용 Dependabot 면제를 거둔다. `scripts/check_review_status.py`는 버전·해시 줄 비교, `uses:` pin 모양, web-flow 커밋터, 주 버전 판정으로 `review/independent`·`review/security`·근거 표·승인 댓글을 빼지 않는다. Dependabot PR도 근거 표와 승인 댓글을 다른 PR과 같이 요구한다. 이 문장이 적던 `review/security` status 요구는 위 「Security 근거는 경로로 정한다」에서 근거 표의 Security 모델로 바뀌었다. status는 advisory다. 신뢰 경계 경로의 Security `해당 없음`은 실패다. 게이트 경로면 사람 승인 댓글이 필요하다. `tools/post_review_gate.py`는 그 diff만으로 success를 올리지 않는다. 자동 성공 경로는 없다.
 - `scripts/workflow_policy.py`가 Dependabot의 본문 절과 72자를 넘는 제목을 건너뛰는 것은 그대로다. 그 건너뜀은 근거 표와 하드도어 승인 댓글을 대신하지 않는다.
 - `POLICY.md`, README, `docs/review-gate-app.md`, `docs/development-workflow.md`, `docs/github-settings-profile.md`, `prompts/pr-ci-setup.md`, `prompts/github-repository-settings.md`, `prompts/weekly-check.md`는 이 규칙으로 고쳤다. §5 승인 댓글 문단의 `review/security`·`review/independent` 면제 문장도 뺐다. 작성자로 그 status를 빼지 않고, Action 주 버전이나 `uses:` pin 모양으로도 빼지 않는다. `외부 리뷰` 불릿이 앞 문단에 붙어 있던 줄바꿈을 되돌렸다. `docs/development-workflow.md`의 리뷰·수정 불릿, `prompts/pr-ci-setup.md`의 5번, `POLICY.md` §9의 GitHub auto-merge 불릿도 같은 방식으로 줄을 나눴다. 게이트 경로 문장은 그 경로를 바꾸면 승인 댓글이 필요하다고 적는다.
 - `.github/repository-settings.json`의 필수 체크는 바꾸지 않는다. `strict`와 `review/gate` `app_id` 5641238은 그대로다. 이 변경은 branch protection을 쓰지 않고 status를 올리지 않는다. 카나리 E는 다시 열지 않는다.
