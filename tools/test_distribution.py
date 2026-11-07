@@ -21,29 +21,174 @@ class DistributionTests(unittest.TestCase):
         self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
         return result.stdout
 
+    def source_snapshot(self, root):
+        """Copy the working tree into root/source and commit it there. The real index stays untouched."""
+        source = root / "source"
+        source.mkdir()
+        paths = self.run_command(
+            "git", "ls-files", "--cached", "--others", "--exclude-standard", "-z", cwd=ROOT)
+        for name in set(paths.split("\0")) - {""}:
+            path = ROOT / name
+            if path.is_file():
+                target = source / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(path, target)
+        self.run_command("git", "init", "--quiet", cwd=source)
+        self.run_command("git", "add", ".", cwd=source)
+        self.run_command(
+            "git", "-c", "user.name=Baseline test", "-c", "user.email=test@example.invalid",
+            "-c", "core.hooksPath=/dev/null", "-c", "commit.gpgsign=false",
+            "commit", "--quiet", "-m", "Fixture snapshot", cwd=source)
+        return source
+
     def test_own_dependabot_config_matches_the_template(self):
         own = (ROOT / ".github/dependabot.yml").read_text(encoding="utf-8").splitlines()
         template = (ROOT / "templates/dependabot.yml").read_text(encoding="utf-8").splitlines()
         self.assertEqual(own[1:], template[1:])
 
+    def test_core_manifest_is_a_subset_and_leaves_a_full_project_in_place(self):
+        full = json.loads((ROOT / "templates/repo-baseline.json").read_text(encoding="utf-8"))
+        core = json.loads((ROOT / "templates/repo-baseline.core.json").read_text(encoding="utf-8"))
+        self.assertEqual(set(core), {"files"})
+        self.assertTrue(core["files"])
+        self.assertLess(set(core["files"]), set(full["files"]))
+        for name, entry in core["files"].items():
+            self.assertEqual(full["files"][name], entry)
+            self.assertTrue((ROOT / entry["source"]).is_file())
+        copied_by_full = (
+            "scripts/check_repo_baseline.py",
+            "scripts/test_repo_baseline.py",
+            "scripts/check_github_settings.py",
+            "scripts/check_review_status.py",
+            "scripts/workflow_policy.py",
+            "scripts/pr_author.py",
+            ".agents/skills/matt-code-review/SKILL.md",
+            ".claude/skills/matt-code-review/SKILL.md",
+            ".github/dependabot.yml",
+        )
+        not_in_either = (".github/workflows/check.yml",)
+        for name in copied_by_full:
+            self.assertIn(name, full["files"], name)
+            self.assertNotIn(name, core["files"], name)
+        for name in not_in_either:
+            self.assertNotIn(name, full["files"], name)
+            self.assertNotIn(name, core["files"], name)
+        self.assertEqual(set(core["files"]), {".github/pull_request_template.md"})
+        workflow = (ROOT / ".github/workflows/check.yml").read_text(encoding="utf-8")
+        self.assertIn("python: ['3.11', '3.13']", workflow)
+        self.assertIn("name: Baseline checks (Python ${{ matrix.python }})", workflow)
+        self.assertIn("name: Baseline checks\n", workflow)
+        self.assertIn("python-version: '3.15'", workflow)
+        self.assertIn("check-latest: true", workflow)
+        self.assertNotIn("python-version: '3.x'", workflow)
+        self.assertNotIn("allow-prereleases", workflow)
+        self.assertNotIn("freethreaded", workflow)
+        settings = (ROOT / ".github/repository-settings.json").read_text(encoding="utf-8")
+        self.assertIn("Baseline checks (Python 3.11)", settings)
+        self.assertIn("Baseline checks (Python 3.13)", settings)
+        self.assertIn('"app_id": 5641238', settings)
+        self.assertNotIn("Baseline checks (Python 3.15)", settings)
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        start = (ROOT / "docs/start.md").read_text(encoding="utf-8")
+        self.assertIn("docs/start.md", readme)
+        self.assertIn("templates/repo-baseline.core.json", readme)
+        self.assertIn("이미 전체 manifest가 있으면 코어 파일로 바꾸지 않는다.", readme)
+        self.assertIn("새 프로젝트의 언어 요구가 아니다", readme)
+        self.assertIn("eval.md", start)
+        self.assertIn("라운드 상한은 3", start)
+        self.assertIn("코어 파일로 manifest를 바꾸지 않는다", start)
+        bash_blocks = start.split("```bash")[1:]
+        self.assertTrue(bash_blocks)
+        for block in bash_blocks:
+            body = block.split("```", 1)[0]
+            self.assertNotIn("python", body.lower())
+            self.assertNotIn("3.11", body)
+            self.assertNotIn("3.13", body)
+        self.assertIn("sh check.sh", start)
+        self.assertIn("Baseline checks (Python 3.11)", start)
+        self.assertIn("코어가 복사하는 파일은 `.github/pull_request_template.md` 하나다.", start)
+        self.assertIn("포매터나 새 의존성을 스택 선택 없이 넣지 않는다.", start)
+        self.assertIn("Git이 없는 환경과, POSIX 셸이 없는 Windows 설치는 확인하지 않았다.", start)
+        self.assertIn("코어가 복사하는 파일은 PR 본문 양식 하나다.", readme)
+        self.assertIn("https://github.com/minjunkim-dev/repo-baseline/issues/58", readme)
+        self.assertIn("https://github.com/minjunkim-dev/repo-baseline/issues/58", start)
+        self.assertNotIn("없는 주소를 적어 두지 않는다.", readme)
+        self.assertIn("/mattpocock-skills:ask-matt", start)
+        self.assertIn("vendor/mattpocock-skills/matt-code-review/", start)
+        self.assertIn("그때의 기록이다.", (ROOT / "CHANGELOG.md").read_text(encoding="utf-8"))
+
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            source = self.source_snapshot(root)
+
+            def install(manifest_name, label):
+                project = root / label
+                (project / ".github").mkdir(parents=True)
+                shutil.copyfile(source / "templates" / manifest_name, project / ".github/repo-baseline.json")
+                apply = (sys.executable, str(source / "tools/apply_baseline.py"), str(project))
+                self.run_command(*apply, cwd=source)
+                return project, apply
+
+            plain = root / "plain"
+            (plain / ".github").mkdir(parents=True)
+            (plain / "docs").mkdir()
+            shutil.copyfile(source / ".github/pull_request_template.md", plain / ".github/pull_request_template.md")
+            (plain / "check.sh").write_text("#!/bin/sh\necho ok\n", encoding="utf-8")
+            (plain / "docs/checks.md").write_text(
+                "setup: N/A 언어 도구 없음\ncheck: sh check.sh\ntest: N/A 제품 테스트 없음\nbuild: N/A 산출물 없음\n",
+                encoding="utf-8")
+            self.run_command("sh", "check.sh", cwd=plain)
+            self.assertEqual(list(plain.rglob("*.py")), [])
+            self.assertFalse((plain / "package.json").exists())
+
+            core_project, core_apply = install("repo-baseline.core.json", "core")
+            for absent in (
+                "package.json", "Cargo.toml", "go.mod", "pyproject.toml", "requirements.txt",
+                "scripts/check_repo_baseline.py", "scripts/check_github_settings.py",
+                "scripts/check_review_status.py", "scripts/workflow_policy.py",
+                ".github/workflows", ".github/dependabot.yml", ".claude/settings.json",
+            ):
+                self.assertFalse((core_project / absent).exists(), absent)
+            self.assertEqual(list(core_project.rglob("*.py")), [])
+            (core_project / "check.sh").write_text("#!/bin/sh\necho ok\n", encoding="utf-8")
+            (core_project / "docs").mkdir()
+            (core_project / "docs/checks.md").write_text(
+                "setup: N/A 언어 도구 없음\ncheck: sh check.sh\ntest: N/A 제품 테스트 없음\nbuild: N/A 산출물 없음\n",
+                encoding="utf-8")
+            self.run_command("sh", "check.sh", cwd=core_project)
+            checked = self.run_command(*core_apply, "--check", cwd=source)
+            self.assertIn("SAME", checked)
+            self.assertIn("check: sh check.sh", (core_project / "docs/checks.md").read_text(encoding="utf-8"))
+
+            full_project, full_apply = install("repo-baseline.json", "full")
+            self.assertTrue((full_project / "scripts/check_github_settings.py").is_file())
+            self.assertTrue((full_project / "scripts/check_review_status.py").is_file())
+            (full_project / "KEEP.txt").write_text("project-local\n", encoding="utf-8")
+            self.run_command(*full_apply, cwd=source)
+            self.assertEqual((full_project / "KEEP.txt").read_text(encoding="utf-8"), "project-local\n")
+            manifest = json.loads((full_project / ".github/repo-baseline.json").read_text(encoding="utf-8"))
+            self.assertIn("scripts/check_review_status.py", manifest["files"])
+            self.assertIn("scripts/check_github_settings.py", manifest["files"])
+            self.assertIn(".github/dependabot.yml", manifest["files"])
+
+    def test_setup_prompt_keeps_copied_checker_tests(self):
+        prompt = (ROOT / "prompts/pr-ci-setup.md").read_text(encoding="utf-8")
+        start = (ROOT / "docs/start.md").read_text(encoding="utf-8")
+        profile = (ROOT / "docs/github-settings-profile.md").read_text(encoding="utf-8")
+        banned = "Python을 쓰지 않는 프로젝트에 Python setup이나 그 unittest를 넣지 마."
+        self.assertNotIn(banned, prompt)
+        self.assertIn("대상의 필수 체크로 복사하지 마.", prompt)
+        self.assertIn("자체 setup·test에는 Python setup이나 원본 unittest를 넣지 마.", prompt)
+        self.assertIn("대상 CI는 그 복사본과 테스트를 프로젝트가 고른 python3 하나로 돌린다.", prompt)
+        self.assertIn("새 head SHA는 이전 head의 근거 표를 잇지 않는다.", prompt)
+        self.assertIn("복사된 검사기만, 그 프로젝트가 고른 `python3` 하나로 돌린다.", start)
+        self.assertIn("python3 -m unittest discover -s scripts -p 'test_*.py'", profile)
+        self.assertIn("검사기를 복사하지 않은 프로젝트는 이 명령을 자신의 setup이나 test로 두지 않는다.", profile)
+
     def test_fresh_install_copied_tests_provenance_drift_and_repair(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
-            source = root / "source"
-            source.mkdir()
-            # Snapshot the working copy, including new files, without modifying the real Git index.
-            paths = self.run_command("git", "ls-files", "--cached", "--others", "--exclude-standard", "-z", cwd=ROOT)
-            for name in set(paths.split("\0")) - {""}:
-                path = ROOT / name
-                if path.is_file():
-                    target = source / name
-                    target.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copyfile(path, target)
-            self.run_command("git", "init", "--quiet", cwd=source)
-            self.run_command("git", "add", ".", cwd=source)
-            self.run_command("git", "-c", "user.name=Baseline test", "-c", "user.email=test@example.invalid",
-                             "-c", "core.hooksPath=/dev/null", "-c", "commit.gpgsign=false",
-                             "commit", "--quiet", "-m", "Fixture snapshot", cwd=source)
+            source = self.source_snapshot(root)
             head = self.run_command("git", "rev-parse", "HEAD", cwd=source).strip()
             for mode in ("default", "advanced", "unsupported"):
                 with self.subTest(mode=mode):

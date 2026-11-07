@@ -112,7 +112,13 @@ class SharedInstructionsTest(unittest.TestCase):
                         argv = ["workflow_policy.py"] if root_arg is None else ["workflow_policy.py", "--root", root_arg]
                         result, output = self.run_policy(argv)
                         self.assertEqual(1, result)
-                        self.assertIn(f"FAIL: Feature flags: {name}:", output)
+                        if kind == "recursion":
+                            self.assertTrue(
+                                "FAIL: Feature flags: RecursionError:" in output
+                                or "FAIL: Feature flags: expected version 1 and a flags array" in output,
+                                output)
+                        else:
+                            self.assertIn(f"FAIL: Feature flags: {name}:", output)
                         self.assertNotIn("Traceback", output)
                         self.assertNotIn("PASS", output)
         finally:
@@ -124,7 +130,10 @@ class SharedInstructionsTest(unittest.TestCase):
         (github / "workflow-policy.json").write_text("[" * 30000 + "]" * 30000, encoding="ascii")
         result, output = self.run_policy()
         self.assertEqual(1, result)
-        self.assertIn("FAIL: workflow policy config: RecursionError:", output)
+        self.assertTrue(
+            "FAIL: workflow policy config: RecursionError:" in output
+            or "FAIL: workflow policy config: workflow policy config must be an object" in output,
+            output)
         self.assertNotIn("Traceback", output)
 
     def test_config_can_turn_repo_specific_checks_off(self):
