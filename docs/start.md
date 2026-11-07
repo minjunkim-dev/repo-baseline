@@ -16,6 +16,8 @@
 
 예제 명령은 POSIX `cp`와 `sh`다. Git이 있는 clone에서 이 저장소 파일을 복사한다. Git이 없는 환경과, POSIX 셸이 없는 Windows 설치는 확인하지 않았다. 그 환경을 지원한다고 적지 않는다.
 
+열린 작업의 상태는 [이슈 #58](https://github.com/minjunkim-dev/repo-baseline/issues/58)에 있다. 이 문서는 그 목록을 복사하지 않는다.
+
 ## 항상 하는 일
 
 1. 기준 브랜치는 `main` 하나다. 작업 브랜치는 짧다. 병합은 squash다. 절차는 `docs/development-workflow.md`의 트렁크다.
