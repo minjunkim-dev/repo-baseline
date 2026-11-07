@@ -9,8 +9,9 @@ name: Review status
 # edited re-runs this job when the pull request body changes. ready_for_review re-runs it when a draft becomes ready,
 # even if the body was not edited. The checker parses that body and does not execute it.
 # That rerun does not post or clear review/gate. A body edit leaves a previous App success
-# on the same SHA. Clear it by running tools/post_review_gate.py without --merge (pending or
-# failure). --merge is the only command that posts success, and it squash-merges that SHA.
+# on the same SHA. A run without --merge clears it only while that SHA is still the open
+# head and the reads succeed. The failure post is one attempt. --merge is the only command
+# that posts success, and it squash-merges that SHA.
 # This workflow does not subscribe to issue_comment. Creating, editing, or deleting an approval comment does not
 # re-run Review status and does not post review/gate. A hard door still needs a new owner comment whose first line
 # is the prefix plus the full head SHA. Do not edit an old approval. Post a new comment, then re-run this workflow

@@ -809,6 +809,11 @@ class ReadinessTests(unittest.TestCase):
         self.assertIsNone(gate._latest([success, failed]))
         self.assertIsNone(gate._latest([failed, success]))
         self.assertEqual(gate._check_state(gate._latest([success, dict(success)])), "ok")
+        with self.assertRaises(ValueError):
+            gate.expected_checks({"expected": {"protection": {"required_status_checks": {"checks": [
+                {"context": "CI", "app_id": -1},
+                {"context": "review/gate", "app_id": 424242},
+            ]}}}}, 424242)
 
     def test_consumer_check_names_come_from_the_default_branch_file(self):
         directory, key = _key()
@@ -914,6 +919,10 @@ class SignalCleanupTests(unittest.TestCase):
                     if state == "failure" and self.server.mode == "during-cleanup":
                         os.kill(self.server.child, signal.SIGTERM)
                         time.sleep(0.2)
+                    if state == "failure" and self.server.mode == "hold-failure":
+                        self.server.holding = True
+                        while not self.server.release:
+                            time.sleep(0.05)
                     self._json({"context": "review/gate", "state": state}, 201)
                     return
                 if self.path.endswith("/access_tokens"):
@@ -1032,19 +1041,41 @@ class SignalCleanupTests(unittest.TestCase):
             out, err = proc.communicate(timeout=2)
             self.fail(err.decode()[-400:] + " CODES " + repr(getattr(server, "codes", [])[-6:]))
 
-        proc = launch("double", "sleep")
+        def signal_group(proc, sig):
+            """Signal the child's group. macOS can refuse killpg while the leader is alive."""
+            if proc.poll() is not None:
+                raise AssertionError("process exited before the signal window")
+            try:
+                os.killpg(proc.pid, sig)
+            except ProcessLookupError as error:
+                raise AssertionError("process group disappeared during the signal window") from error
+            except PermissionError:
+                if proc.poll() is not None:
+                    raise AssertionError("group signal missed the live window")
+                os.kill(proc.pid, sig)
+                listed = subprocess.run(
+                    ["pgrep", "-g", str(proc.pid)], capture_output=True, text=True)
+                for line in listed.stdout.split():
+                    child = int(line)
+                    if child != proc.pid:
+                        try:
+                            os.kill(child, sig)
+                        except ProcessLookupError:
+                            pass
+
+        server.release = False
+        server.holding = False
+        proc = launch("hold-failure", "sleep")
         wait_success()
-        os.killpg(proc.pid, signal.SIGINT)
-        time.sleep(0.1)
-        os.killpg(proc.pid, signal.SIGINT)
-        try:
-            code = proc.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            wchan = Path(f"/proc/{proc.pid}/wchan").read_text()
-            stack = Path(f"/proc/{proc.pid}/stack").read_text()[:500]
-            err = proc.stderr.read1(2000) if proc.stderr else b""
-            self.fail(f"stuck {wchan} {stack} {err}")
-        self.assertNotEqual(code, 0)
+        signal_group(proc, signal.SIGINT)
+        for _ in range(80):
+            if server.holding:
+                break
+            time.sleep(0.05)
+        self.assertTrue(server.holding, server.states)
+        signal_group(proc, signal.SIGINT)
+        server.release = True
+        self.assertNotEqual(proc.wait(timeout=10), 0)
         self.assertEqual(server.states, ["success", "failure"])
 
         proc = launch("during-cleanup", "fail")
@@ -1053,7 +1084,44 @@ class SignalCleanupTests(unittest.TestCase):
 
         proc = launch("control", "sleep")
         wait_success()
-        os.killpg(proc.pid, signal.SIGTERM)
+        signal_group(proc, signal.SIGTERM)
+        self.assertNotEqual(proc.wait(timeout=15), 0)
+        self.assertEqual(server.states, ["success", "failure"])
+
+        real_openssl = subprocess.run(["which", "openssl"], check=True, capture_output=True, text=True).stdout.strip()
+        signer = Path(bindir.name) / "openssl"
+        signer.write_text(
+            "#!/bin/sh\n"
+            "here=$(dirname \"$0\")\n"
+            "real=$(cat \"$here/openssl-real\")\n"
+            "if [ -f \"$here/openssl-hold\" ]; then\n"
+            "  ps -o sid= -p $$ > \"$here/openssl-sid\"\n"
+            "  : > \"$here/openssl-held\"\n"
+            "  while [ -f \"$here/openssl-hold\" ]; do sleep 0.05; done\n"
+            "fi\n"
+            "exec \"$real\" \"$@\"\n",
+            encoding="utf-8")
+        signer.chmod(0o755)
+        (Path(bindir.name) / "openssl-real").write_text(real_openssl + "\n", encoding="utf-8")
+        hold = Path(bindir.name) / "openssl-hold"
+        held = Path(bindir.name) / "openssl-held"
+        sid_path = Path(bindir.name) / "openssl-sid"
+        for path in (hold, held, sid_path):
+            if path.exists():
+                path.unlink()
+        proc = launch("plain", "sleep")
+        wait_success()
+        hold.write_text("1", encoding="utf-8")
+        signal_group(proc, signal.SIGINT)
+        for _ in range(80):
+            if held.exists():
+                break
+            time.sleep(0.05)
+        self.assertTrue(held.exists(), "signer did not reach the cleanup window")
+        signer_sid = sid_path.read_text(encoding="utf-8").strip()
+        self.assertNotEqual(signer_sid, str(proc.pid))
+        signal_group(proc, signal.SIGHUP)
+        hold.unlink()
         self.assertNotEqual(proc.wait(timeout=15), 0)
         self.assertEqual(server.states, ["success", "failure"])
 

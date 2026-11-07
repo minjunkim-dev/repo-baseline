@@ -14,14 +14,18 @@ single status POST and is requested only for this repository's statuses.
 A plain real run never posts success. Passing evidence posts pending, which
 replaces an older success from this App. Failing evidence posts failure.
 --merge is the only success path. It requires a ready pull request, no armed
-auto-merge, both Baseline checks from the Actions app, and no unresolved review
-thread. review/gate itself may still be pending. It posts success only then,
+auto-merge, the required checks named in the default-branch settings, and no
+unresolved review thread. Each of those checks must use a positive pinned app
+id. review/gate itself may still be pending. It posts success only then,
 re-reads the parsed snapshot, and squash-merges with --match-head-commit.
 Once that post is attempted, an ordinary exception or SIGINT, SIGTERM, SIGHUP,
-or SIGQUIT posts failure unless the pull request is confirmed merged. Those
-signals are deferred until the failure post and the handler restore finish.
-SIGKILL, power loss, and a network failure that never returns are not cleared.
-A plain run does not clear a success whose SHA is no longer the open head.
+or SIGQUIT posts failure unless the pull request is confirmed merged. The
+openssl signer runs in its own session so a terminal signal to this process
+group does not kill it. Later signals wait until that failure post and the
+handler restore finish. The failure post is one attempt. SIGKILL, power loss,
+and a network failure that never returns are not cleared. A plain run clears
+an older success only when that SHA is still the open head and the reads
+succeed.
 Required check names and app ids come from the default branch settings file,
 not from the pull request. A body edit can still race the recheck. There is
 no webhook and no new App permission. The installation token is used for the
@@ -166,9 +170,12 @@ class _SignalGate:
             self.previous[number] = signal.signal(number, self.handle)
 
     def handle(self, number, _frame):
+        self.pending.append(number)
         if self.defer:
-            self.pending.append(number)
             return
+        # Arm deferral before the exception propagates, so a second signal cannot
+        # leave the failure post.
+        self.defer = True
         raise CaughtSignal(number)
 
     def restore(self):
@@ -212,11 +219,15 @@ def _allowed_env(source, keys, secrets=()):
 
 
 def sign_rs256(signing_input, key_path):
-    """RS256 signature. The key stays in the file openssl opens. It is not an argument value."""
+    """RS256 signature. The key stays in the file openssl opens. It is not an argument value.
+
+    The signer is a new session. A SIGINT or SIGHUP aimed at this process group, as a
+    terminal sends, does not kill it while a failure status is being signed."""
     result = subprocess.run(
         ["openssl", "dgst", "-sha256", "-sign", str(key_path), "-binary"],
-        input=signing_input, capture_output=True, check=True, timeout=15,
-        env=_allowed_env(os.environ, OPENSSL_ENV_KEYS))
+        input=signing_input, capture_output=True, check=True, timeout=30,
+        env=_allowed_env(os.environ, OPENSSL_ENV_KEYS),
+        start_new_session=True)
     if not result.stdout:
         raise ValueError("empty signature")
     return result.stdout
@@ -543,8 +554,10 @@ def _check_state(chosen):
 def expected_checks(payload, signing_app):
     """Required contexts from the default-branch settings document.
 
-    The gate context is omitted from the returned list. Its app id must be the app that
-    will sign, and it must not be the Actions app. A REPLACE placeholder is not a check."""
+    The gate context is omitted from the returned list. Its app id must be the positive
+    integer of the app that will sign, and it must not be the Actions app. Other checks
+    also require a positive pinned app id. GitHub's unpinned marker -1 is rejected.
+    A REPLACE placeholder is not a check."""
     protection = (payload.get("expected") or {}).get("protection") if isinstance(payload, dict) else None
     checks = (protection or {}).get("required_status_checks", {}).get("checks") if isinstance(protection, dict) else None
     if not isinstance(checks, list) or not checks:
