@@ -2,11 +2,20 @@
 
 리뷰 모델의 현행은 「2026-11-06 — 역할 분담: 클라우드 기본, 활성 로스터」다. 그 아래의 리뷰 모델 절은 그 커밋 당시의 기록이다.
 
-Dependabot 현행은 「2026-11-06 — Dependabot PR은 다른 PR과 같다」다. 그 아래 날짜의 pin 전용 면제 문장은 당시 기록이다. 승인 댓글 편집의 현행은 「2026-11-06 — 승인 댓글 편집 감지와 댓글 재실행을 줄인다」다. 게이트가 `review/independent`·`review/security`를 요구하던 문장은 「2026-11-06 — 게이트는 근거 표와 승인 댓글만 본다」로 대체되었다. 신뢰 경계 경로의 Security 근거는 「2026-11-06 — Security 근거는 경로로 정한다」다. P0·P1 칸과 본문 편집 뒤의 `review/gate`는 「2026-11-07 — 열린 P0·P1과 본문 편집」이다. 병합은 「2026-11-07 — 병합 직전에만 success를 올린다」다.
+Dependabot 현행은 「2026-11-06 — Dependabot PR은 다른 PR과 같다」다. 그 아래 날짜의 pin 전용 면제 문장은 당시 기록이다. 승인 댓글 편집의 현행은 「2026-11-06 — 승인 댓글 편집 감지와 댓글 재실행을 줄인다」다. 게이트가 `review/independent`·`review/security`를 요구하던 문장은 「2026-11-06 — 게이트는 근거 표와 승인 댓글만 본다」로 대체되었다. 신뢰 경계 경로의 Security 근거는 「2026-11-06 — Security 근거는 경로로 정한다」다. P0·P1 칸과 본문 편집 뒤의 `review/gate`는 「2026-11-07 — 열린 P0·P1과 본문 편집」이다. 병합은 「2026-11-07 — 병합 직전에만 success를 올린다」다. 읽기 자격과 준비 상태 GraphQL의 현행은 「2026-11-07 — 읽기는 개발자 gh, 서명은 앱 PEM」이다.
+
+## 2026-11-07 — 읽기는 개발자 gh, 서명은 앱 PEM
+
+- 권장 일상 경로: 개발자 `gh`가 읽기와 squash 병합을 한다. Keychain의 앱 PEM이 전용 앱 `review/gate`를 서명한다. 이 저장소의 핀은 `app_id` 5641238이다. 별도 읽기 PAT, `reviewgate` UID, 봉인, 해시, sudoers, `git archive`는 권장 경로가 아니다.
+- `tools/post_review_gate.py`는 `GH_TOKEN`이 비어 있으면 거절한다. 거부 문장은 `GH_TOKEN must be set for reads`다. 권장 경로는 그 값을 그 프로세스 안에서만 `gh auth token`으로 채운다. 스크립트는 `gh auth token`을 호출하지 않고, 토큰이 다른 계정인지 검사하지 않는다. 개발자 토큰은 읽기 전용으로 좁혀져 있지 않다. `gh pr merge` 자식에는 `GH_TOKEN`을 넘기지 않는다. 앱 설치 토큰은 status POST에만 쓴다.
+- 근거·diff·승인 댓글 시각은 REST GET이다. 승인 댓글 편집은 `updated_at`이 `created_at`과 같은지이고 GraphQL `lastEditedAt`이 아니다. `--merge`의 준비 상태(필수 체크, 리뷰 스레드, `reviewDecision`)는 같은 토큰의 GraphQL CheckRun이다. 예시 `--dry-run`은 `--merge`가 아니라서 그 GraphQL을 보지 않는다.
+- `--merge`의 SHA 고정 squash, 파싱된 작성 기록·표·승인 댓글의 재검사, 풀리지 않은 스레드, 양의 정수 앱 핀, 본문 경주·SIGKILL·전원·응답 없는 네트워크는 그대로다. 신호 핸들러와 P2 파서는 이 변경이 건드리지 않는다.
+- 1인 프로필의 게이트 경로는 소유자 SHA 댓글이다. 팀 프로필은 그 댓글을 요구하지 않고 `POLICY.md` §9의 사람 승인이다. 검사기 동작은 바꾸지 않았다.
+- 헬퍼의 병합·핀·재검사 동작은 바꾸지 않았다. 빈 `GH_TOKEN` 거절은 그대로다.
 
 ## 2026-11-07 — 병합 직전에만 success를 올린다
 
-- `tools/post_review_gate.py`: `--merge`가 없는 실행은 success를 올리지 않는다. 근거가 통과하면 pending이고, 실패하면 failure다. `--dry-run`은 읽기만 한다. `--merge`는 준비된 PR, 걸려 있지 않은 auto-merge, `review/gate` 외의 필수 체크, 풀리지 않은 리뷰 스레드를 확인한 뒤에만 success를 올리고, 파싱된 작성 기록·표·승인 댓글을 다시 읽은 다음 개발자 `gh`로 `--squash --match-head-commit` 병합한다. `isRequired`는 pull request 번호가 있어야 한다. 필수 체크의 이름과 앱은 기본 브랜치의 `.github/repository-settings.json`이다. PR head의 그 파일은 쓰지 않는다. 시도의 순서는 시작 시각이고, 같은 시각에 결과가 갈리면 실패로 닫는다. success를 올리려 한 뒤의 예외와 SIGINT·SIGTERM·SIGHUP·SIGQUIT는 failure 게시가 끝날 때까지 미룬다. openssl 서명은 다른 세션이라 터미널이 이 프로세스 그룹에 보낸 신호로 죽지 않는다. 병합 중 그 신호는 gh를 끊는다. 정리에 들어갈 때, defer를 켜기 전이나 켜는 줄에서 신호가 나도 failure 게시와 이전 핸들러 복원은 계속된다. 그 게시는 한 번이고 원자적이지 않다. SIGKILL은 잡지 못한다. 지원하는 앱 id는 양의 정수다. `-1`은 고정이 아니라서 거절한다. 병합 여부는 종료 코드가 아니라 PR을 다시 읽어 정한다. 정리가 실패하면 그 실패를 숨기지 않는다. `gh`와 `openssl`에는 허용한 환경 변수만 넘긴다. 앱 설치 토큰은 `gh`에 넘기지 않는다. `GH_TOKEN`은 읽기 토큰으로 남고 개발자 `gh auth token`이 아니다. `Review status` workflow는 `review/gate`를 올리지 않는다.
+- `tools/post_review_gate.py`: `--merge`가 없는 실행은 success를 올리지 않는다. 근거가 통과하면 pending이고, 실패하면 failure다. `--dry-run`은 읽기만 한다. `--merge`는 준비된 PR, 걸려 있지 않은 auto-merge, `review/gate` 외의 필수 체크, 풀리지 않은 리뷰 스레드를 확인한 뒤에만 success를 올리고, 파싱된 작성 기록·표·승인 댓글을 다시 읽은 다음 개발자 `gh`로 `--squash --match-head-commit` 병합한다. `isRequired`는 pull request 번호가 있어야 한다. 필수 체크의 이름과 앱은 기본 브랜치의 `.github/repository-settings.json`이다. PR head의 그 파일은 쓰지 않는다. 시도의 순서는 시작 시각이고, 같은 시각에 결과가 갈리면 실패로 닫는다. success를 올리려 한 뒤의 예외와 SIGINT·SIGTERM·SIGHUP·SIGQUIT는 failure 게시가 끝날 때까지 미룬다. openssl 서명은 다른 세션이라 터미널이 이 프로세스 그룹에 보낸 신호로 죽지 않는다. 병합 중 그 신호는 gh를 끊는다. 정리에 들어갈 때, defer를 켜기 전이나 켜는 줄에서 신호가 나도 failure 게시와 이전 핸들러 복원은 계속된다. 그 게시는 한 번이고 원자적이지 않다. SIGKILL은 잡지 못한다. 지원하는 앱 id는 양의 정수다. `-1`은 고정이 아니라서 거절한다. 병합 여부는 종료 코드가 아니라 PR을 다시 읽어 정한다. 정리가 실패하면 그 실패를 숨기지 않는다. `gh`와 `openssl`에는 허용한 환경 변수만 넘긴다. 앱 설치 토큰은 `gh`에 넘기지 않는다. 그 문장의 `GH_TOKEN`은 개발자 `gh auth token`이 아니다는 위 「읽기는 개발자 gh, 서명은 앱 PEM」로 대체되었다. 병합 제약 자체는 이 절이 현행이다. `Review status` workflow는 `review/gate`를 올리지 않는다.
 - 남은 위험: 검사·게시·재검사·병합은 원자적이지 않다. 본문 편집이 재검사와 겹칠 수 있다. success 뒤의 SIGKILL·전원 손실·네트워크 단절은 success를 남긴다. 같은 Mac 사용자와 키는 신뢰 경계다. 그 SHA가 아직 열린 PR의 head이고 조회가 성공할 때만 `--merge` 없이 다시 실행해 지울 수 있다. head가 바뀌거나, PR이 닫히거나, 조회가 실패하면 옛 success는 지워지지 않는다. failure 정리는 한 번뿐이고, 그 게시가 실패하면 success가 남을 수 있다. 사람이 `gh pr merge`만 실행하지 않는다. auto-merge는 예약하지 않는다. 절대적인 신선도 보장이 아니다. description의 digest는 감사 표식이고 GitHub가 병합 때 다시 검사하지 않는다.
 - 필수 체크와 `review/gate` `app_id` 5641238, 앱 권한은 바꾸지 않는다. webhook을 더하지 않는다.
 
@@ -43,7 +52,7 @@ Dependabot 현행은 「2026-11-06 — Dependabot PR은 다른 PR과 같다」�
 
 - `scripts/check_review_status.py`: 승인 댓글은 REST `updated_at`이 `created_at`과 같은 문자열일 때만 인정한다. GraphQL `lastEditedAt`·`includesCreatedEdit`는 보지 않는다. REST 시각은 초 단위라 같은 초 편집은 구분하지 않는다. 하드 도어의 SHA 전체 댓글 요구는 그대로다. 댓글을 고치지 말고 새 댓글을 단다.
 - `templates/review-status.yml`과 `.github/workflows/review-status.yml`: `issue_comment` 트리거와 재실행 job을 뺐다. `scripts/rerun_review_status.py`는 삭제했다. 승인 댓글은 `Review status`와 `review/gate`를 자동으로 다시 돌리지 않는다. 새 댓글 뒤에 그 head의 `Review status`를 직접 다시 돌리거나 `tools/post_review_gate.py`로 게이트를 다시 올린다.
-- `tools/post_review_gate.py`: 승인 댓글은 REST GET으로 읽는다. `POST /graphql`은 쓰지 않는다.
+- `tools/post_review_gate.py`: 승인 댓글은 REST GET으로 읽는다. 승인 댓글 편집 판정에 `POST /graphql`은 쓰지 않는다. `--merge` 준비 상태의 CheckRun GraphQL은 「2026-11-07 — 읽기는 개발자 gh, 서명은 앱 PEM」이다.
 - 이벤트 정책 템플릿은 `issue_comment` 허용을 남겨 둔다. 그 허용은 구독이 아니다. 필수 체크와 `.github/repository-settings.json`은 바꾸지 않는다. 이 변경은 branch protection을 쓰지 않는다.
 - 다시 적용할 프로젝트: smallnext, BGLike, mobile-runtime. `scripts/check_review_status.py`, `scripts/test_review_status.py`를 `tools/apply_baseline.py`로 다시 복사한다. `templates/review-status.yml`을 `.github/workflows/review-status.yml`로 다시 복사한다. 소비 저장소의 `scripts/rerun_review_status.py`는 지운다. `tools/post_review_gate.py`는 복사하지 않는다. 카나리 E는 다시 열지 않는다. `.github/repository-settings.json`의 필수 체크는 그대로다.
 
@@ -67,7 +76,7 @@ Dependabot 현행은 「2026-11-06 — Dependabot PR은 다른 PR과 같다」�
 
 ## 2026-11-06 — 게이트 문서: Keychain 우선·합의(문서만)
 
-- `docs/review-gate-app.md`: 1인·소규모 팀의 **권장 경로**를 **개발자 macOS Keychain의 앱 PEM**(실행 시에만 임시 파일로 꺼냄) + **개발자 `gh`로 증거 status** + **`GH_TOKEN` 게이트 전용 읽기 토큰(`tools/post_review_gate.py` 현행)** + **기본 브랜치의 깨끗한 checkout에서 `post_review_gate.py`**로 다시 썼다. **unset GH_TOKEN**과 “별도 읽기 토큰 불필요”는 코드와 어긋나서 뺐다. 체크아웃은 `git status --porcelain`·`git reset --hard origin/main`(또는 핀 SHA)로 고정. 같은 **UID 에이전트**와의 격리 한계·Keychain 과장 없음·PEM을 argv에 넣지 않는 설명을 추가했다. **멀티라인 PEM**은 `security -w` 대화형 한 줄 입력에 맞지 않으므로 **Keychain Access GUI**(또는 0600 파일→GUI)만 권장하고, 대화형 `-w`로 PEM 붙여넣기는 금지했다. **게이트 `GH_TOKEN` 스코프**는 `Reader`의 REST·GraphQL 호출에 맞춘다. 증거 `gh api` 전에 **`unset GH_TOKEN GITHUB_TOKEN`**. 예전 **reviewgate 전용 UID·봉인(seal)·sudoers·git archive** 중심 절차는 **레거시(선택)**로 남겼다.
+- 과거 문서. 별도 읽기 토큰을 권장 경로로 둔 문장은 「2026-11-07 — 읽기는 개발자 gh, 서명은 앱 PEM」로 대체되었다. 그때 `docs/review-gate-app.md`는 1인·소규모 팀의 **권장 경로**를 **개발자 macOS Keychain의 앱 PEM**(실행 시에만 임시 파일로 꺼냄) + **개발자 `gh`로 증거 status** + **`GH_TOKEN` 게이트 전용 읽기 토큰(`tools/post_review_gate.py` 현행)** + **기본 브랜치의 깨끗한 checkout에서 `post_review_gate.py`**로 다시 썼다. **unset GH_TOKEN**과 “별도 읽기 토큰 불필요”는 코드와 어긋나서 뺐다. 체크아웃은 `git status --porcelain`·`git reset --hard origin/main`(또는 핀 SHA)로 고정. 같은 **UID 에이전트**와의 격리 한계·Keychain 과장 없음·PEM을 argv에 넣지 않는 설명을 추가했다. **멀티라인 PEM**은 `security -w` 대화형 한 줄 입력에 맞지 않으므로 **Keychain Access GUI**(또는 0600 파일→GUI)만 권장하고, 대화형 `-w`로 PEM 붙여넣기는 금지했다. **게이트 `GH_TOKEN` 스코프**는 `Reader`의 REST·GraphQL 호출에 맞춘다. 증거 `gh api` 전에 **`unset GH_TOKEN GITHUB_TOKEN`**. 예전 **reviewgate 전용 UID·봉인(seal)·sudoers·git archive** 중심 절차는 **레거시(선택)**로 남겼다.
 - `prompts/pr-ci-setup.md`, `docs/development-workflow.md`: 권장 경로를 위와 맞추고 **봉인 사본** 문장을 **레거시**로 표시했다.
 - `POLICY.md` §5·§9, `README.md`, `docs/github-settings-profile.md`: repo-baseline의 `review/gate` `app_id` 기록이 **5641238**(#44)이므로, `REPLACE:<APP_ID>`는 **다른 저장소·채우기 전**의 자리표시자로만 쓴다고 고쳤다. 합의의 나머지(증거-in-gate·Dependabot·편집 댓글 규칙·코드 삭제 순서)는 **후속 PR**이다. Python 게이트 로직·`.github/repository-settings.json` 필수 목록 변경은 이 PR에 없다.
 
@@ -100,7 +109,7 @@ Dependabot 현행은 「2026-11-06 — Dependabot PR은 다른 PR과 같다」�
 ## 2026-11-06 — 이름 변경은 버전 전용이 아니고 게이트는 봉인 사본으로 실행한다
 
 - 과거 동작. 2026-11-06 「Dependabot PR은 다른 PR과 같다」로 대체되었다. 그때 `only_versions`는 `previous_filename`이 있거나 `status`가 `modified`가 아니면 거절했다. 워크플로 밖으로 pin만 바꿔 이름을 옮겨도 Dependabot 면제가 아니었다.
-- 게이트 실행은 체크아웃이 아니다. 봉인 트리는 `tools/post_review_gate.py`, `scripts/check_review_status.py`, `scripts/pr_author.py`이고 `python3 -I`로 돌린다. `GH_TOKEN`은 게이트 계정의 읽기 전용 토큰이다(`docs/review-gate-app.md`).
+- 과거 배치. 봉인 트리와 게이트 계정 읽기 토큰은 권장 일상 경로가 아니다. 현행은 「2026-11-07 — 읽기는 개발자 gh, 서명은 앱 PEM」이다. 그때는 게이트 실행을 체크아웃이 아니라고 적었고, 봉인 트리는 `tools/post_review_gate.py`, `scripts/check_review_status.py`, `scripts/pr_author.py`이며 `python3 -I`로 돌렸다. `GH_TOKEN`은 게이트 계정의 읽기 전용 토큰이라고 적었다.
 
 ## 2026-11-06 — review/gate 앱 ID와 봇 근거, 버전 전용 diff
 

@@ -402,6 +402,27 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertFalse(any("/statuses/" in url for _, url, _, _ in hub.calls))
 
+    def test_empty_read_token_is_refused_and_help_names_the_daily_path(self):
+        text = gate.__doc__
+        self.assertIn("gh auth token", text)
+        self.assertIn("GraphQL CheckRun", text)
+        self.assertIn("does not\ncall gh auth token", text)
+        self.assertIn("--match-head-commit", text)
+        self.assertNotIn("not the\ndeveloper gh token", text)
+        self.assertIn("on CheckRun", gate.READINESS_QUERY)
+        stderr = io.StringIO()
+
+        def boom(*_args, **_kwargs):
+            raise AssertionError("request")
+
+        with redirect_stderr(stderr):
+            code = gate.main(
+                ["--repo", REPO, "--pr", "7", "--sha", HEAD, "--dry-run"], {}, boom)
+        self.assertEqual(code, 2)
+        message = stderr.getvalue()
+        self.assertIn("GH_TOKEN must be set for reads", message)
+        self.assertNotIn("gate account", message)
+
     def test_rejects_a_key_inside_the_repository_or_a_symlink(self):
         inside = gate.ROOT / ".review-gate-test.pem"
         inside.write_text("x\n", encoding="utf-8")
