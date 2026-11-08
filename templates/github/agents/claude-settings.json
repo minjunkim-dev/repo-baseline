@@ -1,20 +1,17 @@
 {
-  "extraKnownMarketplaces": {
-    "mattpocock": {
-      "source": {
-        "source": "github",
-        "repo": "mattpocock/skills",
-        "ref": "v1.3.2"
-      }
-    }
-  },
-  "enabledPlugins": {
-    "mattpocock-skills@mattpocock": true
-  },
   "permissions": {
     "deny": [
-      "Read(.env*)",
-      "Read(!.env.example)"
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Bash(gh pr merge *)",
+      "Bash(git push * main)",
+      "Bash(git push * *:main)",
+      "Bash(git push * +main)",
+      "Bash(gh api *protection*)",
+      "Bash(gh api *rulesets*)",
+      "Bash(gh api *--method PATCH*)",
+      "Bash(gh api *-X PATCH*)",
+      "Bash(gh repo edit *)"
     ]
   }
 }

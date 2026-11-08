@@ -32,7 +32,7 @@
         "strict": true,
         "checks": [
           {
-            "context": "REPLACE: a required CI job name that succeeded on a real PR",
+            "context": "REPLACE: the ci.yml job name (default ci) after it succeeded on a real PR",
             "app_id": 15368
           }
         ]
