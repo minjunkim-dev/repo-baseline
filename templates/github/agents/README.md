@@ -17,6 +17,7 @@
 - 문법: [Permissions](https://code.claude.com/docs/en/permissions), [Settings](https://code.claude.com/docs/en/settings). `*`는 규칙의 어느 자리에나 올 수 있다. `.env` 예시 `Read(./.env)`, `Read(./.env.*)`는 Settings 문서의 예시와 같다. 하위 폴더의 `.env`는 `**/` 규칙으로 막는다.
 - `.env.example`도 막힌다. 필요하면 사람이 내용을 알려 준다.
 - `gh api *protection*`은 보호 설정 읽기도 막는다. 감사는 소유자가 `tools/apply_github_settings.py`로 한다.
+- Claude 프로젝트의 클라우드 스레드는 저장소의 `.claude/settings.json`을 읽지 않는다([Claude projects](https://code.claude.com/docs/en/claude-projects), 확인일 2026-11-08). 그 스레드에는 이 거부 규칙이 없다. 그 환경에는 비밀값을 두지 않고, 병합 권한 없는 토큰만 준다(POLICY §5·§7).
 
 선택: Matt Pocock 스킬 플러그인을 쓰려면 같은 파일에 아래 두 키를 넣는다.
 
@@ -26,6 +27,17 @@
 },
 "enabledPlugins": { "mattpocock-skills@mattpocock": true }
 ```
+
+이 두 키는 로컬 세션에서만 플러그인을 설치한다. 클라우드 세션은 저장소 설정에 적은 플러그인을 설치하지 않는다([Cloud environments](https://code.claude.com/docs/en/cloud-environments#what-carries-over-from-your-setup), 확인일 2026-11-08). 클라우드에서도 써야 하면 쓰는 스킬만 저장소에 커밋한다(Claude `.claude/skills/`, Codex·Cursor `.agents/skills/`). Claude 프로젝트의 클라우드 스레드는 저장소 스킬도 읽지 않는다. 그때는 [Claude projects](https://code.claude.com/docs/en/claude-projects#get-skills-plugins-connectors-and-tools-into-threads)를 따른다. 코어는 플러그인 없이 돈다.
+
+플러그인·스킬은 같은 작업을 켤 때와 끌 때 한 번씩 돌려 보고, 결과가 나아진 것만 켠다.
+
+Matt 스킬의 기본 동작 중 [POLICY.md](../../../POLICY.md)와 어긋나는 것:
+
+- `/implement`는 끝에 같은 세션에서 `/code-review`를 부른다. 하위 에이전트는 새 컨텍스트지만, 기준을 고르고 결과를 받아들이는 쪽이 구현 세션이라서 POLICY §3의 리뷰가 아니다. 리뷰는 새 세션에서 따로 부른다. spec으로는 PR 본문 Summary의 완료 기준을, 기준 문서로는 `REVIEW.md`를 따로 지정한다. 라운드 상한과 직접 수정 규칙은 `REVIEW.md`에 있다.
+- Claude Code에는 같은 이름의 내장 `/code-review`가 있다. 플러그인으로 설치했으면 `/mattpocock-skills:code-review`처럼 플러그인 이름을 붙여 부른다.
+- `/retro`는 기본으로 지금 세션 하나를 보고, 규칙을 `CODING_STANDARDS.md`에 넣자고 제안한다. 이 저장소의 회고는 같은 지적이 반복되거나 사람이 원할 때 [prompts/retro.md](../../../prompts/retro.md)로 한다. 제안 중 사람이 고른 것만 반영한다(POLICY §6).
+- `/pr`이 만든 본문은 `.github/pull_request_template.md`의 칸에 맞춘다.
 
 ## Codex
 
