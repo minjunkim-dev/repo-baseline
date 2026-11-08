@@ -8,3 +8,4 @@
 - GitHub 설정은 `templates/github/`, 게이트·PR 형식 검사·해시 복사·팀은 `profiles/` 아래 선택 프로필로 옮겼다. 리뷰 모델 패밀리는 권장으로 내렸다.
 - 프롬프트는 `prompts/setup.md`와 `prompts/retro.md` 둘이다. 옛 셋업 프롬프트 2개, 주간 점검, `docs/development-workflow.md`는 지웠다.
 - 소비 레포 3곳(smallnext, BGLike, mobile-runtime)을 새 기준으로 옮긴 뒤 `vendor/mattpocock-skills/`를 지웠다. 기본 리뷰 기준은 `REVIEW.md`다(#71).
+- review-gate README가 Mac·Keychain 전용처럼 읽히던 것을 고쳤다. 키는 `REVIEW_GATE_APP_KEY` 경로의 `0600` 파일이고, macOS·Linux에서 돈다(Windows는 WSL).

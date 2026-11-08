@@ -1,4 +1,4 @@
-"""Mac-side review/gate poster. HTTP is mocked. No key material is committed."""
+"""Owner-machine review/gate poster. HTTP is mocked. No key material is committed."""
 
 import base64
 from contextlib import redirect_stderr, redirect_stdout
