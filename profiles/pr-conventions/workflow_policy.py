@@ -209,7 +209,7 @@ def main(argv=None):
     if claude.exists() or claude.is_symlink():
         if config["reject_claude_md"]:
             errors.append("Use AGENTS.md only; remove CLAUDE.md")
-        else:
+        elif config["require_agents_md"]:
             # Claude Code reads only CLAUDE.md when both exist, so any other content forks the instructions.
             pointer = readable_file(tree, "CLAUDE.md")
             if pointer is None or pointer.stat().st_size > 64 or pointer.read_bytes().strip() != b"@AGENTS.md":

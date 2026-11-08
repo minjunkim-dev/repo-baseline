@@ -164,7 +164,7 @@ class SharedInstructionsTest(unittest.TestCase):
     def test_config_can_turn_repo_specific_checks_off(self):
         (self.root / "AGENTS.md").unlink()
         (self.root / "config/feature-flags.json").unlink()
-        (self.root / "CLAUDE.md").write_text("@AGENTS.md\n")
+        (self.root / "CLAUDE.md").write_text("Run tests first\n")  # a CLAUDE.md-only repo
         github = self.root / ".github"
         github.mkdir()
         (github / "workflow-policy.json").write_text(json.dumps({
