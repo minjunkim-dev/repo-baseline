@@ -32,7 +32,7 @@
 Matt 스킬의 기본 동작 중 [POLICY.md](../../../POLICY.md)와 어긋나는 것:
 
 - `/implement`는 끝에 같은 세션에서 `/code-review`를 부른다. 이것은 POLICY §3의 리뷰가 아니다. 리뷰는 새 세션에서 `/code-review`를 따로 부르고 기준 파일로 `REVIEW.md`를 넘긴다. 라운드 상한과 직접 수정 규칙은 `REVIEW.md`에 있다.
-- `/retro`는 같은 지적이 두 번 나왔을 때만 돌리고, 제안 중 사람이 고른 것만 반영한다(POLICY §6).
+- `/retro`는 기본으로 지금 세션 하나를 보고, 규칙을 `CODING_STANDARDS.md`에 넣자고 제안한다. 이 저장소의 회고는 같은 지적이 반복되거나 사람이 원할 때 [prompts/retro.md](../../../prompts/retro.md)로 한다. 제안 중 사람이 고른 것만 반영한다(POLICY §6).
 - `/pr`이 만든 본문은 `.github/pull_request_template.md`의 칸에 맞춘다.
 
 ## Codex
