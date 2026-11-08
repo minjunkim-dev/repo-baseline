@@ -357,13 +357,26 @@ class GitHubSettingsTests(unittest.TestCase):
 
 
 class CodeqlActionRefsTests(unittest.TestCase):
-    def test_escaped_or_continued_quoted_uses_is_unpinned(self):
-        sha = "a" * 40
-        self.assertEqual(codeql_action_refs(f'- uses: "github/codeql-action/analyze@{sha}"\n'), [sha])
-        escaped = '- uses: "github/codeql\\x2daction/analyze@v4"\n'
-        continued = '- uses: "github/codeql-act\\\n    ion/analyze@v4"\n'
-        unclosed = '- uses: "github/codeql-\n    action/analyze@v4"\n'
-        for text in (escaped, continued, unclosed):
+    sha = "a" * 40
+
+    def test_honest_forms_keep_their_pin(self):
+        sha = self.sha
+        for text in (f'- uses: "github/codeql-action/analyze@{sha}"\n',
+                     f"- uses: 'github/codeql-action/init@{sha}'\n",
+                     f"- uses: github/codeql-action/init@{sha} # v4\n",
+                     f'- {{name: x, uses: "github/codeql-action/init@{sha}", with: {{a: b}}}}\n',
+                     f'- "uses": github/codeql-action/init@{sha}\n',
+                     f'- run: |\n    echo "a\\b"\n  uses: github/codeql-action/init@{sha}\n'):
+            self.assertEqual(codeql_action_refs(text), [sha], text)
+
+    def test_escaped_or_multiline_quoted_scalar_is_unpinned(self):
+        for text in ('- uses: "github/codeql\\x2daction/analyze@v4"\n',
+                     '- uses: "github/codeql-act\\\n    ion/analyze@v4"\n',
+                     '- uses: "github/codeql-\n    action/analyze@v4"\n',
+                     "- uses: 'github/codeql-\n    action/analyze@v4'\n",
+                     '- uses:\n    "github/codeql\\x2daction/analyze@v4"\n',
+                     '- uses: !!str "github/codeql\\x2daction/analyze@v4"\n',
+                     '- "us\\x65s": "github/codeql-action/analyze@v4"\n'):
             self.assertIn("unrecognized", codeql_action_refs(text), text)
 
 

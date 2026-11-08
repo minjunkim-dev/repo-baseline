@@ -76,8 +76,9 @@ def codeql_action_refs(text):
     """Every github/codeql-action ref outside comments and block-scalar text (`run:` scripts).
     YAML structure is not parsed, so step layout cannot hide a ref. A ref that cannot be read,
     or a `uses:` given as a block scalar, counts as unpinned and fails the check.
-    A double-quoted `uses:` with a backslash or no closing quote on its line also counts as
-    unpinned: escapes and line continuation are not decoded, so such a ref cannot be read."""
+    Escapes and multi-line quoted scalars are not decoded, so any double-quoted scalar with a
+    backslash, or a quoted scalar not closed on its line, counts as unpinned wherever it sits.
+    shortcut: a plain (unquoted) scalar folded over lines is not read; parse YAML if that appears."""
     refs, block = [], None
     for raw in text.splitlines():
         line = strip_comment(raw)
@@ -87,9 +88,10 @@ def codeql_action_refs(text):
         if block is not None and indent > block:
             continue
         block = None
-        quoted = re.search(r"(?:^|[\s{,])[\"']?uses[\"']?\s*:\s*\"([^\"]*)(\"?)", line)
-        if quoted and ("\\" in quoted[1] or not quoted[2]):
-            refs.append("unrecognized")
+        for match in re.finditer(r"'[^']*('?)|\"((?:[^\"\\]|\\.)*)(\"?)", line):
+            if match[0][0] == "'" and not match[1] or match[0][0] == '"' and ("\\" in match[2] or not match[3]):
+                refs.append("unrecognized")
+                break
         unquoted = re.sub(r"\"(?:[^\"\\]|\\.)*\"|'[^']*'", "''", line)
         if re.search(r":\s*[|>][-+0-9]*$", unquoted):
             block = len(re.match(r"\s*(?:-\s+)*", line)[0])  # the owning key's column
