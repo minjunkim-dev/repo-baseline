@@ -15,3 +15,4 @@
 - 부르는 곳이 없던 오프라인 CodeQL 참조 검사와 보관한 review-gate의 App ID 검증을 지웠다. hash-copy 묶음은 설정 검사기를 더 복사하지 않는다. 검사기는 소유자가 이 저장소에서 돌린다.
 - PR 양식 Summary에 `완료 기준:` 줄을 두고, `AGENTS.md`에 시작 전에 적는다는 규칙을 더했다. `REVIEW.md`가 받는다던 완료 기준을 적을 곳이 없었다.
 - 자체 CI를 Python 3.11·3.13 두 벌에서 최신 안정 버전 한 벌(`Baseline checks`)로 줄였다. 스크립트는 표준 라이브러리만 쓰고 3.9~3.15에서 통과했다. 서버 보호는 아직 옛 두 context를 요구하므로, 병합 직전에 소유자가 `python3 tools/apply_github_settings.py . --apply`로 필수 체크를 `Baseline checks`로 바꾼 뒤 이 PR을 병합한다.
+- 첫 PR 확인의 `.env` 검사를 `grep`에서 `git check-ignore`로 바꿨다. `.gitignore`에 `!.env` 예외 줄이 있거나 `.env`가 이미 커밋돼 있어도 `grep`은 통과했다.

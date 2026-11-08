@@ -52,7 +52,7 @@
 
 - `grep -nE '<[^>]+>' AGENTS.md REVIEW.md`: 템플릿 빈칸(`<프로젝트 이름>`, `<명령>`, `<영역>` 등)이 남지 않았다. `N/A: <이유>` 안내와 「배운 규칙」의 형식 예시는 남아도 된다.
 - 명령 4칸: 각각 실행 결과(성공·실패) 또는 `N/A: <이유>`.
-- `grep -n '^\.env' .gitignore`: `.env` 줄이 있다.
+- `git check-ignore -q .env && git check-ignore -q .env.local && echo ignored`: `ignored`가 나온다. 예외 줄(`!.env`)이 있거나 이미 커밋된 파일이면 나오지 않는다.
 - `git status`: 비밀값 파일이 스테이징되지 않았다.
 - `CLAUDE.md`가 `@AGENTS.md` 한 줄이다.
 - GitHub 프로필을 했으면: workflow 파일의 YAML이 파싱된다(쓸 수 있는 도구로). 확인하지 못했으면 그렇게 적는다.
