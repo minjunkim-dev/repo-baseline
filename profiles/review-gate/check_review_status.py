@@ -48,6 +48,9 @@ ONE_WAY_PATHS = (
     "tools/post_review_gate.py", "tools/apply_github_settings.py",
     "docs/review-gate-app.md", ".github/workflow-policy.json",
     "templates/review-status-policy.json", ".github/repository-settings.json", "templates/repository-settings.json",
+    # repo-baseline's own sources after the 2026-11 move, in case this gate runs there again.
+    "profiles/review-gate/**", "profiles/pr-conventions/**", "profiles/hash-copy/**",
+    "tools/check_github_settings.py", "templates/github/repository-settings.json",
 )
 
 

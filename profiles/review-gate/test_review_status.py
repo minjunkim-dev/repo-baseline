@@ -55,7 +55,7 @@ def status_rows(pairs, default_creator):
     return rows
 
 
-def api(files, statuses=(), author="alice", commits=("alice",), project=None, changed=None, verified=True,
+def api(files, statuses=(), author="alice", commits=("alice",), changed=None, verified=True,
         committer="web-flow", commit_shas=None, extra_status=None, commit_count=None,
         owner="owner", comments=(), agents=None, head=HEAD, compare_files=None, compare_commits=None,
         head_agents=None, body=None, number="1", base_ref="main", base_sha="BASE",
@@ -86,9 +86,6 @@ def api(files, statuses=(), author="alice", commits=("alice",), project=None, ch
         "repos/o/n": repo,
         f"repos/o/n/issues/{number}/comments?per_page=100": [list(comments)],
     }
-    if project is not None:
-        routes[f"repos/o/n/contents/{tool.PROJECT_PATHS}?ref={base_sha}"] = {
-            "content": base64.b64encode(project.encode()).decode()}
     if agents is not None:
         routes[f"repos/o/n/contents/AGENTS.md?ref={base_sha}"] = {
             "content": base64.b64encode(agents.encode()).decode()}
@@ -200,6 +197,12 @@ class ReviewStatusTests(unittest.TestCase):
         files = [{"filename": "docs/x.yml", "previous_filename": ".github/workflows/x.yml"}]
         self.assertEqual(run(api(files)), [tool.OWNER])
         self.assertNotIn(SECURITY, run(api(files, [OK])))
+
+    def test_profile_sources_in_repo_baseline_are_gate_paths(self):
+        for path in ("profiles/review-gate/check_review_status.py", "profiles/pr-conventions/workflow_policy.py",
+                     "profiles/hash-copy/apply_baseline.py", "tools/check_github_settings.py"):
+            with self.subTest(path=path):
+                self.assertEqual(run(api([{"filename": path}])), [tool.OWNER])
 
     def test_rooted_patterns_are_read_literally(self):
         for pattern in ("app/[id]/**", "app/[id]/route.ts", "/app/[id]/route.ts"):
@@ -456,6 +459,8 @@ class ReviewStatusTests(unittest.TestCase):
         self.assertIn("author-model", tool.evidence_problems(body.replace("Codex / gpt-5.6", "사람 / grok-4.7")))
         self.assertIn("author", tool.evidence_problems(body.replace("Author: Codex / gpt-5.6\n", "")))
         self.assertIn("author", tool.evidence_problems("Author: Cursor / grok-4.7\n" + body))
+        unfilled = body.replace("Author: Codex / gpt-5.6", "Author: <도구> / <모델>   (사람이면 `사람 / 없음`)")
+        self.assertIn("author", tool.evidence_problems(unfilled))
         # A plain label and a label with a hint both count. A value may continue on the next lines.
         plain = body.replace("리뷰어(구현과 다른 컨텍스트, 도구/모델):", "리뷰어:")
         self.assertEqual([], tool.evidence_problems(plain))

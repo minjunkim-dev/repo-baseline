@@ -205,6 +205,7 @@ class ConventionsTest(unittest.TestCase):
         self.assertTrue(validate_body(BODY + "Door: 한쪽 문\n"))
         self.assertEqual([], validate_body(BODY.replace("Cursor", "Codex")))
         self.assertTrue(validate_body(BODY.replace("Author: Cursor / grok-4.7", "Author:  / grok-4.7")))
+        self.assertTrue(validate_body(BODY.replace("Author: Cursor / grok-4.7", "Author: <도구> / <모델>   (사람이면 `사람 / 없음`)")))
         self.assertTrue(validate_body(BODY.replace("사람", "Cursor").replace("grok-4.7", "없음").replace("Cursor / 없음", "사람 / grok-4.7")))
         self.assertTrue(any("disagree" in error for error in validate_body(BODY + "작성 도구: Claude Code\n작성 모델: opus-5.5\n")))
         self.assertEqual(parse_author("Author: Claude Code / Opus 5.5\n이전 작성 모델: grok-4.7, composer-2.5\n")[1], ["grok-4.7", "composer-2.5"])
