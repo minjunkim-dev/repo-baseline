@@ -44,7 +44,8 @@ BASELINE = {
         "allowed_actions": {"github_owned_allowed": True, "verified_allowed": False, "patterns_allowed": []},
         "workflow_token": {"default_workflow_permissions": "read", "can_approve_pull_request_reviews": False},
         "fork_policy": {"approval_policy": "all_external_contributors"},
-        "immutable_releases": {"enabled": True}, "dependabot_alerts": {"enabled": True},
+        "immutable_releases": {"enabled": True}, "private_vulnerability_reporting": {"enabled": True},
+        "dependabot_alerts": {"enabled": True},
         "codeql": {"state": "configured"},
     },
 }
@@ -108,6 +109,7 @@ class GitHubSettingsTests(unittest.TestCase):
             "actions/permissions/workflow": "workflow_token",
             "actions/permissions/fork-pr-contributor-approval": "fork_policy",
             "immutable-releases": "immutable_releases", "code-scanning/default-setup": "codeql",
+            "private-vulnerability-reporting": "private_vulnerability_reporting",
             "actions/workflows/codeql.yml": "codeql_workflow",
         }
         return copy.deepcopy(profile["expected"][endpoints[path.removeprefix("repos/owner/repo/")]])

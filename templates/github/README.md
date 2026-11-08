@@ -54,5 +54,6 @@
 ```
 
 - `status`는 `unsupported`(기능 미지원) 또는 `not_applicable`(이 프로젝트에 해당 없음)이다.
-- 예외로 쓸 수 있는 항목은 `protection`, `rulesets`, `actions`, `allowed_actions`, `workflow_token`, `fork_policy`, `immutable_releases`, `dependabot_alerts`, `codeql`, `actions.sha_pinning_required`, `repository.security_and_analysis.<기능>.status`다. 저장소 ID·이름·기본 브랜치·공개 여부·병합 정책은 뺄 수 없다.
+- 예외로 쓸 수 있는 항목은 `protection`, `rulesets`, `actions`, `allowed_actions`, `workflow_token`, `fork_policy`, `immutable_releases`, `private_vulnerability_reporting`, `dependabot_alerts`, `codeql`, `actions.sha_pinning_required`, `repository.security_and_analysis.<기능>.status`다. 저장소 ID·이름·기본 브랜치·공개 여부·병합 정책은 뺄 수 없다.
 - 같은 항목을 기대값과 예외에 함께 두면 스키마 오류다.
+- 비공개 취약점 보고는 공개 저장소에만 있다. 비공개 저장소는 `expected`에서 `private_vulnerability_reporting`을 빼고 예외에 `"private_vulnerability_reporting": {"status": "unsupported", "reason": "비공개 저장소", "evidence": "GET private-vulnerability-reporting이 404"}`를 둔다. 빼지 않으면 검사가 `UNVERIFIED`로 멈춘다.
