@@ -366,7 +366,10 @@ class CodeqlActionRefsTests(unittest.TestCase):
                      f"- uses: github/codeql-action/init@{sha} # v4\n",
                      f'- {{name: x, uses: "github/codeql-action/init@{sha}", with: {{a: b}}}}\n',
                      f'- "uses": github/codeql-action/init@{sha}\n',
-                     f'- run: |\n    echo "a\\b"\n  uses: github/codeql-action/init@{sha}\n'):
+                     f'- run: |\n    echo "a\\b"\n  uses: github/codeql-action/init@{sha}\n',
+                     f"- name: Initialize CodeQL's database\n  uses: github/codeql-action/init@{sha}\n",
+                     f"- if: github.ref == 'refs/heads/main' && 'it''s'\n  uses: github/codeql-action/init@{sha}\n",
+                     f'- with: {{category: "it\'s", languages: \'say "go"\'}}\n  uses: github/codeql-action/init@{sha}\n'):
             self.assertEqual(codeql_action_refs(text), [sha], text)
 
     def test_escaped_or_multiline_quoted_scalar_is_unpinned(self):

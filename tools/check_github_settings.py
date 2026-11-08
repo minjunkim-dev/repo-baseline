@@ -88,8 +88,10 @@ def codeql_action_refs(text):
         if block is not None and indent > block:
             continue
         block = None
-        for match in re.finditer(r"'[^']*('?)|\"((?:[^\"\\]|\\.)*)(\"?)", line):
-            if match[0][0] == "'" and not match[1] or match[0][0] == '"' and ("\\" in match[2] or not match[3]):
+        # A quote opens a scalar only at its start, so "Don't" in a plain step name is not one.
+        scalar = r"(?:^\s*(?:[-?]\s+)*|[:?-]\s+|[\[{,]\s*)(?:[&!]\S*\s+)*(?:'[^']*('?)|\"((?:[^\"\\]|\\.)*)(\"?))"
+        for match in re.finditer(scalar, line):
+            if match[2] is None and not match[1] or match[2] is not None and ("\\" in match[2] or not match[3]):
                 refs.append("unrecognized")
                 break
         unquoted = re.sub(r"\"(?:[^\"\\]|\\.)*\"|'[^']*'", "''", line)
