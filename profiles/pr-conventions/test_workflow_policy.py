@@ -16,7 +16,10 @@ sys.path.insert(0, str(HERE))
 import workflow_policy  # noqa: E402
 from workflow_policy import parse_author, validate_body, validate_flags, validate_pr  # noqa: E402
 
-ROOT = HERE.parents[1]
+# repo-baseline keeps this file in profiles/pr-conventions/. A consumer copies it to scripts/.
+IN_BASELINE = (HERE.parent.name, HERE.name) == ("profiles", "pr-conventions")
+ROOT = HERE.parents[1] if IN_BASELINE else HERE.parent
+TEMPLATE = ROOT / ("templates/core" if IN_BASELINE else ".github") / "pull_request_template.md"
 SOURCES = {"workflow_policy.py": HERE / "workflow_policy.py", "pr_author.py": HERE / "pr_author.py"}
 BODY = """Author: Cursor / grok-4.7
 
@@ -303,7 +306,7 @@ class ConventionsTest(unittest.TestCase):
             os.chdir(previous)
 
     def test_template_has_the_sections_and_review_fields(self):
-        text = (ROOT / "templates/core/pull_request_template.md").read_text(encoding="utf-8")
+        text = TEMPLATE.read_text(encoding="utf-8")
         for header in ("## Summary", "## Evidence", "## Merge Danger", "## Review", "Author:", "Door:",
                        "리뷰어", "고친 것:", "남은 지적:"):
             self.assertIn(header, text)
