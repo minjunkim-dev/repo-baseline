@@ -17,7 +17,7 @@ mkdir -p .github && cp -n "$B/pull_request_template.md" .github/
 
 - `cp -n`은 있는 파일을 덮어쓰지 않는다. `AGENTS.md`·`REVIEW.md`가 이미 있으면 템플릿 내용을 손으로 합친다. macOS의 `cp -n`은 파일을 건너뛸 때도 종료 코드 1을 낸다. 진짜 복사 실패도 같은 코드이므로, 종료 코드로 판단하지 말고 오류 메시지와 4단계 확인 결과를 본다.
 - `.gitignore`는 덮어쓰지 않고 뒤에 붙인다.
-- `CLAUDE.md`는 만들지 않는다. Claude Code는 `CLAUDE.md`가 없으면 `AGENTS.md`를 읽는다. 둘 다 있으면 `CLAUDE.md`만 읽으므로, 이미 있으면 내용을 `AGENTS.md`로 옮기고 `CLAUDE.md`를 지운다(또는 `@AGENTS.md` 한 줄만 남긴다).
+- `CLAUDE.md`는 만들지 않는다. Claude Code는 `CLAUDE.md`가 없으면 `AGENTS.md`를 읽는다. 둘 다 있으면 기본 설정에서 `CLAUDE.md`만 읽으므로, 이미 있으면 내용을 `AGENTS.md`로 옮기고 `CLAUDE.md`를 지운다(또는 `@AGENTS.md` 한 줄만 남긴다).
 
 ## 2. AGENTS.md 채우기
 
