@@ -24,7 +24,8 @@ TITLE = re.compile(rf"^({TYPES})(\([a-z0-9]+(?:[-_][a-z0-9]+)*\))?!?: (?:[a-z]|[
 SLUG = r"[a-z0-9]+(?:-[a-z0-9]+)*"
 LETTER_SLUG = r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*"
 BRANCH = re.compile(rf"^(?:({TYPES})/[1-9][0-9]*-{SLUG}|(?:docs|build|ci|chore)/{LETTER_SLUG})$")
-ISSUE_REF = re.compile(r"\b(?:Closes|Fixes|Resolves|Refs)\s+#[1-9][0-9]*\b", re.IGNORECASE)
+# GitHub issue number or a tracker ID such as ENG-123 (POLICY.md §8).
+ISSUE_REF = re.compile(r"\b(?i:Closes|Fixes|Resolves|Refs)\s+(?:#[1-9][0-9]*|[A-Z][A-Z0-9]*-[1-9][0-9]*)\b")
 ISSUE_TYPES = {"feat", "fix", "refactor", "perf", "test", "revert"}
 HEADERS = ("Summary", "Evidence", "Merge Danger")
 # Current names. The deprecated pair is the previous name for the same decision.
@@ -48,7 +49,7 @@ def validate_pr(title, branch, body="", author="", bot_prefixes=None):
     if not BRANCH.fullmatch(branch) and not (bot and bot.fullmatch(branch)):
         errors.append("Branch: use <type>/<issue>-<slug>; docs/build/ci/chore may omit the issue")
     if match and match[1] in ISSUE_TYPES and not ISSUE_REF.search(body or ""):
-        errors.append("PR body: link the implementation issue with Refs #N or Closes #N")
+        errors.append("PR body: link the implementation issue with Refs #N, Closes #N or Fixes ENG-N")
     return errors
 
 

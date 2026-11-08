@@ -15,7 +15,7 @@
 - 제목: Conventional Commits, 소문자 또는 한글 설명, 72자 이하, 끝에 마침표 없음.
 - 브랜치: `<type>/<issue>-<slug>`. `docs`·`build`·`ci`·`chore`는 이슈 번호를 생략할 수 있다. 에이전트 접두사(`claude/`, `codex/` 등)는 설정으로 허용한다.
 - 본문: `## Summary`, `## Evidence`, `## Merge Danger`, `Door:` 한 줄, `Author: <도구> / <모델>` 한 줄. 도구 이름은 아무것이나 된다.
-- `feat`·`fix`·`refactor`·`perf`·`test`·`revert`는 `Refs #N` 또는 `Closes #N`이 있어야 한다.
+- `feat`·`fix`·`refactor`·`perf`·`test`·`revert`는 `Refs #N`, `Closes #N`, 또는 트래커 ID(`Fixes ENG-123`)가 있어야 한다.
 - 기본값으로 `AGENTS.md`가 있어야 하고 `CLAUDE.md`를 거부한다. 코어의 `CLAUDE.md`(`@AGENTS.md` 한 줄)를 쓰면 아래 설정에서 `"reject_claude_md": false`를 둔다.
 - 피처 플래그 파일이 있으면 그 형식과 `remove_by` 날짜.
 
