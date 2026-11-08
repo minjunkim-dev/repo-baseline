@@ -11,7 +11,7 @@ LINK = re.compile(r"\]\(([^)#\s]+)(?:#[^)]*)?\)")
 def docs():
     for path in sorted(ROOT.rglob("*.md")):
         rel = path.relative_to(ROOT).as_posix()
-        if rel.startswith((".git/", "graft/", "docs/archive/", "vendor/")):
+        if rel.startswith((".git/", "graft/", "docs/archive/")):
             continue
         yield path
 
