@@ -11,4 +11,4 @@
 - review-gate 프로필을 `docs/archive/review-gate/`로 보관했다. 기본 설정이 이미 막는 것만 막고 로컬 에이전트는 막지 못했다. `pr_author.py`는 `profiles/pr-conventions/`로 옮겼다.
 - `REVIEW.md` 예시 표에 거짓말하는 테스트(구현 값 되풀이, 소스 모양 검사, 실패를 가리는 mock)를 실패로 보는 행을 더했다.
 - `POLICY.md` 병합 절에서 기준이 없던 "근거가 쌓이면 저위험 경로부터 자동 병합" 문장을 지웠다. 자동 병합을 쓰지 않는 정책은 그대로다. 회고 절의 "근거가 쌓이면 완화한다"도 지웠다.
-- 자체 CI를 Python 3.11·3.13 두 벌에서 최신 안정 버전 한 벌(`Baseline checks`)로 줄였다. 스크립트는 표준 라이브러리만 쓰고 3.9~3.15에서 통과했다.
+- 자체 CI를 Python 3.11·3.13 두 벌에서 최신 안정 버전 한 벌(`Baseline checks`)로 줄였다. 스크립트는 표준 라이브러리만 쓰고 3.9~3.15에서 통과했다. 서버 보호는 아직 옛 두 context를 요구하므로, 병합 직전에 소유자가 `python3 tools/apply_github_settings.py . --apply`로 필수 체크를 `Baseline checks`로 바꾼 뒤 이 PR을 병합한다.
