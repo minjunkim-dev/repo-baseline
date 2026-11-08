@@ -62,7 +62,7 @@ def main():
         print("repo-baseline MCP: .mcp.json values that are not only ${VAR} references: " + ", ".join(literal_fields))
     if changed:
         print("repo-baseline DRIFT: " + ", ".join(changed)
-              + "; change the file in repo-baseline, then re-run tools/apply_baseline.py")
+              + "; change the file in repo-baseline, then re-run profiles/hash-copy/apply_baseline.py from repo-baseline")
     if literal_fields or changed:
         return 1
     print("repo-baseline PASS: copied files match the recorded hashes")

@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Post the review/gate commit status for one pull request head (POLICY.md §5).
+"""Post the review/gate commit status for one pull request head (profiles/review-gate/README.md).
 
 The status is the branch-protection context pinned to a dedicated GitHub App.
 Only that App's app_id satisfies the pin. A workflow GITHUB_TOKEN posts as
 app 15368, so the same context name from Actions does not. This file runs on
-the owner's Mac (later the Mac Studio server). It refuses to run under
+the owner's machine. It refuses to run under
 GITHUB_ACTIONS. The private key path is REVIEW_GATE_APP_KEY and is never
 written here. Reads use GH_TOKEN. The daily path puts the developer
 gh auth token in that variable for this process only. This file does not

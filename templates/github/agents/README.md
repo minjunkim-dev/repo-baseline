@@ -1,6 +1,8 @@
 # 에이전트 권한 예시
 
-하네스 거부 규칙은 보안 경계가 아니다. `gh api`, `gh auth token`과 `curl`, 셸 스크립트, `git -C . push` 같은 다른 표기로 우회된다. 실제 경계는 브랜치 보호와 필수 CI다. 이 설정은 실수를 줄이는 1차 장치다.
+하네스 거부 규칙은 보안 경계가 아니다. `gh api`, `gh auth token`과 `curl`, 셸 스크립트, `git -C . push` 같은 다른 표기로 우회된다. 브랜치 보호와 필수 CI도 소유자 `gh` 로그인으로 도는 에이전트의 병합까지는 막지 못한다(POLICY §5). 이 설정은 실수를 줄이는 1차 장치이고, 기계적으로 막으려면 [review-gate 프로필](../../../profiles/review-gate/)을 켠다.
+
+`gh api`는 쓰기 표기(`-X`, `--method`, `-f`, `-F`, `--field`, `--raw-field`, `--input`)를 모두 막는다. 이슈·PR 댓글은 `gh issue comment`, `gh pr comment`처럼 하위 명령으로 쓴다.
 
 막을 것은 네 가지다: `.env` 읽기, `gh pr merge`, `main`으로의 push, 브랜치 보호·저장소 설정을 쓰는 `gh api`.
 

@@ -1,4 +1,4 @@
-# Copy to .github/workflows/review-status.yml (POLICY.md §9). The project owns this copy so Dependabot can update the pin.
+# Copy to .github/workflows/review-status.yml (profiles/review-gate/README.md). The project owns this copy so Dependabot can update the pin.
 name: Review status
 
 # pull_request_target runs this file and the script from the default branch, so a PR cannot change the code this job runs.

@@ -11,7 +11,7 @@ git clone --depth 1 https://github.com/minjunkim-dev/repo-baseline /tmp/repo-bas
 B=/tmp/repo-baseline/templates/core
 cp -n "$B/AGENTS.md" "$B/CLAUDE.md" "$B/REVIEW.md" .
 mkdir -p .github && cp -n "$B/pull_request_template.md" .github/
-cat "$B/gitignore" >> .gitignore
+{ echo; cat "$B/gitignore"; } >> .gitignore   # 앞의 echo는 기존 마지막 줄과 붙지 않게 한다
 ```
 
 - `cp -n`은 있는 파일을 덮어쓰지 않는다. `AGENTS.md`·`REVIEW.md`가 이미 있으면 템플릿 내용을 손으로 합친다.
