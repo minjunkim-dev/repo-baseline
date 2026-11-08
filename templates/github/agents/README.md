@@ -27,6 +27,14 @@
 "enabledPlugins": { "mattpocock-skills@mattpocock": true }
 ```
 
+플러그인·스킬은 같은 작업을 켤 때와 끌 때 한 번씩 돌려 보고, 결과가 나아진 것만 켠다.
+
+Matt 스킬의 기본 동작 중 [POLICY.md](../../../POLICY.md)와 어긋나는 것:
+
+- `/implement`는 끝에 같은 세션에서 `/code-review`를 부른다. 이것은 POLICY §3의 리뷰가 아니다. 리뷰는 새 세션에서 `/code-review`를 따로 부르고 기준 파일로 `REVIEW.md`를 넘긴다. 라운드 상한과 직접 수정 규칙은 `REVIEW.md`에 있다.
+- `/retro`는 같은 지적이 두 번 나왔을 때만 돌리고, 제안 중 사람이 고른 것만 반영한다(POLICY §6).
+- `/pr`이 만든 본문은 `.github/pull_request_template.md`의 칸에 맞춘다.
+
 ## Codex
 
 [Rules](https://developers.openai.com/codex/rules)로 명령을 막는다. 프로젝트의 `.codex/rules/default.rules`에 둔다. 프로젝트 `.codex/`를 신뢰한 경우에만 읽힌다. 기능은 실험 단계다.
