@@ -17,8 +17,12 @@ sys.path.insert(0, str(HERE.parent / "review-gate"))
 import workflow_policy  # noqa: E402
 from workflow_policy import parse_author, validate_body, validate_flags, validate_pr  # noqa: E402
 
-ROOT = HERE.parents[1]
-SOURCES = {"workflow_policy.py": HERE / "workflow_policy.py", "pr_author.py": HERE.parent / "review-gate" / "pr_author.py"}
+# Here: profiles/pr-conventions/. A consumer's copy sits in scripts/ with pr_author.py beside it.
+IN_BASELINE = HERE.parent.name == "profiles"
+ROOT = HERE.parents[1] if IN_BASELINE else HERE.parent
+AUTHOR = HERE.parent / "review-gate" / "pr_author.py" if IN_BASELINE else HERE / "pr_author.py"
+TEMPLATE = ROOT / ("templates/core" if IN_BASELINE else ".github") / "pull_request_template.md"
+SOURCES = {"workflow_policy.py": HERE / "workflow_policy.py", "pr_author.py": AUTHOR}
 BODY = """Author: Cursor / grok-4.7
 
 ## Summary
@@ -306,7 +310,7 @@ class ConventionsTest(unittest.TestCase):
             os.chdir(previous)
 
     def test_template_has_the_sections_and_review_fields(self):
-        text = (ROOT / "templates/core/pull_request_template.md").read_text(encoding="utf-8")
+        text = TEMPLATE.read_text(encoding="utf-8")
         for header in ("## Summary", "## Evidence", "## Merge Danger", "## Review", "Author:", "Door:",
                        "리뷰어", "고친 것:", "남은 지적:"):
             self.assertIn(header, text)
