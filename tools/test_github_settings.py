@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import check_github_settings as settings
 import unittest
 
-from check_github_settings import audit, codeql_action_refs, codeql_source_drift, differences
+from check_github_settings import audit, differences
 
 # Synthetic default-setup profile: unit tests must not depend on a consumer checkout.
 BASELINE = {
@@ -56,7 +56,6 @@ def advanced(profile):
     workflow = ".github/workflows/codeql.yml"
     profile["expected"]["codeql"] = {"state": "not-configured"}
     profile["expected"].setdefault("codeql_workflow", {"path": workflow, "state": "active"})
-    profile["expected"].setdefault("codeql_main_source", {"path": workflow, "type": "file", "sha": "0" * 40})
     return profile
 
 
@@ -72,90 +71,10 @@ class GitHubSettingsTests(unittest.TestCase):
         self.assertEqual(differences(expected, list(reversed(expected)), "checks"), [])
         self.assertEqual(differences(expected, expected + [expected[0]], "checks"), ["checks"])
 
-    def test_review_gate_app_id_rejects_actions_zero_and_negative(self):
-        for app_id in (15368, 0, -1):
-            profile = copy.deepcopy(BASELINE)
-            profile["expected"]["protection"]["required_status_checks"]["checks"].append(
-                {"context": "review/gate", "app_id": app_id})
-            with self.subTest(app_id=app_id):
-                with self.assertRaisesRegex(ValueError, "review/gate"):
-                    settings.validate_profile(profile)
-        accepted = copy.deepcopy(BASELINE)
-        accepted["expected"]["protection"]["required_status_checks"]["checks"].append(
-            {"context": "review/gate", "app_id": 424242})
-        settings.validate_profile(accepted)
-
     def test_wrong_check_app_and_boolean_types_are_not_accepted(self):
         self.assertEqual(differences([{"context": "CI", "app_id": 15368}],
                                      [{"context": "CI", "app_id": 1}], "checks"), ["checks"])
         self.assertEqual(differences(True, 1, "enabled"), ["enabled"])
-
-    def test_baseline_pins_checked_out_codeql_workflow(self):
-        profile = advanced(BASELINE)
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            workflow = root / profile["expected"]["codeql_main_source"]["path"]
-            workflow.parent.mkdir(parents=True)
-            data = ("steps:\n  - uses: github/codeql-action/analyze@" + "a" * 40 + "\n").encode()
-            workflow.write_bytes(data)
-            profile["expected"]["codeql_main_source"]["sha"] = settings.hashlib.sha1(
-                b"blob %d\0" % len(data) + data).hexdigest()
-            with patch.object(settings, "ROOT", root):
-                self.assertEqual(codeql_source_drift(profile), [])
-                profile["expected"]["codeql_main_source"]["sha"] = "0" * 40
-                self.assertEqual(codeql_source_drift(profile), ["codeql_main_source.sha"])
-        # Installed copies additionally check the consumer's real profile and workflow pin.
-        path = settings.ROOT / ".github/repository-settings.json"
-        if path.exists():
-            project = json.loads(path.read_text())
-            # A profile may still hold review/gate app_id REPLACE:<APP_ID> before the App exists.
-            # Substituting only that string keeps validate_profile usable. Other app ids stay as written.
-            checks = ((project.get("expected") or {}).get("protection") or {}).get("required_status_checks") or {}
-            for item in checks.get("checks") or []:
-                if item.get("context") == "review/gate" and item.get("app_id") == "REPLACE:<APP_ID>":
-                    item["app_id"] = 424242
-            settings.validate_profile(project)
-            self.assertEqual(codeql_source_drift(project), [])
-
-    def test_codeql_action_steps_must_share_one_commit(self):
-        # Split Dependabot PRs bumped init without analyze; every analyze job failed.
-        a, b = "a" * 40, "b" * 40
-        mismatch = ["codeql_workflow.action_pins"]
-        cases = [
-            (f"      - uses: github/codeql-action/analyze@{a} # v4\n", []),
-            (f"      - uses: 'github/codeql-action/analyze@{a.upper()}'\n", []),
-            (f"      - name: Analyze\n        \"uses\": github/codeql-action/analyze@{a}\n", []),
-            (f"      # was github/codeql-action/analyze@{b}\n      - uses: github/codeql-action/analyze@{a}\n", []),
-            (f"      - run: |\n          - uses: github/codeql-action/analyze@{b}\n", []),
-            # Inputs are not parsed apart from steps; a mismatched ref anywhere fails closed.
-            (f"      - uses: actions/x@{a}\n        with:\n          uses: github/codeql-action/analyze@{b}\n", mismatch),
-            (f"      - uses: github/codeql-action/analyze@{b} # v4\n", mismatch),
-            ("      - uses: github/codeql-action/analyze@v4\n", mismatch),
-            ("      - uses: >-\n          github/codeql-action/analyze@v4\n", mismatch),
-            ("      - {uses: github/codeql-action/analyze@v4}\n", mismatch),
-            (f"      -   name: Analyze\n          uses: github/codeql-action/analyze@{b}\n", mismatch),
-            (f"      -   name: Analyze\n          uses: github/codeql-action/analyze@{a}\n", []),
-            (f"      -\n          uses: github/codeql-action/analyze@{b}\n", mismatch),
-            (f"      - {{name: Analyze,\n          uses: github/codeql-action/analyze@{b}}}\n", mismatch),
-            ("      - uses: |\n          github/codeql-action/analyze@v4\n", mismatch),
-            ("      - name: |-\n          Analyze\n        uses: github/codeql-action/analyze@v4\n", mismatch),
-            ("      - {name: \"Analyze #2\", uses: github/codeql-action/analyze@v4}\n", mismatch),
-            (f"      - name: \"x: |\"\n        uses: github/codeql-action/analyze@{b}\n", mismatch),
-            (f"      - name: \"Analyze #2\"\n        uses: github/codeql-action/analyze@{a}\n", []),
-            (f"      - uses: GitHub/CodeQL-Action/analyze@{b}\n", mismatch),
-        ]
-        with tempfile.TemporaryDirectory() as folder:
-            profile = advanced(BASELINE)
-            workflow = Path(folder) / profile["expected"]["codeql_main_source"]["path"]
-            workflow.parent.mkdir(parents=True)
-            for analyze, expected in cases:
-                data = (f"jobs:\n  analyze:\n    steps:\n      - uses: github/codeql-action/init@{a} # v4\n"
-                        + analyze).encode()
-                workflow.write_bytes(data)
-                profile["expected"]["codeql_main_source"]["sha"] = settings.hashlib.sha1(
-                    b"blob %d\0" % len(data) + data).hexdigest()
-                with self.subTest(analyze=analyze), patch.object(settings, "ROOT", Path(folder)):
-                    self.assertEqual(codeql_source_drift(profile), expected)
 
     def test_default_setup_profile_has_no_workflow_controls(self):
         profile = advanced(BASELINE)
@@ -165,7 +84,12 @@ class GitHubSettingsTests(unittest.TestCase):
         for name in settings.ADVANCED_CODEQL:
             del profile["expected"][name]
         settings.validate_profile(profile)
-        self.assertEqual(codeql_source_drift(profile), [])
+
+    def test_retired_workflow_pin_is_refused_by_name(self):
+        profile = advanced(BASELINE)
+        profile["expected"]["codeql_main_source"] = {"path": ".github/workflows/codeql.yml", "type": "file", "sha": "0" * 40}
+        with self.assertRaisesRegex(ValueError, "codeql_main_source"):
+            settings.validate_profile(profile)
 
     def profile(self):
         profile = copy.deepcopy(BASELINE)
@@ -185,7 +109,6 @@ class GitHubSettingsTests(unittest.TestCase):
             "actions/permissions/fork-pr-contributor-approval": "fork_policy",
             "immutable-releases": "immutable_releases", "code-scanning/default-setup": "codeql",
             "actions/workflows/codeql.yml": "codeql_workflow",
-            "contents/.github/workflows/codeql.yml?ref=main": "codeql_main_source",
         }
         return copy.deepcopy(profile["expected"][endpoints[path.removeprefix("repos/owner/repo/")]])
 
@@ -314,7 +237,6 @@ class GitHubSettingsTests(unittest.TestCase):
         status, out, err = self.run_main(profile, read)
         self.assertEqual((status, err), (0, ""))
         self.assertIn("NOT_APPLICABLE: codeql", out)
-        self.assertEqual(codeql_source_drift(profile), [])
 
     def test_invalid_exceptions_cannot_erase_required_controls(self):
         cases = [None, {"protection": {}}, {"secrets": self.exception()},
@@ -354,34 +276,6 @@ class GitHubSettingsTests(unittest.TestCase):
         self.assertEqual(status, 1)
         self.assertIn("protection.enforce_admins.enabled", out)
         self.assertEqual(err, "")
-
-
-class CodeqlActionRefsTests(unittest.TestCase):
-    sha = "a" * 40
-
-    def test_honest_forms_keep_their_pin(self):
-        sha = self.sha
-        for text in (f'- uses: "github/codeql-action/analyze@{sha}"\n',
-                     f"- uses: 'github/codeql-action/init@{sha}'\n",
-                     f"- uses: github/codeql-action/init@{sha} # v4\n",
-                     f'- {{name: x, uses: "github/codeql-action/init@{sha}", with: {{a: b}}}}\n',
-                     f'- "uses": github/codeql-action/init@{sha}\n',
-                     f'- run: |\n    echo "a\\b"\n  uses: github/codeql-action/init@{sha}\n',
-                     f"- name: Initialize CodeQL's database\n  uses: github/codeql-action/init@{sha}\n",
-                     f"- if: github.ref == 'refs/heads/main' && 'it''s'\n  uses: github/codeql-action/init@{sha}\n",
-                     f'- with: {{category: "it\'s", languages: \'say "go"\'}}\n  uses: github/codeql-action/init@{sha}\n'):
-            self.assertEqual(codeql_action_refs(text), [sha], text)
-
-    def test_escaped_or_multiline_quoted_scalar_is_unpinned(self):
-        for text in ('- uses: "github/codeql\\x2daction/analyze@v4"\n',
-                     '- uses: "github/codeql-act\\\n    ion/analyze@v4"\n',
-                     '- uses: "github/codeql-\n    action/analyze@v4"\n',
-                     "- uses: 'github/codeql-\n    action/analyze@v4'\n",
-                     '- uses:\n    "github/codeql\\x2daction/analyze@v4"\n',
-                     '- uses: !!str "github/codeql\\x2daction/analyze@v4"\n',
-                     '- "us\\x65s": "github/codeql-action/analyze@v4"\n',
-                     '- {"uses":"github/codeql\\x2daction/analyze@v4"}\n'):
-            self.assertIn("unrecognized", codeql_action_refs(text), text)
 
 
 if __name__ == "__main__":

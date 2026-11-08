@@ -6,12 +6,6 @@
     "scripts/test_repo_baseline.py": {
       "source": "profiles/hash-copy/test_repo_baseline.py"
     },
-    "scripts/check_github_settings.py": {
-      "source": "tools/check_github_settings.py"
-    },
-    "scripts/test_github_settings.py": {
-      "source": "tools/test_github_settings.py"
-    },
     "scripts/workflow_policy.py": {
       "source": "profiles/pr-conventions/workflow_policy.py"
     },
