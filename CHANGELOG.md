@@ -8,3 +8,4 @@
 - GitHub 설정은 `templates/github/`, 게이트·PR 형식 검사·해시 복사·팀은 `profiles/` 아래 선택 프로필로 옮겼다. 리뷰 모델 패밀리는 권장으로 내렸다.
 - 프롬프트는 `prompts/setup.md`와 `prompts/retro.md` 둘이다. 옛 셋업 프롬프트 2개, 주간 점검, `docs/development-workflow.md`는 지웠다.
 - 소비 레포 3곳(smallnext, BGLike, mobile-runtime)을 새 기준으로 옮긴 뒤 `vendor/mattpocock-skills/`를 지웠다. 기본 리뷰 기준은 `REVIEW.md`다(#71).
+- review-gate 프로필을 `docs/archive/review-gate/`로 보관했다. 기본 설정이 이미 막는 것만 막고 로컬 에이전트는 막지 못했다. `pr_author.py`는 `profiles/pr-conventions/`로 옮겼다.

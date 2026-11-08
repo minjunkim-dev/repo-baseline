@@ -16,7 +16,6 @@
 | 프로필 | 언제 켜는가 |
 | --- | --- |
 | [github](templates/github/) | GitHub에 올릴 때(권장). 브랜치 보호, 필수 CI, push protection, Dependabot, CI 골격, 에이전트 권한 예시 |
-| [review-gate](profiles/review-gate/) | 에이전트의 무단 병합이나 승인 위조를 기계적으로 막아야 할 때. 전용 앱이 필수 status를 올린다 |
 | [pr-conventions](profiles/pr-conventions/) | PR 제목·본문 형식을 CI로 검사하고 싶을 때 |
 | [hash-copy](profiles/hash-copy/) | 공통 검사기를 해시로 고정해 여러 저장소에 똑같이 두고 싶을 때(Python 필요) |
 | [team](profiles/team/) | 2명 이상. CODEOWNERS와 사람 승인 |

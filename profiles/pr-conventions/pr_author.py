@@ -1,7 +1,6 @@
-"""One author-line parser for the PR convention check and the review-evidence check.
+"""Author-line parser for the PR convention check (workflow_policy.py imports it).
 
-This file lives in profiles/review-gate/. profiles/pr-conventions/workflow_policy.py
-imports it too, so a consumer copies it beside either script. There is no second copy.
+A consumer copies it beside workflow_policy.py. There is no second copy.
 Any non-empty tool name is accepted. A template placeholder such as `<도구>` is not a value.
 A person author is `사람 / 없음`.
 """

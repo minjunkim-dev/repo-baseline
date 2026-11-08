@@ -21,7 +21,7 @@
 
 ## 켜는 법
 
-1. 소비 레포의 `scripts/`에 `workflow_policy.py`, `test_workflow_policy.py`, 그리고 `../review-gate/pr_author.py`를 복사한다. `pr_author.py`는 review-gate와 같은 파일 하나를 쓴다.
+1. 소비 레포의 `scripts/`에 `workflow_policy.py`, `test_workflow_policy.py`, `pr_author.py`를 복사한다.
 2. `pr-policy.yml`을 `.github/workflows/pr-policy.yml`로 복사한다. 트리거는 `main`을 base로 하는 PR만 본다.
 3. 기본값을 바꿀 때만 `.github/workflow-policy.json`을 둔다. 예:
 
@@ -29,4 +29,4 @@
 {"reject_claude_md": false, "feature_flags": false, "bot_branch_prefixes": ["claude", "codex", "cursor", "dependabot"]}
 ```
 
-4. 필수 체크로 만들지는 프로젝트가 정한다. `pull_request` 이벤트라 PR이 이 workflow 파일을 고쳐 검사를 빼 버릴 수 있다. 위조를 막아야 하면 review-gate 프로필을 쓴다.
+4. 필수 체크로 만들지는 프로젝트가 정한다. `pull_request` 이벤트라 PR이 이 workflow 파일을 고쳐 검사를 빼 버릴 수 있다.

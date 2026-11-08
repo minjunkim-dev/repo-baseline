@@ -13,6 +13,5 @@
 
 1. `CODEOWNERS`를 `.github/CODEOWNERS`로 복사한다.
 2. `@REPLACE-OWNERS`를 쓰기 권한이 있는 두 명 이상, 또는 조직 레포라면 GitHub 팀(`@org/team`)으로 바꾼다.
-3. 프로젝트의 의존성 manifest·lockfile·신뢰 경계 경로(인증, 결제, 마이그레이션 등)를 아래에 더한다. 쓰지 않는 프로필의 경로(`scripts/check_review_status.py` 등)는 지워도 된다.
+3. 프로젝트의 의존성 manifest·lockfile·신뢰 경계 경로(인증, 결제, 마이그레이션 등)를 아래에 더한다. 쓰지 않는 프로필의 경로(`scripts/workflow_policy.py` 등)는 지워도 된다.
 4. `.github/repository-settings.json`의 브랜치 보호에서 `required_approving_review_count`(1~2)와 `require_code_owner_reviews`를 켜고, 소유자 기기에서 `python3 <repo-baseline>/tools/apply_github_settings.py <project> --apply`로 적용한다.
-5. review-gate 프로필도 쓰면 `AGENTS.md`에 `프로필: 팀` 한 줄을 둔다. 그러면 게이트는 소유자 SHA 댓글 대신 CODEOWNERS 승인을 따른다.
