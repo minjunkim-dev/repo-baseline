@@ -2,7 +2,9 @@
 
 하네스 거부 규칙은 보안 경계가 아니다. `gh api`, `gh auth token`과 `curl`, 셸 스크립트, `git -C . push` 같은 다른 표기로 우회된다. 브랜치 보호와 필수 CI도 소유자 `gh` 로그인으로 도는 에이전트의 병합까지는 막지 못한다(POLICY §5). 이 설정은 실수를 줄이는 1차 장치이고, 기계적으로 막으려면 [review-gate 프로필](../../../profiles/review-gate/)을 켠다.
 
-`gh api`는 쓰기 표기(`-X`, `--method`, `-f`, `-F`, `--field`, `--raw-field`, `--input`)를 모두 막는다. 이슈·PR 댓글은 `gh issue comment`, `gh pr comment`처럼 하위 명령으로 쓴다.
+`gh api`는 인자 패턴으로 읽기와 쓰기를 확실히 가를 수 없어서 전부 확인(`ask`)을 받는다. 보호·ruleset 경로는 거부한다. 이슈·PR 댓글은 `gh issue comment`, `gh pr comment`처럼 하위 명령으로 쓴다.
+
+`main` push 거부는 명시적 표기만 잡는다. `main`에 있는 채로 `git push origin`을 하면 통과한다. 그 경우는 서버의 브랜치 보호(PR 필수, `enforce_admins`)가 거절한다. GitHub 프로필을 켜지 않은 저장소에서는 이 구멍이 남는다.
 
 막을 것은 네 가지다: `.env` 읽기, `gh pr merge`, `main`으로의 push, 브랜치 보호·저장소 설정을 쓰는 `gh api`.
 

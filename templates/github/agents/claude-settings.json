@@ -14,14 +14,10 @@
       "Bash(gh api *rulesets*)",
       "Bash(gh repo edit *)",
       "Bash(gh pr merge)",
-      "Bash(git push)",
-      "Bash(gh api *-X*)",
-      "Bash(gh api *--method*)",
-      "Bash(gh api *-f *)",
-      "Bash(gh api *-F *)",
-      "Bash(gh api *--field*)",
-      "Bash(gh api *--raw-field*)",
-      "Bash(gh api *--input*)"
+      "Bash(git push)"
+    ],
+    "ask": [
+      "Bash(gh api *)"
     ]
   }
 }
