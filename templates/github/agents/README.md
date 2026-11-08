@@ -27,6 +27,8 @@
 "enabledPlugins": { "mattpocock-skills@mattpocock": true }
 ```
 
+이 두 키는 로컬 세션에서만 플러그인을 설치한다. 클라우드 세션은 저장소 설정에 적은 플러그인을 설치하지 않는다([Cloud environments](https://code.claude.com/docs/en/cloud-environments#what-carries-over-from-your-setup), 확인일 2026-11-08). 클라우드에서도 써야 하면 쓰는 스킬만 저장소에 커밋한다(Claude `.claude/skills/`, Codex·Cursor `.agents/skills/`). 코어는 플러그인 없이 돈다.
+
 플러그인·스킬은 같은 작업을 켤 때와 끌 때 한 번씩 돌려 보고, 결과가 나아진 것만 켠다.
 
 Matt 스킬의 기본 동작 중 [POLICY.md](../../../POLICY.md)와 어긋나는 것:
