@@ -1,185 +1,33 @@
 # repo-baseline
 
-> **재설계 중 (2026-11-08)**: 이 레포는 언어·스택·하네스와 관계없는 최소 기준으로 다시 만드는 중이다. 정본 스펙은 [docs/redesign-2026-11.md](docs/redesign-2026-11.md), 진행 상태는 [추적 이슈 #73](https://github.com/minjunkim-dev/repo-baseline/issues/73)이다. 재설계 작업은 아래의 옛 절차(POLICY·근거 표·패밀리 규칙)를 따르지 않는다. 새 코어 템플릿은 [templates/core/](templates/core/)에 있다. 아래 내용은 W5에서 다시 쓴다.
+1인·소규모 팀이 언어·스택·하네스(어떤 코딩 에이전트든)와 관계없이 바로 안전하게 개발을 시작하게 하는 최소 기준이다.
+코어는 복사만 하는 작은 파일 5개와 한 쪽짜리 규칙([POLICY.md](POLICY.md))이다. 나머지는 이유가 있을 때만 켜는 프로필이다.
 
-1인 개발과 소규모 팀(2~6명) 저장소의 GitHub 설정·CI 기준을 한 곳에서 관리하는 원본 저장소다. 두 프로필의 차이는 `POLICY.md` §9에 있고, 기본은 1인 프로필이다.
-새 프로젝트를 셋업하거나 기존 프로젝트를 다시 맞출 때 같은 결과가 나오게 한다.
+> 재설계 중(2026-11). 정본은 [docs/redesign-2026-11.md](docs/redesign-2026-11.md), 진행 상태는 [추적 이슈 #73](https://github.com/minjunkim-dev/repo-baseline/issues/73)이다.
 
-언어와 스택이 달라도 바로 시작하는 경로는 [새 프로젝트 시작](docs/start.md)이다. 코어가 복사하는 파일은 PR 본문 양식 하나다. Matt 절차, `POLICY.md`, 명령 네 칸은 읽는 계약이고 그 복사에 들어 있지 않다. format·lint·type·test·build는 대상 스택의 명령이거나 `N/A`와 이유다. 예제 명령은 POSIX `sh`이고 Git clone을 가정한다. Git이 없는 환경과 POSIX 셸이 없는 Windows는 확인하지 않았다. 이미 전체 manifest를 쓰는 저장소는 코어 파일로 바꾸지 않는다. 이 저장소의 GitHub 보호, `review/gate`, 필수 체크는 그대로다. 실행 상태의 정본은 [추적 이슈 #73](https://github.com/minjunkim-dev/repo-baseline/issues/73)이다. 시작 절차의 정본은 이 저장소 문서이고, 이슈 목록은 여기에 다시 적지 않는다.
+## 코어 적용 3단계
 
-## 구조
+1. 이 저장소를 받는다(공개, 인증 불필요): `git clone https://github.com/minjunkim-dev/repo-baseline`
+2. [templates/core/](templates/core/)를 프로젝트에 복사한다. `AGENTS.md`, `CLAUDE.md`, `REVIEW.md`, `.github/pull_request_template.md`, `.gitignore` 추가분.
+3. `AGENTS.md`의 명령 4칸(setup/check/test/build)과 `REVIEW.md`의 빈칸을 채우고, 첫 PR을 슬림 양식으로 연다.
 
-| 경로 | 역할 | 프로젝트로 복사 |
-| --- | --- | --- |
-| `POLICY.md` | 공통값과 허용 예외 | 아니요. 참조만 한다 |
-| `prompts/github-repository-settings.md` | GitHub 서버 설정 절차 | 아니요. 에이전트 채팅에 첨부한다 |
-| `prompts/pr-ci-setup.md` | 문서·CI·리뷰·병합 절차 | 아니요. 에이전트 채팅에 첨부한다 |
-| `prompts/weekly-check.md` | 적용 중인 프로젝트의 주간 읽기 전용 점검 | 아니요. 이 저장소에서 에이전트에게 준다 |
-| `templates/dependabot.yml`, `templates/dependabot-ecosystem.yml` | Dependabot 설정 원본 | 예. manifest의 `ecosystems` 목록으로 `.github/dependabot.yml`을 생성한다 |
-| `templates/repo-baseline.json` | GitHub 프로필의 복사 목록(manifest) | 예. 그 프로필을 켤 때 `.github/repo-baseline.json`으로 둔다. 코어 목록으로 덮어쓰지 않는다 |
-| `templates/repo-baseline.core.json` | PR 본문 양식만 있는 첫 복사 목록. Python 검사기는 없다 | 예. 해시가 필요할 때 `.github/repo-baseline.json`으로 둔다. 기본 시작은 `docs/start.md`의 `cp`다 |
-| `docs/start.md` | 프로젝트 언어를 정하지 않는 시작 절차. 기본 명령은 Python이 아니다. 검사기와 게이트 도구는 Python이다 | 아니요. 읽고 따른다 |
-| `templates/repository-settings.json` | GitHub 설정 기준선 시작점(1인 프로필 값) | 예. `.github/repository-settings.json`으로 두고 `REPLACE` 값과 저장소 정보를 채운다. 팀 프로필은 `POLICY.md` §9의 값으로 바꾼다 |
-| `templates/review-status.yml` | 리뷰 status를 경로로 검사하는 workflow | 예. `.github/workflows/review-status.yml`로 둔다. 프로젝트 파일이라 해시로 검사하지 않고 Dependabot이 pin을 올린다 |
-| `templates/pr-policy.yml` | PR 제목·브랜치·본문 양식을 검사하는 workflow | 예. `.github/workflows/pr-policy.yml`로 둔다. 프로젝트 파일이라 해시로 검사하지 않는다 |
-| `.github/pull_request_template.md` | PR 본문 양식(Summary, Evidence, Merge Danger, Author, 리뷰 근거 표) | 예. manifest가 같은 경로로 복사한다 |
-| `templates/review-status-policy.json` | 공개 저장소에서 `Review status` workflow의 `pull_request_target`과 `issue_comment`만 허용하는 Actions 이벤트 정책 | 아니요. GitHub API로 만든다(`POLICY.md` §9) |
-| `templates/CODEOWNERS` | 팀 프로필의 신뢰 경계 경로 소유자 | 팀 프로필만. `.github/CODEOWNERS`로 두고 소유자를 채운다 |
-| `templates/claude-settings.json` | Claude Code 프로젝트 설정(Matt Pocock 플러그인, `.env` 읽기 차단) | 예. `.claude/settings.json`으로 둔다 |
-| `scripts/` | 프로젝트에 그대로 복사하는 검사기와 테스트 | 예. 수정하지 않는다 |
-| `vendor/mattpocock-skills/matt-code-review/` | 리뷰 관문 스킬(Matt Pocock `code-review`, 이름만 바꿈, MIT) | 예. manifest대로 `.agents/skills/`와 `.claude/skills/`에 복사한다 |
-| `tools/apply_baseline.py` | manifest대로 `scripts/`와 `vendor/`의 스킬을 프로젝트에 복사하고 해시를 기록 | 아니요 |
-| `tools/apply_github_settings.py` | 설정 기준선과 다른 GitHub 서버 설정을 계획·적용 | 아니요 |
-| `tools/post_review_gate.py` | Mac에서 전용 앱으로 commit status `review/gate`를 게시. 비밀키는 저장소에 없다 | 아니요 |
+명령은 [docs/start.md](docs/start.md)에 있다. 에이전트에게 맡기려면 [prompts/setup.md](prompts/setup.md) 하나를 첨부한다.
 
-`scripts/`의 파일과 생성한 `.github/dependabot.yml`은 프로젝트에서 직접 고치지 않는다. 이 저장소에서 고친 뒤 다시 적용한다.
-프로젝트의 `scripts/check_repo_baseline.py`가 복사본이 기록된 해시와 다르면 CI를 실패시킨다.
+## 프로필
 
-## 새 프로젝트에 적용
+| 프로필 | 언제 켜는가 |
+| --- | --- |
+| [github](templates/github/) | GitHub에 올릴 때(권장). 브랜치 보호, 필수 CI, push protection, Dependabot, CI 골격, 에이전트 권한 예시 |
+| [review-gate](profiles/review-gate/) | 에이전트의 무단 병합이나 승인 위조를 기계적으로 막아야 할 때. 전용 앱이 필수 status를 올린다 |
+| [pr-conventions](profiles/pr-conventions/) | PR 제목·본문 형식을 CI로 검사하고 싶을 때 |
+| [hash-copy](profiles/hash-copy/) | 공통 검사기를 해시로 고정해 여러 저장소에 똑같이 두고 싶을 때(Python 필요) |
+| [team](profiles/team/) | 2명 이상. CODEOWNERS와 사람 승인 |
 
-이 절은 GitHub 프로필이다. 언어만 맞추는 첫 복사는 `docs/start.md`의 `templates/repo-baseline.core.json`이다. 게이트, Actions 이벤트 정책, 전용 앱, 서버 설정 쓰기는 이 절에 있으며 소유자 승인 없이 적용하지 않는다. 이미 전체 manifest가 있으면 코어 파일로 바꾸지 않는다.
-
-1. `templates/repo-baseline.json`을 프로젝트의 `.github/repo-baseline.json`으로 복사한다. 코어 manifest를 이미 둔 프로젝트는 이 파일에만 있는 항목을 더한다. 통째로 교체해 해시 대상을 줄이지 않는다.
-2. `templates/claude-settings.json`을 프로젝트의 `.claude/settings.json`으로 둔다. 이미 있으면 합친다.
-   공개 저장소는 `review-status.yml`을 기본 브랜치에 병합하기 전에 Actions 이벤트 정책을 만든다. 비공개 저장소는 이 단락을 건너뛴다. 이 저장소 루트에서, 대상 프로젝트의 `OWNER/NAME`으로 실행한다. 쓰기는 저장소 관리자 승인을 받는다. 먼저 조회하고, 같은 workflow 경로에 `pull_request_target`과 `issue_comment`만 허용하는 정책이 있으면 다시 만들지 않는다. PUT은 `source_type`이 Repository이고 `workflow_path.include`가 `.github/workflows/review-status.yml`뿐인 정책만 한다. 더 넓은 대상은 PUT하지 않는다. `include`의 glob이 그 파일에 맞으면 그 정책의 대상이다. `*`는 `/`를 넘지 않고 `**`는 넘는다. 그 파일을 `pull_request_target`만 허용하는 상위 정책이나 더 넓은 정책이 있으면 명령이 실패한다. 패턴을 판별할 수 없으면 POST하지 않고 멈춘다.
-
-   ```bash
-   set -euo pipefail
-   ids=$(gh api --paginate repos/OWNER/NAME/actions/policies --jq '.policies[].id')
-   found=0
-   narrow=
-   parent_narrow=0
-   for id in $ids; do
-     kind=$(gh api "repos/OWNER/NAME/actions/policies/$id" | python3 tools/review_status_policy.py) || {
-       echo "cannot classify actions policy $id" >&2
-       exit 1
-     }
-     if [ "$kind" = "both" ]; then found=1; fi
-     if [ "$kind" = "narrow" ]; then narrow="$narrow $id"; fi
-     if [ "$kind" = "parent" ]; then parent_narrow=1; fi
-   done
-   if [ "$parent_narrow" = "1" ]; then
-     echo "a parent policy allows only pull_request_target" >&2
-     exit 1
-   fi
-   for id in $narrow; do
-     gh api "repos/OWNER/NAME/actions/policies/$id" --method PUT --input templates/review-status-policy.json
-     found=1
-   done
-   if [ "$found" = "0" ]; then
-     gh api repos/OWNER/NAME/actions/policies --method POST --input templates/review-status-policy.json
-   fi
-   gh api --paginate repos/OWNER/NAME/actions/policies
-   ```
-
-   목록이나 상세 조회가 실패하면 멈춘다. 실패를 정책이 없는 것으로 보고 POST하지 않는다.
-
-   재조회에서 그 허용이 보이기 전에는 workflow를 병합하지 않는다. 그다음 `templates/review-status.yml`을 별도 파일 `.github/workflows/review-status.yml`로 둔다. 다른 workflow와 합치거나 이 두 이벤트 외의 이벤트를 더하지 않는다(`POLICY.md` §9). `templates/pr-policy.yml`도 `.github/workflows/pr-policy.yml`로 둔다. `apply_baseline`은 이 workflow를 복사하지 않는다. Dependabot이 pin을 올리기 때문이다. 두 workflow의 `branches`는 `main`이다. repo-baseline, smallnext, BGLike, mobile-runtime의 기본 브랜치는 `main`이다. 기본 브랜치가 `main`이 아니면 그 필터를 기본 브랜치 이름으로 맞춘다.
-3. `.github/dependabot.yml` 항목의 `ecosystems`에 GitHub Actions 외의 실제 생태계를 적는다. 예: `{"package-ecosystem": "cargo", "directory": "/services/api"}`.
-4. 테스트를 다른 폴더에서 실행하면 `files`의 대상 경로를 바꾼다. 예: `"scripts/source-only/test_github_settings.py": {"source": "scripts/test_github_settings.py"}`.
-5. 이 저장소에서 다음을 실행한다.
-
-   ```bash
-   python3 tools/apply_baseline.py /path/to/project
-   ```
-
-6. 두 프롬프트를 같은 채팅에 첨부하고 순서대로 적용한다. [프로젝트 초기 설정과 일상 개발](docs/development-workflow.md)을 프로젝트 작업 문서에 연결한다. 사용자가 "처음 한 번"을 마친 뒤 tracker·도메인 설정(`triage`가 설치돼 있으면 라벨도)이 연결됐는지 확인한다.
-7. 복사 파일 해시 검사와 테스트가 기존 필수 CI job에서 실행되는지 확인한다. [GitHub 설정 기준선과 기능 지원](docs/github-settings-profile.md)의 예외·결과 구분을 따른다.
-8. 필수 CI가 실제 PR에서 성공한 뒤 GitHub 서버 설정을 적용한다(GitHub 설정 프롬프트 §4·§10).
-   1. `templates/repository-settings.json`을 프로젝트의 `.github/repository-settings.json`으로 복사한다.
-   2. `REPLACE`로 시작하는 값과 저장소 정보를 채운다. 남아 있으면 도구가 아무것도 읽지 않고 멈춘다.
-      - `repository`: `owner/name`. `repository_id`: `gh api repos/OWNER/NAME --jq .id`의 값.
-      - `default_branch`와 `expected.repository.default_branch`: 실제 기본 브랜치. 둘이 같아야 한다.
-      - `visibility`: `public` 또는 `private`.
-      - `checks`: 실제 PR에서 성공한 필수 job 이름. GitHub Actions면 `app_id`는 15368이다. `Review status`의 context는 job 이름 `Review status`이고 `app_id`는 15368이다. 그 쌍은 필수 체크가 아니다. `review/gate`는 승인 경계이므로 **전용 GitHub App의 정수 `app_id`에 고정**한다. 이 저장소의 `.github/repository-settings.json`은 `strict: true`로 `Baseline checks (Python 3.11)`(`app_id` 15368), `Baseline checks (Python 3.13)`(`app_id` 15368), `review/gate`(`app_id` 5641238)를 기록한다. `Review status`(`app_id` 15368)는 필수 목록에 없다. 다른 프로젝트는 앱을 만든 뒤 그 정수로 채우고, 채우기 전에는 `REPLACE:<APP_ID>`가 남을 수 있다. 그 문자열이 남아 있으면 적용과 설정 감사는 멈춘다. 그 기록의 PR은 branch protection을 쓰지 않는다. 병합 뒤 소유자가 Mac에서 `tools/apply_github_settings.py`로 적용한다. 적용되어도 Dependabot PR을 포함한 모든 PR에서 `review/independent`와 `review/security`는 병합 조건이 아니다. 없어도 게이트는 성공한다. 소유자가 참고로 남겨도 되고, 검사기와 `tools/post_review_gate.py`는 그 status를 읽지 않는다. 앱은 `review/gate`만 올린다. 근거 표가 조건이다. 1인 프로필에서 게이트 경로를 바꾸면 소유자 SHA 댓글이 더 필요하다. 팀 프로필은 그 댓글을 요구하지 않고 POLICY.md §9의 사람 승인이다. smallnext, BGLike, mobile-runtime은 repo-baseline에 보호 규칙을 적용하고, 카나리 시험(같은 이름 체크 위장, 이전 실패 run이 남은 head의 병합 가능 여부)을 통과하고, status 작성자·편집된 승인 댓글 검사기 수정이 병합·재적용된 뒤에 카나리 결과는 Issue #32 댓글 하나에 적는다. 그 기록이 없으면 멈춘다. 이 PR은 그 세 저장소의 `.github/repository-settings.json`을 바꾸지 않는다. `Review status`를 필수로 넣지 않는다. 그 세 저장소의 `Review status` workflow는 그대로 둔다. 적용은 그 저장소에서 소유자가 Mac으로 한다. 아직 ③ 전인 프로젝트와 새 프로젝트는 카나리 통과 기록(Issue #32 댓글)과 status 작성자·편집된 승인 댓글 검사기 수정(S1·S3)의 병합·재적용이 있기 전에는 그 체크를 적지 않는다. 그 기록이 없으면 멈춘다. 그 뒤 `review/gate`를 전용 앱의 정수로 적는다. `Review status`는 필수로 적지 않는다.
-      - 팀 프로필이면 리뷰 설정 네 값을 `POLICY.md` §9의 표대로 바꾸고 `templates/CODEOWNERS`를 `.github/CODEOWNERS`로 둔다.
-      - `patterns_allowed`: workflow의 `uses:` 중 GitHub 소유가 아닌 action(`owner/repo@*`). 없으면 빈 목록.
-      - CodeQL을 workflow 파일(advanced setup)로 돌리면 `codeql.state`를 `not-configured`로 바꾸고 `codeql_workflow`·`codeql_main_source`를 넣는다(`POLICY.md` §3).
-      - 비공개 저장소에서 요금제로 쓸 수 없는 기능은 [GitHub 설정 기준선과 기능 지원](docs/github-settings-profile.md)의 예외로 옮긴다.
-   3. `gh auth status`가 저장소 관리자(admin) 권한 계정으로 로그인된 곳에서, 이 저장소를 기준으로 계획을 본다. 읽기만 한다.
-
-      ```bash
-      python3 tools/apply_github_settings.py /path/to/project
-      ```
-
-   4. `DIFF`(현재 값 → 기준값)와 `PLAN`(쓰기 요청)을 확인하고 승인한 뒤 적용한다. 적용 후 자동으로 다시 감사해 `PASS`나 `LIMITED`를 출력한다.
-
-      ```bash
-      python3 tools/apply_github_settings.py /path/to/project --apply
-      ```
-
-   Grouped security updates는 API가 없어 화면에서 켠다(`POLICY.md` §2).
-
-## 에이전트에게 보낼 요청문
-
-두 프롬프트(`prompts/github-repository-settings.md`, `prompts/pr-ci-setup.md`)를 첨부하고 아래 글을 함께 보낸다.
-
-```text
-첨부한 두 프롬프트(repo-baseline 버전)를 기준으로 이 프로젝트에 실제 적용하고 검증해줘.
-
-같은 채팅에서 GitHub 초기 점검 → PR·CI/CD 셋업 → GitHub 최종 적용·검증 순서로 진행해. 중복 작업은 피하고 보류 항목까지 마무리해.
-공통값은 repo-baseline의 POLICY.md와 templates를 따르고, 공통 검사기는 tools/apply_baseline.py로 복사해. 값을 새로 고르지 마.
-
-프로필은 1인이다(팀이면 "팀"으로 바꿔 보낸다. POLICY.md §9). 별도 컨텍스트의 자체 리뷰를 기준으로 해. 구현은 Claude Code 단독 또는 Cursor 단독으로 할 수 있다. 독립 리뷰는 작성 패밀리와 다른 패밀리가 해야 하므로 한 도구만으로 끝나지 않을 수 있다. Grok Bot의 접수·분해·배정·추적은 선택이다. 플랫폼만 다른 같은 모델 리뷰는 독립 리뷰가 아니다. 현행 main의 다른 패밀리 규칙을 따른다. 공개 배포와 production 변경은 하지 마.
-
-최종 독립 리뷰·필수 CI 후 위험별 병합 기준을 적용해. 문 판정은 `POLICY.md` §10만 따라. `POLICY.md` §5의 외부 리뷰 대상은 외부 리뷰(공개 저장소는 CodeRabbit)도 받고, 그 PR은 auto-merge하지 마. 되돌리기 어려움(one-way door: 되돌리기 어려운 결정)은 사람이 최종 head를 승인하게 하고, 1인 프로필은 §10의 승인 댓글을 남겨. 팀 프로필이면 POLICY.md §9의 승인 규칙을 따라. `disable-model-invocation: true`인 스킬은 사용자가 실행한다. 완료 항목과 미확인 항목을 구분해 보고해.
-```
-
-## 기존 프로젝트를 다시 맞춤
-
-1. `templates/repo-baseline.json`에 프로젝트 manifest에 없는 항목이 생겼으면(CHANGELOG에 적는다) 프로젝트의 `.github/repo-baseline.json`에 더한다. `--check`는 manifest에 이미 있는 항목만 비교한다.
-2. 먼저 차이를 본다. 아무것도 쓰지 않는다.
-
-   ```bash
-   python3 tools/apply_baseline.py /path/to/project --check
-   ```
-
-3. 다른 파일이 프로젝트의 의도된 변경이면 이 저장소로 옮긴다. 의도하지 않은 drift면 다시 적용한다.
-4. 적용한 결과를 PR로 올리고 프로젝트의 리뷰·CI·병합 기준을 따른다. `review-status.yml`을 처음 두는 공개 저장소는 그 파일을 기본 브랜치에 병합하기 전에 위 "새 프로젝트에 적용" 2단계의 이벤트 정책을 만든다.
-5. `.github/repository-settings.json`은 `apply_baseline.py`가 복사하지 않는다. 이 저장소의 필수 체크는 Baseline checks 둘과 `review/gate`(`app_id` 5641238)다. `Review status`는 필수가 아니다. smallnext, BGLike, mobile-runtime의 기준선은 이 변경이 바꾸지 않는다. 그 저장소가 `review/gate`를 적거나 `Review status`를 필수에서 빼면 각자 별도 PR로 한다. `review/gate`의 `app_id`는 전용 앱의 정수다. 15368과 `REPLACE`로 시작하는 값은 적용하지 않는다. 절차는 `docs/review-gate-app.md`다. 기존 CI 체크와 `strict: true`는 유지한다. 그 PR은 branch protection을 쓰지 않는다. 병합 뒤 소유자가 Mac에서 적용한다. 적용되어도 Dependabot PR을 포함한 모든 PR에서 `review/independent`와 `review/security`는 병합 조건이 아니다. 없어도 게이트는 성공한다. 소유자가 참고로 남겨도 되고, 검사기와 `tools/post_review_gate.py`는 그 status를 읽지 않는다. 앱은 `review/gate`만 올린다. 근거 표가 조건이다. 1인 프로필에서 게이트 경로를 바꾸면 소유자 SHA 댓글이 더 필요하다. 팀 프로필은 그 댓글을 요구하지 않고 POLICY.md §9의 사람 승인이다.
-
-## 일상 개발 시작
-
-개발 절차는 Matt Pocock 스킬을 그대로 쓴다. 어떤 스킬로 시작할지는 사용자가 `/ask-matt`를 실행한다. `disable-model-invocation: true`인 스킬은 사용자가 실행한다. 처음 셋업과 이 기준이 더하는 `main` 경계는 [프로젝트 초기 설정과 일상 개발](docs/development-workflow.md)을 따른다. 트렁크(`main` 하나, squash, 선택적 피처 플래그)도 그 문서다.
-
-구현 경로는 셋이다. Claude Code 단독, Cursor 단독, Grok Bot을 선택 보조로 쓰는 경로. 접수·Issue·작업 분해·배정·CI와 리뷰 추적·근거 확인·보고는 사람 또는 선택 조율자가 한다. Grok Bot은 그 선택이다. 없어도 사람 또는 그 작성 세션이 같은 절차를 끝낸다. 내부 업무·요구·수락 기준·우선순위·결정의 정본은 Linear다. 코드·PR·리뷰·CI 근거는 GitHub다. GitHub Issue는 기존 기록의 참조나 외부 제보고, 같은 내부 업무를 새로 만들지 않는다. 재개는 읽을 수 있는 Linear 링크·결정·미결·승인 기록과 GitHub PR·근거 표다. 자동 연동은 확인하지 않았다. 단독 도구는 작성 모델의 자기 검토 면제가 아니다. 플랫폼만 다른 것은 같은 모델의 자기 승인이 아니다. 구현 에이전트와 리뷰 에이전트는 다르고, 리뷰 패밀리는 작성 패밀리와 다른 것이 기본이다. 다른 패밀리를 쓸 수 없을 때만 같은 패밀리의 다른 모델·다른 에이전트 예외(PR #60, Issue #59)를 쓴다. 절차 설명은 `docs/development-workflow.md`의 세 경로다. Issue #61은 그 요청의 저장소 결정 기록이다. 내부 업무의 정본은 아니다.
-
-## 자체 리뷰와 회고
-
-기본 흐름은 구현 → 자동 검사 → 별도 Standards·Spec·버그 찾기 리뷰(버그 찾기는 코드 변경만, 신뢰 경계 변경은 Security 추가) → 확실한 결함 수정·커밋 → 최종 변경의 리뷰·검사 → 위험별 병합이다. 상세 기준은 `prompts/pr-ci-setup.md` §5·§6을 따른다.
-
-같은 실수나 탐색·도구 사용 문제가 있었던 작업은 Matt Pocock의 `retro`에 대상 세션·PR을 지정해 돌아본다. 사용자가 고른 개선만 반영하며, 회고 자체는 정기 실행하지 않는다. 같은 프롬프트 §7을 따른다.
-
-주간 점검은 `prompts/weekly-check.md`로 회고 후보를 모은다. 읽기만 하며 항목과 기준값은 `POLICY.md` §8을 따른다. 점검을 일정 실행하면 그 설정은 이 저장소 밖에 둔다.
-
-## 기존 리뷰 서비스 구성에서 전환
-
-기존 프로젝트에 이 버전을 적용하기 전에 다음을 확인한다. `apply_baseline.py`는 기존 manifest를 읽으므로, 아래 정리 없이 실행하면 삭제된 원본을 찾지 못한다. 파일 삭제와 문서 이동은 프로젝트별 PR로 검토한다.
-
-1. 이전 `.cursor/BUGBOT.md`에만 있는 고유 기준을 코딩 규칙·도메인 원문으로 옮긴다. 자체 리뷰 문서의 자료 선택 표에 연결하고, 내용이 보존된 요약 파일만 제거한다. 개인·전역 규칙은 유지한다.
-2. 기존 CI·검사 명령에서 `check_bugbot_rules.py`·`test_bugbot_rules.py` 호출을 제거한다. 다른 빌드·테스트·보안 검사와 보호는 유지한다. trusted base의 기존 검사가 전환을 막으면 기존 정책으로 통과할 수 있는 전환 PR을 먼저 준비한다.
-3. `.github/repo-baseline.json`에서 `source`가 `scripts/check_bugbot_rules.py` 또는 `scripts/test_bugbot_rules.py`인 항목과 `bugbot_rules` 키를 제거한다. 해당 복사 파일도 내용과 실제 위치를 확인한 뒤 제거한다.
-4. 남은 파일의 차이를 `tools/apply_baseline.py /path/to/project --check`로 확인하고 다시 적용한다. 실제 프로젝트 CI에서 남은 공통 검사·자체 리뷰를 검증한다.
-
-서버 서비스 비활성화와 GitHub App·계정 연결 해제는 저장소 파일 갱신과 별개다. 관련 서버 기능의 사용 여부와 영향 범위를 확인하고 승인된 변경만 수행한다.
-
-## 이 저장소를 바꿀 때
-
-1. `scripts/`, `templates/`, `tools/`를 바꾸면 테스트를 실행한다.
-
-   ```bash
-   python3 -m unittest discover -s scripts -p 'test_*.py'
-   python3 -m unittest discover -s tools -p 'test_*.py'
-   ```
-
-   원본 단위 테스트는 합성 fixture를 사용한다. 도구 테스트는 깨끗한 임시 Git 원본을 만들고 default·advanced·미지원 설정의 프로젝트에 실제 복사한 뒤 테스트·출처 SHA·해시 drift·재적용·CodeQL pin 실패를 검사한다. 개인 프로젝트·GitHub 인증·네트워크는 필요 없다. 자체 CI는 같은 unittest를 Python 3.11과 3.13에서 실제로 실행하고, 필수가 아닌 job `Baseline checks`에서 Python 3.15의 최신 patch로도 실행한다. `3.x`로 minor를 옮기지 않는다. `.github/repository-settings.json`의 필수 체크는 `Baseline checks (Python 3.11)`, `Baseline checks (Python 3.13)`, `review/gate`(`app_id` 5641238)로 둔다. 그 선언을 서버에 적용하는 일은 이 변경이 하지 않는다. workflow는 `templates/`가 복사하지 않는다. 새 프로젝트의 언어 요구가 아니다. 실제 서버 감사·지원 여부·스킬 실행은 이 테스트의 검증 범위 밖이다.
-
-2. 변경을 PR로 올려 `main`에 병합한 뒤, 최신 `main`을 받아 각 프로젝트에 다시 적용하고 프로젝트별 PR을 올린다. `apply_baseline.py`는 commit하지 않은 변경이 있으면 멈춘다. 병합 전 브랜치에서 적용하면 squash 병합 뒤 `main`에 없는 커밋이 출처로 기록된다. `.github/repository-settings.json`은 복사 대상이 아니다. 이 저장소는 `Review status`를 필수 체크에서 뺐다. smallnext, BGLike, mobile-runtime은 repo-baseline에 보호 규칙을 적용하고, 카나리 시험(같은 이름 체크 위장, 이전 실패 run이 남은 head의 병합 가능 여부)을 통과하고, status 작성자·편집된 승인 댓글 검사기 수정이 병합·재적용된 뒤에 카나리 결과는 Issue #32 댓글 하나에 적는다. 그 기록이 없으면 멈춘다. 이 PR은 그 세 저장소의 `.github/repository-settings.json`을 바꾸지 않는다. `Review status`를 필수로 넣지 않는다. 그 세 저장소의 `Review status` workflow는 그대로 둔다.
-3. `CHANGELOG.md`에 바뀐 점과 다시 적용할 프로젝트를 적는다.
-
-이 저장소 자신의 GitHub 설정 기준선은 `.github/repository-settings.json`이다. `review/gate`의 `app_id`는 5641238로 기록되어 있다. 소비 프로젝트에서 아직 `REPLACE:<APP_ID>`가 남아 있으면 `python3 tools/apply_github_settings.py .`는 조회 전에 멈춘다. 앱을 만들고 그 문자열을 정수로 바꾼 뒤에만 계획을 본다(`docs/review-gate-app.md`). 그 전에 이 명령으로 보호를 적용하지 않는다.
+회고는 정기 실행하지 않는다. 같은 지적이 반복될 때 [prompts/retro.md](prompts/retro.md)를 실행한다.
 
 ## 적용 중인 프로젝트
+
+옛 구조(전체 manifest·해시 검사)를 쓴다. 새 코어로의 이전은 W9에서 레포마다 한다.
 
 | 프로젝트 | 저장소 |
 | --- | --- |
@@ -187,10 +35,7 @@
 | BGLike | `minjunkim-dev/BGLike` |
 | Runstir | `minjunkim-dev/mobile-runtime` |
 
-## 제약
+## 그 밖에
 
-- 이 저장소는 public이다. 파일을 복사해서 쓰므로 적용 대상 프로젝트의 공개 여부와 관계없이 쓸 수 있다.
-- 프로젝트 CI는 이 저장소에 접근하지 않는다. 처음 적용하거나 갱신할 때 이 저장소를 clone한다. 공개 원본이므로 읽기 인증은 필요 없다.
-- `apply_baseline.py`는 이 저장소에서 추적하는 일반 파일만 복사한다. 프로젝트 밖을 가리키는 경로와 symlink는 거부한다.
-- 다른 저장소의 workflow가 이 저장소를 `uses:`로 참조하지 않는다. 소비 프로젝트의 CI는 복사본과 기록한 해시만으로 검증하며 원본 접근에 의존하지 않는다.
-- Secret 값은 이 저장소에 두지 않는다.
+- 비밀값은 이 저장소에 두지 않는다. 보안 문제 보고는 [SECURITY.md](SECURITY.md).
+- 변경 기록: [CHANGELOG.md](CHANGELOG.md). 재설계 전 기록은 [docs/archive/CHANGELOG-2026.md](docs/archive/CHANGELOG-2026.md).
