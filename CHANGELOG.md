@@ -11,3 +11,5 @@
 - review-gate 프로필을 `docs/archive/review-gate/`로 보관했다. 기본 설정이 이미 막는 것만 막고 로컬 에이전트는 막지 못했다. `pr_author.py`는 `profiles/pr-conventions/`로 옮겼다.
 - `REVIEW.md` 예시 표에 거짓말하는 테스트(구현 값 되풀이, 소스 모양 검사, 실패를 가리는 mock)를 실패로 보는 행을 더했다.
 - `POLICY.md` 병합 절에서 기준이 없던 "근거가 쌓이면 저위험 경로부터 자동 병합" 문장을 지웠다. 자동 병합을 쓰지 않는 정책은 그대로다. 회고 절의 "근거가 쌓이면 완화한다"도 지웠다.
+- GitHub 설정 도구에서 CodeQL workflow blob sha 고정(`codeql_main_source`)을 뺐다. codeql-action을 올릴 때마다 기준선을 고쳐야 했다. 남아 있으면 이름을 대고 멈춘다. workflow가 active인지는 계속 본다.
+- 부르는 곳이 없던 오프라인 CodeQL 참조 검사와 보관한 review-gate의 App ID 검증을 지웠다. hash-copy 묶음은 설정 검사기를 더 복사하지 않는다. 검사기는 소유자가 이 저장소에서 돌린다.

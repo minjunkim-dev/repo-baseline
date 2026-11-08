@@ -237,7 +237,6 @@ class ApplyGitHubSettingsTests(unittest.TestCase):
         workflow = ".github/workflows/codeql.yml"
         profile["expected"]["codeql"] = {"state": "not-configured"}
         profile["expected"]["codeql_workflow"] = {"path": workflow, "state": "active"}
-        profile["expected"]["codeql_main_source"] = {"path": workflow, "type": "file", "sha": "0" * 40}
         server = FakeGitHub()
         server.state["code-scanning/default-setup"] = {"state": "configured"}
         code, out, _ = self.run_tool(server, profile, apply=True)
@@ -245,9 +244,6 @@ class ApplyGitHubSettingsTests(unittest.TestCase):
         self.assertNotIn(("PATCH", "code-scanning/default-setup"), server.writes)
         self.assertIn("MANUAL: codeql.state: default setup stays on", out)
         server.state["actions/workflows/codeql.yml"] = {"path": workflow, "state": "active"}
-        self.run_tool(server, profile, apply=True)  # active, but main does not hold the pinned file yet
-        self.assertNotIn(("PATCH", "code-scanning/default-setup"), server.writes)
-        server.state[tool.endpoint("codeql_main_source", "main")] = {"path": workflow, "type": "file", "sha": "0" * 40}
         disabled = copy.deepcopy(profile)  # a baseline that records a disabled workflow must not turn scanning off
         disabled["expected"]["codeql_workflow"]["state"] = "disabled_manually"
         server.state["actions/workflows/codeql.yml"]["state"] = "disabled_manually"
@@ -371,22 +367,12 @@ class ApplyGitHubSettingsTests(unittest.TestCase):
                 ("Baseline checks (Python 3.13)", 15368),
             ],
         )
-        filled = copy.deepcopy(own)
-        for item in filled["expected"]["protection"]["required_status_checks"]["checks"]:
-            if item.get("context") == "review/gate" and not checker.review_gate_app_ok(item.get("app_id")):
-                item["app_id"] = 424242
-        checker.validate_profile(filled)
+        checker.validate_profile(own)
         placeholder = copy.deepcopy(BASELINE)
         placeholder["expected"]["protection"]["required_status_checks"]["checks"].append(
-            {"context": "review/gate", "app_id": "REPLACE:<APP_ID>"})
+            {"context": "ci", "app_id": "REPLACE:<APP_ID>"})
         with self.assertRaisesRegex(ValueError, "template values"):
             tool.load(Path(self.project(placeholder)))
-        for app_id in (15368, 0, -1):
-            rejected = copy.deepcopy(BASELINE)
-            rejected["expected"]["protection"]["required_status_checks"]["checks"].append(
-                {"context": "review/gate", "app_id": app_id})
-            with self.assertRaisesRegex(ValueError, "review/gate"):
-                tool.load(Path(self.project(rejected)))
         for profile in (template, own):  # identity, verified checks and third-party actions are per project
             del profile["expected"]["repository"]["visibility"]
             del profile["expected"]["protection"]["required_status_checks"]["checks"]

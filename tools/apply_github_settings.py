@@ -15,7 +15,7 @@ It never changes visibility, rulesets, workflow files, fields the auditor does n
 require, or branch protection that carries settings the baseline does not manage
 (signed commits, push restrictions, blocked creations, fork syncing, review bypass
 or dismissal lists); those are printed as MANUAL. Under an advanced CodeQL baseline
-it keeps default setup on until the CodeQL workflow is active and matches its pin on main. Declared exceptions
+it keeps default setup on until the CodeQL workflow is active. Declared exceptions
 are never written. Unfilled template values ("REPLACE...") stop it before any read.
 """
 
@@ -33,7 +33,7 @@ PROFILE = ".github/repository-settings.json"
 # Write order matters: security updates need alerts on; selected actions need allowed_actions=selected.
 ORDER = ("dependabot_alerts", "repository", "protection", "actions", "allowed_actions",
          "workflow_token", "fork_policy", "immutable_releases", "codeql")
-MANUAL = ("rulesets", "codeql_workflow", "codeql_main_source")
+MANUAL = ("rulesets", "codeql_workflow")
 MERGE_FIELDS = ("allow_merge_commit", "allow_rebase_merge", "allow_squash_merge", "allow_auto_merge",
                 "delete_branch_on_merge", "allow_update_branch",
                 "squash_merge_commit_title", "squash_merge_commit_message")
@@ -59,7 +59,6 @@ def endpoint(name, branch):
         "immutable_releases": "immutable-releases",
         "codeql": "code-scanning/default-setup",
         "codeql_workflow": "actions/workflows/codeql.yml",
-        "codeql_main_source": f"contents/.github/workflows/codeql.yml?ref={branch}",
     }[name]
 
 
@@ -80,11 +79,6 @@ def load(project):
     unfilled = placeholders(profile)
     if unfilled:
         raise ValueError("Fill in the template values first: " + ", ".join(unfilled))
-    protection = (profile.get("expected") or {}).get("protection") or {}
-    gate_checks = ((protection.get("required_status_checks") or {}).get("checks")) or []
-    for check in gate_checks:
-        if isinstance(check, dict) and check.get("context") == checker.GATE_CONTEXT and not checker.review_gate_app_ok(check.get("app_id")):
-            raise ValueError("review/gate App ID must be a positive integer other than 15368")
     checker.validate_profile(profile)
     checker.validate_target(profile)
     if profile["expected"]["repository"]["default_branch"] != profile["default_branch"]:
@@ -219,12 +213,12 @@ def plan(profile, read=None):
                 manual.extend(f"protection.{key} is set; writing protection would reset it" for key in kept)
                 continue
         if name == "codeql" and expected[name]["state"] == "not-configured" and "codeql_workflow" in expected:
-            found = {key: get(read, f"{prefix}/{endpoint(key, branch)}")[0] for key in ("codeql_workflow", "codeql_main_source")}
+            workflow = get(read, f"{prefix}/{endpoint('codeql_workflow', branch)}")[0]
             # The workflow must really run, whatever state the baseline records for it.
-            ready = (found["codeql_workflow"] or {}).get("state") == "active" and not any(
-                checker.differences(expected[key], value, key) for key, value in found.items())
+            ready = (workflow or {}).get("state") == "active" and not checker.differences(
+                expected["codeql_workflow"], workflow, "codeql_workflow")
             if not ready:
-                manual.append("codeql.state: default setup stays on until the advanced workflow is active and pinned on main")
+                manual.append("codeql.state: default setup stays on until the advanced workflow is active")
                 continue
         shown = [(path, value_at(actual, path), value_at(expected[name], path)) for path in drift]
         changes.append((shown, writes_for(name, expected[name], prefix, branch)))
