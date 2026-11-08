@@ -1,9 +1,11 @@
 # repo-baseline
 
+> **재설계 중 (2026-11-08)**: 이 레포는 언어·스택·하네스와 관계없는 최소 기준으로 다시 만드는 중이다. 정본 스펙은 [docs/redesign-2026-11.md](docs/redesign-2026-11.md), 진행 상태는 [추적 이슈 #73](https://github.com/minjunkim-dev/repo-baseline/issues/73)이다. 재설계 작업은 아래의 옛 절차(POLICY·근거 표·패밀리 규칙)를 따르지 않는다. 새 코어 템플릿은 [templates/core/](templates/core/)에 있다. 아래 내용은 W5에서 다시 쓴다.
+
 1인 개발과 소규모 팀(2~6명) 저장소의 GitHub 설정·CI 기준을 한 곳에서 관리하는 원본 저장소다. 두 프로필의 차이는 `POLICY.md` §9에 있고, 기본은 1인 프로필이다.
 새 프로젝트를 셋업하거나 기존 프로젝트를 다시 맞출 때 같은 결과가 나오게 한다.
 
-언어와 스택이 달라도 바로 시작하는 경로는 [새 프로젝트 시작](docs/start.md)이다. 코어가 복사하는 파일은 PR 본문 양식 하나다. Matt 절차, `POLICY.md`, 명령 네 칸은 읽는 계약이고 그 복사에 들어 있지 않다. format·lint·type·test·build는 대상 스택의 명령이거나 `N/A`와 이유다. 예제 명령은 POSIX `sh`이고 Git clone을 가정한다. Git이 없는 환경과 POSIX 셸이 없는 Windows는 확인하지 않았다. 이미 전체 manifest를 쓰는 저장소는 코어 파일로 바꾸지 않는다. 이 저장소의 GitHub 보호, `review/gate`, 필수 체크는 그대로다. 실행 상태의 정본은 [이슈 #58](https://github.com/minjunkim-dev/repo-baseline/issues/58)이다. 시작 절차의 정본은 이 저장소 문서이고, 이슈 목록은 여기에 다시 적지 않는다.
+언어와 스택이 달라도 바로 시작하는 경로는 [새 프로젝트 시작](docs/start.md)이다. 코어가 복사하는 파일은 PR 본문 양식 하나다. Matt 절차, `POLICY.md`, 명령 네 칸은 읽는 계약이고 그 복사에 들어 있지 않다. format·lint·type·test·build는 대상 스택의 명령이거나 `N/A`와 이유다. 예제 명령은 POSIX `sh`이고 Git clone을 가정한다. Git이 없는 환경과 POSIX 셸이 없는 Windows는 확인하지 않았다. 이미 전체 manifest를 쓰는 저장소는 코어 파일로 바꾸지 않는다. 이 저장소의 GitHub 보호, `review/gate`, 필수 체크는 그대로다. 실행 상태의 정본은 [추적 이슈 #73](https://github.com/minjunkim-dev/repo-baseline/issues/73)이다. 시작 절차의 정본은 이 저장소 문서이고, 이슈 목록은 여기에 다시 적지 않는다.
 
 ## 구조
 

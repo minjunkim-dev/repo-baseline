@@ -110,7 +110,7 @@ class DistributionTests(unittest.TestCase):
         self.assertIn("포매터나 새 의존성을 스택 선택 없이 넣지 않는다.", start)
         self.assertIn("Git이 없는 환경과, POSIX 셸이 없는 Windows 설치는 확인하지 않았다.", start)
         self.assertIn("코어가 복사하는 파일은 PR 본문 양식 하나다.", readme)
-        self.assertIn("https://github.com/minjunkim-dev/repo-baseline/issues/58", readme)
+        self.assertIn("https://github.com/minjunkim-dev/repo-baseline/issues/73", readme)
         self.assertIn("https://github.com/minjunkim-dev/repo-baseline/issues/58", start)
         self.assertNotIn("없는 주소를 적어 두지 않는다.", readme)
         self.assertIn("/mattpocock-skills:ask-matt", start)
