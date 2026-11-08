@@ -89,7 +89,7 @@ def codeql_action_refs(text):
             continue
         block = None
         # A quote opens a scalar only at its start, so "Don't" in a plain step name is not one.
-        scalar = r"(?:^\s*(?:[-?]\s+)*|[:?-]\s+|[\[{,]\s*)(?:[&!]\S*\s+)*(?:'[^']*('?)|\"((?:[^\"\\]|\\.)*)(\"?))"
+        scalar = r"(?:^\s*(?:[-?]\s+)*|[:?-]\s+|(?<=[\"'\]}]):\s*|[\[{,]\s*)(?:[&!]\S*\s+)*(?:'[^']*('?)|\"((?:[^\"\\]|\\.)*)(\"?))"
         for match in re.finditer(scalar, line):
             if match[2] is None and not match[1] or match[2] is not None and ("\\" in match[2] or not match[3]):
                 refs.append("unrecognized")

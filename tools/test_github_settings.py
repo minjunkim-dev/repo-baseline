@@ -379,7 +379,8 @@ class CodeqlActionRefsTests(unittest.TestCase):
                      "- uses: 'github/codeql-\n    action/analyze@v4'\n",
                      '- uses:\n    "github/codeql\\x2daction/analyze@v4"\n',
                      '- uses: !!str "github/codeql\\x2daction/analyze@v4"\n',
-                     '- "us\\x65s": "github/codeql-action/analyze@v4"\n'):
+                     '- "us\\x65s": "github/codeql-action/analyze@v4"\n',
+                     '- {"uses":"github/codeql\\x2daction/analyze@v4"}\n'):
             self.assertIn("unrecognized", codeql_action_refs(text), text)
 
 
