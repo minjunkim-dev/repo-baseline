@@ -1,4 +1,4 @@
-"""Layout checks for the redesigned baseline (docs/redesign-2026-11.md §7)."""
+"""Layout checks for the redesigned baseline (docs/archive/redesign-2026-11.md §7)."""
 from pathlib import Path
 import re
 import unittest

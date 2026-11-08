@@ -3,8 +3,6 @@
 1인·소규모 팀이 언어·스택·하네스(어떤 코딩 에이전트든)와 관계없이 바로 안전하게 개발을 시작하게 하는 최소 기준이다.
 코어는 복사만 하는 작은 파일 5개와 한 쪽짜리 규칙([POLICY.md](POLICY.md))이다. 나머지는 이유가 있을 때만 켜는 프로필이다.
 
-> 재설계 중(2026-11). 정본은 [docs/redesign-2026-11.md](docs/redesign-2026-11.md), 진행 상태는 [추적 이슈 #73](https://github.com/minjunkim-dev/repo-baseline/issues/73)이다.
-
 ## 코어 적용 3단계
 
 1. 이 저장소를 받는다(공개, 인증 불필요): `git clone https://github.com/minjunkim-dev/repo-baseline`

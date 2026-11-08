@@ -1,7 +1,7 @@
 # repo-baseline 재점검과 재설계안 (2026-11-08)
 
 기준: `main` 55acc14. 참고 자료: Readray 노트 10개의 강연 본문 전체. Readray가 덧붙인 외부 리서치는 펼쳐져 있던 것 중 Anthropic 글 수치 확인 1건만 사용했고, 접혀 있던 블록은 열지 않았다.
-**이 문서가 재설계의 정본이다.** 진행 상태는 [추적 이슈 #73](https://github.com/minjunkim-dev/repo-baseline/issues/73)에 있다. 작업 이슈는 #64(W2)~#72(W10). 이어받는 사람은 §9부터 읽는다.
+**보관 문서다. 재설계는 2026-11-08에 끝났고(W1~W10), 현행 규칙은 [POLICY.md](../../POLICY.md)다.** 아래는 당시 정본 그대로다. 진행 상태는 [추적 이슈 #73](https://github.com/minjunkim-dev/repo-baseline/issues/73)에 있다. 작업 이슈는 #64(W2)~#72(W10). 이어받는 사람은 §9부터 읽는다.
 재설계 중에는 기존 `POLICY.md`·`prompts/`·`docs/development-workflow.md`의 절차를 따르지 않는다(소유자 결정, 2026-11-08). 서버 보호는 §7의 W7 전까지 그대로라서, 병합만은 현행 보호를 통과하거나 소유자가 풀어야 한다.
 
 ## 0. 결론 한 줄
