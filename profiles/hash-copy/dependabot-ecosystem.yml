@@ -1,0 +1,11 @@
+  - package-ecosystem: $ecosystem
+    directory: $directory
+    schedule:
+      interval: weekly
+      day: wednesday
+      time: "10:00"
+      timezone: Asia/Seoul
+    labels: [dependencies]
+    commit-message:
+      prefix: chore
+      include: scope

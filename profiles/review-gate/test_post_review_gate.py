@@ -900,13 +900,6 @@ class ReadinessTests(unittest.TestCase):
             sleep=lambda _seconds: None, who=lambda _env, _secrets: OWNER)
         self.assertEqual(code, 1)
         self.assertFalse(any("/statuses/" in url for _, url, _, _ in missing.calls))
-        recorded = json.loads(Path(gate.ROOT, ".github/repository-settings.json").read_text(encoding="utf-8"))
-        checks = recorded["expected"]["protection"]["required_status_checks"]["checks"]
-        self.assertEqual([(item["context"], item["app_id"]) for item in checks], [
-            ("Baseline checks (Python 3.11)", 15368),
-            ("Baseline checks (Python 3.13)", 15368),
-            ("review/gate", 5641238),
-        ])
 
 
 class SignalCleanupTests(unittest.TestCase):

@@ -8,7 +8,7 @@ The project's .github/repo-baseline.json lists each copied file as
 then records source_commit and sha256. --check only reports files that differ.
 
 An entry with "ecosystems" is generated instead of copied: the source (the
-github-actions Dependabot config) gets one templates/github/dependabot-ecosystem.yml
+github-actions Dependabot config) gets one profiles/hash-copy/dependabot-ecosystem.yml
 block per {"package-ecosystem": ..., "directory": ...} item.
 """
 
@@ -22,7 +22,7 @@ import sys
 
 HERE = Path(__file__).resolve().parents[2]
 MANIFEST = ".github/repo-baseline.json"
-ECOSYSTEM_TEMPLATE = "templates/github/dependabot-ecosystem.yml"
+ECOSYSTEM_TEMPLATE = "profiles/hash-copy/dependabot-ecosystem.yml"
 
 
 def git(*args):
