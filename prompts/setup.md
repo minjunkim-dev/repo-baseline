@@ -62,6 +62,7 @@
 커밋하고 PR을 연다. 본문은 `.github/pull_request_template.md` 양식이다.
 
 - Author: 너의 도구 / 모델.
+- Summary: 코어 적용(했으면 GitHub 프로필도). 완료 기준: 3단계 검증이 통과한다.
 - Evidence: 3단계 출력. 확인하지 않은 범위.
 - Merge Danger: 코어만이면 되돌리기 쉬움, GitHub 프로필을 했으면 되돌리기 어려움과 걸린 경로.
 - Review: 비워 둔다. 리뷰는 다른 컨텍스트가 한다.
