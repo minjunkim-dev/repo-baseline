@@ -112,7 +112,7 @@ def load_config(root):
     """Defaults keep a consumer's AGENTS.md and feature-flag checks. A file may turn them off."""
     config = {
         "require_agents_md": True,
-        "reject_claude_md": True,
+        "reject_claude_md": False,  # the core ships CLAUDE.md as one line, @AGENTS.md
         "feature_flags": "config/feature-flags.json",
         "bot_branch_prefixes": list(DEFAULT_BOT_PREFIXES),
         "protected_paths": [

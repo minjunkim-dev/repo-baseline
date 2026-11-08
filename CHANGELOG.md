@@ -2,6 +2,17 @@
 
 항목당 1~3줄. 재설계 전 기록은 [docs/archive/CHANGELOG-2026.md](docs/archive/CHANGELOG-2026.md)에 있다.
 
+## 2026-11 — 재설계 이후
+
+- 첫 PR 확인의 `.env` 검사를 `grep`에서 `git check-ignore`로 바꿨다. `.gitignore`에 `!.env` 예외 줄이 있거나 `.env`가 이미 커밋돼 있어도 `grep`은 통과했다.
+- `POLICY.md`에 작업 추적 절(§8)을 더했다. 원본 트래커는 하나, 공개 이슈는 연동으로 가져온다. 트래커가 없으면 건너뛴다. §7에 취약점 제보는 비공개 경로로 받는다는 줄을 더했다. pr-conventions 프로필은 `#N`과 함께 트래커 ID(`Fixes ENG-123`)도 이슈 연결로 받는다.
+- GitHub 설정 기준선에 `private_vulnerability_reporting`(비공개 취약점 보고)을 필수 항목으로 더했다. 규칙만 있고 켜는 설정이 없었다. 소비 레포는 기준선에 이 키를 더해야 검사가 통과한다. 비공개 저장소처럼 기능이 없으면 예외로 적는다.
+- 회고 프롬프트에 되돌림마다 놓친 층(check·test·리뷰·사람)을 적는 단계를 더했다. `REVIEW.md` 예시 표에 완료 기준 밖을 바꾸는 변경을 실패로 보는 행을 더했다. 소비 레포는 원하면 이 행을 손으로 옮긴다.
+- 에이전트 권한 안내에 플러그인은 켤 때와 끌 때를 비교해 고른다는 기준과, Matt 스킬의 기본 동작 중 POLICY와 어긋나는 3가지(같은 세션 리뷰, 세션 단위 회고, PR 본문 양식)를 적었다.
+- 리뷰 프롬프트 `prompts/review.md`를 더하고 `POLICY.md` §3·README·첫 PR 안내에서 이었다. 구현 세션이 띄운 하위 에이전트는 다른 컨텍스트가 아니라고 적었다. 리뷰를 어떻게 띄우는지 적은 곳이 없었다.
+- pr-conventions의 `reject_claude_md` 기본값을 `false`로 바꿨다. 코어가 `CLAUDE.md`(`@AGENTS.md` 한 줄)를 배포하므로 기본값이 코어와 충돌했다. `CLAUDE.md`를 계속 거부하려면 `.github/workflow-policy.json`에 `"reject_claude_md": true`를 둔다.
+- team 프로필 `CODEOWNERS`에서 쓰이지 않는 경로 `/.github/trust-boundary-paths`(보관한 review-gate)와 `/tools/apply_github_settings.py`(소비 레포에 복사하지 않음)를 지웠다.
+
 ## 2026-11 — 재설계 (#73)
 
 - 코어를 복사만 하는 5개 파일(`templates/core/`)과 한 쪽 규칙(`POLICY.md`)으로 줄였다. Python·manifest 없이 `cp`로 적용한다.
@@ -15,8 +26,3 @@
 - 부르는 곳이 없던 오프라인 CodeQL 참조 검사와 보관한 review-gate의 App ID 검증을 지웠다. hash-copy 묶음은 설정 검사기를 더 복사하지 않는다. 검사기는 소유자가 이 저장소에서 돌린다.
 - PR 양식 Summary에 `완료 기준:` 줄을 두고, `AGENTS.md`에 시작 전에 적는다는 규칙을 더했다. `REVIEW.md`가 받는다던 완료 기준을 적을 곳이 없었다.
 - 자체 CI를 Python 3.11·3.13 두 벌에서 최신 안정 버전 한 벌(`Baseline checks`)로 줄였다. 스크립트는 표준 라이브러리만 쓰고 3.9~3.15에서 통과했다. 서버 보호는 아직 옛 두 context를 요구하므로, 병합 직전에 소유자가 `python3 tools/apply_github_settings.py . --apply`로 필수 체크를 `Baseline checks`로 바꾼 뒤 이 PR을 병합한다.
-- 첫 PR 확인의 `.env` 검사를 `grep`에서 `git check-ignore`로 바꿨다. `.gitignore`에 `!.env` 예외 줄이 있거나 `.env`가 이미 커밋돼 있어도 `grep`은 통과했다.
-- `POLICY.md`에 작업 추적 절(§8)을 더했다. 원본 트래커는 하나, 공개 이슈는 연동으로 가져온다. 트래커가 없으면 건너뛴다. §7에 취약점 제보는 비공개 경로로 받는다는 줄을 더했다. pr-conventions 프로필은 `#N`과 함께 트래커 ID(`Fixes ENG-123`)도 이슈 연결로 받는다.
-- GitHub 설정 기준선에 `private_vulnerability_reporting`(비공개 취약점 보고)을 필수 항목으로 더했다. 규칙만 있고 켜는 설정이 없었다. 소비 레포는 기준선에 이 키를 더해야 검사가 통과한다. 비공개 저장소처럼 기능이 없으면 예외로 적는다.
-- 회고 프롬프트에 되돌림마다 놓친 층(check·test·리뷰·사람)을 적는 단계를 더했다. `REVIEW.md` 예시 표에 완료 기준 밖을 바꾸는 변경을 실패로 보는 행을 더했다. 소비 레포는 원하면 이 행을 손으로 옮긴다.
-- 에이전트 권한 안내에 플러그인은 켤 때와 끌 때를 비교해 고른다는 기준과, Matt 스킬의 기본 동작 중 POLICY와 어긋나는 3가지(같은 세션 리뷰, 세션 단위 회고, PR 본문 양식)를 적었다.

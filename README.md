@@ -20,6 +20,7 @@
 | [hash-copy](profiles/hash-copy/) | 공통 검사기를 해시로 고정해 여러 저장소에 똑같이 두고 싶을 때(Python 필요) |
 | [team](profiles/team/) | 2명 이상. CODEOWNERS와 사람 승인 |
 
+PR을 열면 새 세션에 [prompts/review.md](prompts/review.md)를 첨부해 리뷰한다.
 회고는 정기 실행하지 않는다. 같은 지적이 반복될 때 [prompts/retro.md](prompts/retro.md)를 실행한다.
 
 ## 적용 중인 프로젝트
