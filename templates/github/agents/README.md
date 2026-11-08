@@ -17,6 +17,7 @@
 - 문법: [Permissions](https://code.claude.com/docs/en/permissions), [Settings](https://code.claude.com/docs/en/settings). `*`는 규칙의 어느 자리에나 올 수 있다. `.env` 예시 `Read(./.env)`, `Read(./.env.*)`는 Settings 문서의 예시와 같다. 하위 폴더의 `.env`는 `**/` 규칙으로 막는다.
 - `.env.example`도 막힌다. 필요하면 사람이 내용을 알려 준다.
 - `gh api *protection*`은 보호 설정 읽기도 막는다. 감사는 소유자가 `tools/apply_github_settings.py`로 한다.
+- Claude 프로젝트의 클라우드 스레드는 저장소의 `.claude/settings.json`을 읽지 않는다([Claude projects](https://code.claude.com/docs/en/claude-projects), 확인일 2026-11-08). 그 스레드에는 이 거부 규칙이 없다. 그 환경에는 비밀값을 두지 않고, 병합 권한 없는 토큰만 준다(POLICY §5·§7).
 
 선택: Matt Pocock 스킬 플러그인을 쓰려면 같은 파일에 아래 두 키를 넣는다.
 
