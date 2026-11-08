@@ -162,6 +162,7 @@ class ConventionsTest(unittest.TestCase):
         for title, branch, body in [
             ("chore: bootstrap native apps and Rust API monorepo", "chore/initial-monorepo-setup", "Refs #13"),
             ("feat(ios): add goal split card", "feat/17-goal-split", "Closes #17"),
+            ("feat: add tracker link", "claude/add-tracker-link", "Fixes ENG-123"),
             ("fix(api)!: change action contract", "codex/fix-action", "Refs #18"),
             ("chore(deps): bump checkout", "dependabot/github_actions/actions/checkout-7", ""),
             ("docs: add guide", "docs/a", ""),
@@ -187,6 +188,8 @@ class ConventionsTest(unittest.TestCase):
             ("fix: save data", "fix/0-save", "Refs #18"),
             ("refactor: 묶는다", "refactor/no-issue", ""),
             ("perf: faster", "perf/12-faster", "see the issue"),
+            ("perf: faster", "perf/12-faster", "Fixes eng-12"),
+            ("perf: faster", "perf/12-faster", "Fixes ENG-0"),
             ("test: cover it", "test/3-cover", ""),
             ("revert: undo", "revert/9-undo", ""),
         ]:
