@@ -160,6 +160,7 @@ def validate_exceptions(profile):
 
 
 ACTIONS_APP_ID = 15368
+# Kept after review-gate was archived (docs/archive/review-gate/): a hand-pinned review/gate check still needs a real App id.
 GATE_CONTEXT = "review/gate"
 
 
