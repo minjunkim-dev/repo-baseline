@@ -210,7 +210,7 @@ def main(argv=None):
         if config["reject_claude_md"]:
             errors.append("Use AGENTS.md only; remove CLAUDE.md")
         elif config["require_agents_md"]:
-            # Claude Code reads only CLAUDE.md when both exist, so any other content forks the instructions.
+            # By default Claude Code reads only CLAUDE.md when both exist, so any other content forks the instructions.
             pointer = readable_file(tree, "CLAUDE.md")
             if pointer is None or pointer.stat().st_size > 64 or pointer.read_bytes().strip() != b"@AGENTS.md":
                 errors.append("CLAUDE.md must be the single line @AGENTS.md; keep instructions in AGENTS.md")

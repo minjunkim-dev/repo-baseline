@@ -10,7 +10,7 @@
 - 회고 프롬프트에 되돌림마다 놓친 층(check·test·리뷰·사람)을 적는 단계를 더했다. `REVIEW.md` 예시 표에 완료 기준 밖을 바꾸는 변경을 실패로 보는 행을 더했다. 소비 레포는 원하면 이 행을 손으로 옮긴다.
 - 에이전트 권한 안내에 플러그인은 켤 때와 끌 때를 비교해 고른다는 기준과, Matt 스킬의 기본 동작 중 POLICY와 어긋나는 3가지(같은 세션 리뷰, 세션 단위 회고, PR 본문 양식)를 적었다.
 - 리뷰 프롬프트 `prompts/review.md`를 더하고 `POLICY.md` §3·README·첫 PR 안내에서 이었다. 구현 세션이 띄운 하위 에이전트는 다른 컨텍스트가 아니라고 적었다. 리뷰를 어떻게 띄우는지 적은 곳이 없었다.
-- pr-conventions의 `reject_claude_md` 기본값을 `false`로 바꿨다. 코어가 `CLAUDE.md`(`@AGENTS.md` 한 줄)를 배포하므로 기본값이 코어와 충돌했다. 대신 `CLAUDE.md`가 있으면 `@AGENTS.md` 한 줄이어야 한다. 둘 다 있으면 Claude Code는 `CLAUDE.md`만 읽는다. `CLAUDE.md`를 계속 거부하려면 `.github/workflow-policy.json`에 `"reject_claude_md": true`를 둔다.
+- pr-conventions의 `reject_claude_md` 기본값을 `false`로 바꿨다. 코어가 `CLAUDE.md`(`@AGENTS.md` 한 줄)를 배포하므로 기본값이 코어와 충돌했다. 대신 `CLAUDE.md`가 있으면 `@AGENTS.md` 한 줄이어야 한다. 둘 다 있으면 Claude Code는 기본 설정에서 `CLAUDE.md`만 읽는다. `CLAUDE.md`를 계속 거부하려면 `.github/workflow-policy.json`에 `"reject_claude_md": true`를 둔다.
 - team 프로필 `CODEOWNERS`에서 쓰이지 않는 경로 `/.github/trust-boundary-paths`(보관한 review-gate)와 `/tools/apply_github_settings.py`(소비 레포에 복사하지 않음)를 지웠다.
 
 ## 2026-11 — 재설계 (#73)
