@@ -20,7 +20,8 @@
 
 1. 작업 브랜치를 만든다.
 2. `templates/core/`에서 복사한다.
-   - `AGENTS.md`, `CLAUDE.md`, `REVIEW.md` → 저장소 루트
+   - `AGENTS.md`, `REVIEW.md` → 저장소 루트
+   - `CLAUDE.md`는 만들지 않는다. 이미 있으면 내용을 `AGENTS.md`에 합치고 `CLAUDE.md`를 지운다. 지울 수 없는 이유가 있으면 `@AGENTS.md` 한 줄로 바꾼다. Claude Code는 둘 다 있으면 `CLAUDE.md`만 읽는다.
    - `pull_request_template.md` → `.github/pull_request_template.md`
    - `gitignore` → 저장소의 `.gitignore` 뒤에 붙인다(없는 줄만)
 3. `AGENTS.md`를 채운다.
@@ -54,7 +55,7 @@
 - 명령 4칸: 각각 실행 결과(성공·실패) 또는 `N/A: <이유>`.
 - `git check-ignore -q .env && git check-ignore -q .env.local && echo ignored`: `ignored`가 나온다. 예외 줄(`!.env`)이 있거나 이미 커밋된 파일이면 나오지 않는다.
 - `git status`: 비밀값 파일이 스테이징되지 않았다.
-- `CLAUDE.md`가 `@AGENTS.md` 한 줄이다.
+- `CLAUDE.md`가 없거나 `@AGENTS.md` 한 줄이다.
 - GitHub 프로필을 했으면: workflow 파일의 YAML이 파싱된다(쓸 수 있는 도구로). 확인하지 못했으면 그렇게 적는다.
 
 ## 4. PR 열기
@@ -62,7 +63,7 @@
 커밋하고 PR을 연다. 본문은 `.github/pull_request_template.md` 양식이다.
 
 - Author: 너의 도구 / 모델.
-- Summary: 코어 적용(했으면 GitHub 프로필도). 완료 기준: 템플릿 빈칸이 없다, `.env`가 무시된다, 비밀값이 스테이징되지 않았다, `CLAUDE.md`가 `@AGENTS.md` 한 줄이다, (GitHub 프로필을 했으면) workflow YAML이 파싱된다. 전에 통과하던 프로젝트 명령은 그대로 통과한다.
+- Summary: 코어 적용(했으면 GitHub 프로필도). 완료 기준: 템플릿 빈칸이 없다, `.env`가 무시된다, 비밀값이 스테이징되지 않았다, `CLAUDE.md`가 없거나 `@AGENTS.md` 한 줄이다, (GitHub 프로필을 했으면) workflow YAML이 파싱된다. 전에 통과하던 프로젝트 명령은 그대로 통과한다.
 - Evidence: 3단계 출력. 확인하지 않은 범위.
 - Merge Danger: 코어만이면 되돌리기 쉬움, GitHub 프로필을 했으면 되돌리기 어려움과 걸린 경로.
 - Review: 비워 둔다. 리뷰는 다른 컨텍스트가 원본 저장소의 `prompts/review.md`로 한다.
