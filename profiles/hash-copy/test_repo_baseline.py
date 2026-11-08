@@ -18,7 +18,7 @@ class RepoBaselineTests(unittest.TestCase):
             root = Path(folder)
             (root / "scripts").mkdir()
             checker = root / "scripts/check_repo_baseline.py"
-            checker.write_bytes((ROOT / "scripts/check_repo_baseline.py").read_bytes())
+            checker.write_bytes((Path(__file__).resolve().parent / "check_repo_baseline.py").read_bytes())
             def run():
                 return subprocess.run([sys.executable, str(checker)], capture_output=True, text=True)
             self.assertEqual(run().returncode, 2)

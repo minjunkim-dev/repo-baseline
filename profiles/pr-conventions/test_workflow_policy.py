@@ -11,10 +11,14 @@ from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
 
-import workflow_policy
-from workflow_policy import parse_author, validate_body, validate_flags, validate_pr
+HERE = Path(__file__).resolve().parent
+# pr_author.py lives in profiles/review-gate/. A consumer copies it beside this file.
+sys.path.insert(0, str(HERE.parent / "review-gate"))
+import workflow_policy  # noqa: E402
+from workflow_policy import parse_author, validate_body, validate_flags, validate_pr  # noqa: E402
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = HERE.parents[1]
+SOURCES = {"workflow_policy.py": HERE / "workflow_policy.py", "pr_author.py": HERE.parent / "review-gate" / "pr_author.py"}
 BODY = """Author: Cursor / grok-4.7
 
 ## Summary
@@ -199,7 +203,8 @@ class ConventionsTest(unittest.TestCase):
         self.assertTrue(validate_body(BODY.replace("## Evidence\n", "")))
         self.assertTrue(validate_body(BODY.replace("Door: 되돌리기 쉬움", "Door: 양쪽 문 또는 한쪽 문")))
         self.assertTrue(validate_body(BODY + "Door: 한쪽 문\n"))
-        self.assertTrue(validate_body(BODY.replace("Cursor", "Codex")))
+        self.assertEqual([], validate_body(BODY.replace("Cursor", "Codex")))
+        self.assertTrue(validate_body(BODY.replace("Author: Cursor / grok-4.7", "Author:  / grok-4.7")))
         self.assertTrue(validate_body(BODY.replace("사람", "Cursor").replace("grok-4.7", "없음").replace("Cursor / 없음", "사람 / grok-4.7")))
         self.assertTrue(any("disagree" in error for error in validate_body(BODY + "작성 도구: Claude Code\n작성 모델: opus-5.5\n")))
         self.assertEqual(parse_author("Author: Claude Code / Opus 5.5\n이전 작성 모델: grok-4.7, composer-2.5\n")[1], ["grok-4.7", "composer-2.5"])
@@ -299,16 +304,14 @@ class ConventionsTest(unittest.TestCase):
         finally:
             os.chdir(previous)
 
-    def test_template_has_the_sections_and_axes(self):
-        text = (ROOT / ".github/pull_request_template.md").read_text(encoding="utf-8")
-        for header in ("## Summary", "## Evidence", "## Merge Danger", "Author:", "Door:"):
+    def test_template_has_the_sections_and_review_fields(self):
+        text = (ROOT / "templates/core/pull_request_template.md").read_text(encoding="utf-8")
+        for header in ("## Summary", "## Evidence", "## Merge Danger", "## Review", "Author:", "Door:",
+                       "리뷰어", "고친 것:", "남은 지적:"):
             self.assertIn(header, text)
-        for axis in ("Standards", "Spec", "버그 찾기", "Security"):
-            self.assertIn(f"| {axis} |", text)
-        self.assertIn("axis | model | effort | head SHA | P0 | P1 | P2 | result", text)
 
     def test_a_pull_request_cannot_replace_the_convention_script(self):
-        source = Path(__file__).resolve().parents[1]
+        source = ROOT
         temporary = TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         base = Path(temporary.name) / "base"
@@ -317,7 +320,7 @@ class ConventionsTest(unittest.TestCase):
             (tree / "scripts").mkdir(parents=True)
             (tree / ".github").mkdir()
         for name in ("workflow_policy.py", "pr_author.py"):
-            (base / "scripts" / name).write_text((source / "scripts" / name).read_text(encoding="utf-8"), encoding="utf-8")
+            (base / "scripts" / name).write_text(SOURCES[name].read_text(encoding="utf-8"), encoding="utf-8")
         config = source / ".github" / "workflow-policy.json"
         if config.is_file():
             (base / ".github" / "workflow-policy.json").write_text(config.read_text(encoding="utf-8"), encoding="utf-8")
@@ -340,7 +343,6 @@ class ConventionsTest(unittest.TestCase):
         self.assertIn("PR title", blocked.stdout)
 
     def test_base_checker_reads_the_pull_request_tree(self):
-        source = Path(__file__).resolve().parents[1]
         temporary = TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         work = Path(temporary.name)
@@ -348,7 +350,7 @@ class ConventionsTest(unittest.TestCase):
         pull = work / "policy-head"
         for name in ("workflow_policy.py", "pr_author.py"):
             (base / "scripts").mkdir(parents=True, exist_ok=True)
-            (base / "scripts" / name).write_text((source / "scripts" / name).read_text(encoding="utf-8"), encoding="utf-8")
+            (base / "scripts" / name).write_text(SOURCES[name].read_text(encoding="utf-8"), encoding="utf-8")
         (base / "AGENTS.md").write_text("base copy\n", encoding="utf-8")
         (base / "config").mkdir()
         (base / "config" / "feature-flags.json").write_text('{"version": 1, "flags": []}\n', encoding="utf-8")

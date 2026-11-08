@@ -1,10 +1,9 @@
 """One author-line parser for the PR convention check and the review-evidence check.
 
-Both scripts are copied into a consumer's scripts/ directory. This module is copied
-with them, and each script imports it. There is no second copy of the rules.
+This file lives in profiles/review-gate/. profiles/pr-conventions/workflow_policy.py
+imports it too, so a consumer copies it beside either script. There is no second copy.
+Any non-empty tool name is accepted. A person author is `사람 / 없음`.
 """
-
-TOOLS = ("Claude Code", "Cursor 클라우드 에이전트", "Cursor", "사람")
 
 
 def text_of(body):
@@ -12,10 +11,7 @@ def text_of(body):
 
 
 def tool_name(value):
-    for name in TOOLS:
-        if value == name:
-            return name
-    return None
+    return value or None
 
 
 def parse_author(body):

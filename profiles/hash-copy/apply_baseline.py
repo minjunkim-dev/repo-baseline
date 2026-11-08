@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Copy shared files from this repository into a project and record their hashes.
 
-Usage: tools/apply_baseline.py <project> [--check]
+Usage: profiles/hash-copy/apply_baseline.py <project> [--check]
 
 The project's .github/repo-baseline.json lists each copied file as
 {"<path in project>": {"source": "<path here>"}}. Applying copies every source,
 then records source_commit and sha256. --check only reports files that differ.
 
 An entry with "ecosystems" is generated instead of copied: the source (the
-github-actions Dependabot config) gets one templates/dependabot-ecosystem.yml
+github-actions Dependabot config) gets one templates/github/dependabot-ecosystem.yml
 block per {"package-ecosystem": ..., "directory": ...} item.
 """
 
@@ -20,9 +20,9 @@ from string import Template
 import subprocess
 import sys
 
-HERE = Path(__file__).resolve().parents[1]
+HERE = Path(__file__).resolve().parents[2]
 MANIFEST = ".github/repo-baseline.json"
-ECOSYSTEM_TEMPLATE = "templates/dependabot-ecosystem.yml"
+ECOSYSTEM_TEMPLATE = "templates/github/dependabot-ecosystem.yml"
 
 
 def git(*args):

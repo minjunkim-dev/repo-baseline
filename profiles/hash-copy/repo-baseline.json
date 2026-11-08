@@ -1,31 +1,31 @@
 {
   "files": {
     "scripts/check_repo_baseline.py": {
-      "source": "scripts/check_repo_baseline.py"
+      "source": "profiles/hash-copy/check_repo_baseline.py"
     },
     "scripts/test_repo_baseline.py": {
-      "source": "scripts/test_repo_baseline.py"
+      "source": "profiles/hash-copy/test_repo_baseline.py"
     },
     "scripts/check_github_settings.py": {
-      "source": "scripts/check_github_settings.py"
+      "source": "tools/check_github_settings.py"
     },
     "scripts/test_github_settings.py": {
-      "source": "scripts/test_github_settings.py"
+      "source": "tools/test_github_settings.py"
     },
     "scripts/check_review_status.py": {
-      "source": "scripts/check_review_status.py"
+      "source": "profiles/review-gate/check_review_status.py"
     },
     "scripts/test_review_status.py": {
-      "source": "scripts/test_review_status.py"
+      "source": "profiles/review-gate/test_review_status.py"
     },
     "scripts/workflow_policy.py": {
-      "source": "scripts/workflow_policy.py"
+      "source": "profiles/pr-conventions/workflow_policy.py"
     },
     "scripts/pr_author.py": {
-      "source": "scripts/pr_author.py"
+      "source": "profiles/review-gate/pr_author.py"
     },
     "scripts/test_workflow_policy.py": {
-      "source": "scripts/test_workflow_policy.py"
+      "source": "profiles/pr-conventions/test_workflow_policy.py"
     },
     ".github/pull_request_template.md": {
       "source": ".github/pull_request_template.md"
@@ -49,7 +49,7 @@
       "source": "vendor/mattpocock-skills/matt-code-review/LICENSE"
     },
     ".github/dependabot.yml": {
-      "source": "templates/dependabot.yml",
+      "source": "templates/github/dependabot.yml",
       "ecosystems": []
     }
   }

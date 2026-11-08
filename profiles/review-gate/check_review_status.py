@@ -1,34 +1,19 @@
 #!/usr/bin/env python3
-"""Fail when a pull request head lacks the review evidence the gate needs (POLICY.md §5).
+"""Fail when a pull request head lacks the review record or owner approval the gate needs.
 
-review/independent and review/security are advisory commit statuses. This checker does not read
-them. A missing status, a failure, and a status from another creator do not fail the gate.
-The review-gate app posts review/gate only. The owner may still post the advisory statuses.
-The pull request body is parsed for the review evidence table. It is never executed.
-HTML comments are removed before the author line and the table are read. An unclosed
-comment fails closed. Every required axis needs a model, or `해당 없음:` where that axis
-allows it. Standards and Spec do not allow `해당 없음`. Security does not allow it when a
-trust-boundary path changed or the path list cannot be classified. The table must name this
-head. A named-model row with P0 or P1 above 0, or an explicit failure result, does not pass.
-P0 and P1 are open counts. Rejection, acceptance, or a fix SHA in the body does not clear a
-count above zero. A 1-person pull request that changes a POLICY.md §10 gate path also needs
-the repository owner's approval comment on this head. Dependabot follows the same evidence
-table, author record, and owner comment as any other author. workflow_policy skipping
-Dependabot body sections does not skip that record. A version or hash bump is not a
-separate success path.
-Advisory review statuses are not required for either author.
-That comment is not reused from an older head. An edited comment
-is not approval when REST updated_at differs from created_at. Timestamps are whole seconds, so a
-same-second edit is not distinguished. Post a new comment, then re-run this job or post the gate
-by hand. A comment does not re-run this checker.
+Optional profile: profiles/review-gate/README.md. review/independent and review/security are
+advisory commit statuses and are not read. The review-gate app posts review/gate only.
+The pull request body is parsed, never executed. HTML comments are removed first, and an
+unclosed comment fails closed. The body needs an Author line and the three fields of the
+last `## Review` section from templates/core/pull_request_template.md: 리뷰어, 고친 것,
+남은 지적. 리뷰어 must not be empty or 미실행. An open finding in 남은 지적 does not fail.
+The record is not tied to a head SHA. Model families are not compared.
+A 1-person pull request that changes a gate path (ONE_WAY_PATHS) also needs the repository
+owner's approval comment on this head. Dependabot follows the same rules as any other author.
+That comment is not reused from an older head. An edited comment is not approval when REST
+updated_at differs from created_at. Timestamps are whole seconds, so a same-second edit is
+not distinguished. Post a new comment, then re-run this job or post the gate by hand.
 The first line must be the current prefix or the deprecated prefix, then the full head SHA.
-Both prefixes share this match.
-The pull request body is parsed for the review evidence table. It is never executed.
-A review family that matches the author family fails, unless a same-family exception block
-records a different model, a separate agent id, an unavailability reason, and this head's SHA.
-The checker compares those strings. It does not ask whether another family is available,
-and it does not authenticate an agent id. Haiku is not sufficient for Security, or for
-bug-finding unless the Door is the easy one.
 The pull request base ref must be the repository default branch, and the event base SHA must be
 that branch or an ancestor of it. A pull request with a different base is not evidence."""
 
@@ -45,7 +30,7 @@ from pr_author import parse_author
 # Not a commit status. The job fails with this name when the owner comment is missing.
 # A status posted under this name does not count: the same account can post one without the comment.
 OWNER = "review/owner-approval"
-# Not a commit status. The job fails with this name when the evidence table does not match this head.
+# Not a commit status. The job fails with this name when the Author line or the ## Review fields are missing.
 EVIDENCE = "review/evidence"
 # Not a commit status. The job fails with this name when this pull request does not target the
 # repository default branch. A status posted under this name does not count.
@@ -55,33 +40,14 @@ TEAM_LINE = "프로필: 팀"
 APPROVAL_LINE = re.compile(
     r"(?:되돌리기 어려움 승인:|한쪽 문 승인:)"
     r"[ \t]*([0-9a-fA-F]{40})(?:[ \t].*)?\Z")
-PROJECT_PATHS = ".github/trust-boundary-paths"
-# POLICY.md §5 common paths. A pattern without "/" matches the file name at any depth.
-COMMON_PATHS = (
-    ".github/workflows/**", ".github/actions/**", ".github/repository-settings.json", ".github/dependabot.yml",
-    ".github/dependabot.yaml", ".github/CODEOWNERS", ".github/repo-baseline.json", ".github/workflow-policy.json",
-    PROJECT_PATHS, "scripts/check_*.py",
-    "scripts/workflow_policy.py", "scripts/pr_author.py",
-    "tools/post_review_gate.py", "tools/apply_github_settings.py", "docs/review-gate-app.md",
-    ".claude/settings.json", ".claude/hooks/**", ".claude/agents/**", ".claude/commands/**", ".agents/skills/**",
-    ".claude/skills/**", ".mcp.json", "Dockerfile", ".env*",
-)
-# POLICY.md §10 gate paths. A change here needs the 1-person owner comment, including a Dependabot
-# pull request. Other hard-to-reverse decisions (money, account, migration) are not in this list.
+# Gate paths, in the consumer layout (scripts/, tools/). A change here needs the 1-person owner comment,
+# including a Dependabot pull request. Other hard-to-reverse decisions (money, account, migration) are not listed.
 ONE_WAY_PATHS = (
     ".github/workflows/**", "templates/review-status.yml", "templates/pr-policy.yml",
     "scripts/check_review_status.py", "scripts/workflow_policy.py", "scripts/pr_author.py",
     "tools/post_review_gate.py", "tools/apply_github_settings.py",
     "docs/review-gate-app.md", ".github/workflow-policy.json",
     "templates/review-status-policy.json", ".github/repository-settings.json", "templates/repository-settings.json",
-)
-# Dependency manifests and lockfiles; a project adds other ecosystems to PROJECT_PATHS.
-DEPENDENCY_FILES = (
-    "package.json", "package-lock.json", "npm-shrinkwrap.json", "pnpm-lock.yaml", "yarn.lock", "bun.lock",
-    "Cargo.toml", "Cargo.lock", "go.mod", "go.sum", "pyproject.toml", "poetry.lock", "uv.lock", "Pipfile",
-    "Pipfile.lock", "requirements*.txt", "Gemfile", "Gemfile.lock", "Package.swift", "Package.resolved",
-    "Podfile", "Podfile.lock", "build.gradle", "build.gradle.kts", "gradle.lockfile", "libs.versions.toml",
-    "pubspec.yaml", "pubspec.lock", "composer.json", "composer.lock",
 )
 
 
@@ -104,24 +70,6 @@ def matches(path, patterns):
     return (any(path == pattern or fnmatch.fnmatchcase(path, pattern)
                 or path.startswith(pattern.removesuffix("/**") + "/") for pattern in rooted)
             or any(name == pattern or fnmatch.fnmatchcase(name, pattern) for pattern in patterns if "/" not in pattern))
-
-
-def project_paths(repo, base, read):
-    """Patterns from the base branch's trust-boundary file.
-
-    A 404 means the repository has no extra paths. Any other read error is raised so the
-    gate does not treat an unreadable list as empty. These patterns do not require a
-    commit status."""
-    try:
-        found = read(f"repos/{repo}/contents/{PROJECT_PATHS}?ref={base}")
-    except subprocess.CalledProcessError as error:
-        if "404" in (error.stderr or ""):
-            return ()
-        raise
-    lines = base64.b64decode(found["content"]).decode("utf-8").splitlines()
-    # CODEOWNERS spellings work too: /src/auth/ means src/auth/**, and /auth stays a root path.
-    return tuple(re.sub(r"/$", "/**", line.strip()) for line in lines
-                 if line.strip() and not line.startswith("#"))
 
 
 def approval_sha(body):
@@ -291,305 +239,13 @@ def owner_approved(repo, number, head, read):
     return False
 
 
-# Alias, then family. Opus and Sonnet are both Claude. Two families in one name is unknown.
-FAMILY_ALIASES = (
-    ("composer", "composer"),
-    ("gemini", "gemini"),
-    ("sonnet", "claude"),
-    ("opus", "claude"),
-    ("claude", "claude"),
-    ("grok", "grok"),
-    ("gpt", "gpt"),
-)
-FAMILY_NAMES = "Claude, Grok, Composer, Gemini, or GPT"
-COLUMN_NAMES = {
-    "axis": "axis", "축": "axis", "model": "model", "모델": "model", "effort": "effort",
-    "head sha": "sha", "p0": "p0", "p1": "p1", "p2": "p2", "result": "result", "결과": "result",
-}
-TABLE_COLUMNS = ("axis", "model", "effort", "sha", "p0", "p1", "p2")
-AXIS_KEYS = {
-    "standards": "standards", "spec": "spec", "security": "security",
-    "버그 찾기": "bug", "bug-finding": "bug", "bug finding": "bug",
-}
+
+
+REVIEW_HEADER = "## Review"
+# Field labels from templates/core/pull_request_template.md. A hint in parentheses after the label is allowed.
+_REVIEW_KEYS = {"리뷰어": "reviewer", "고친 것": "fixed", "남은 지적": "remaining"}
+_REVIEW_LINE = re.compile(r"(리뷰어|고친 것|남은 지적)(?:\([^)]*\))?:(.*)")
 BODY_LIMIT = 200000
-
-
-def model_family(name):
-    """Family of a model name, or None when it is empty, mixed, or not in the alias table."""
-    if not isinstance(name, str):
-        return None
-    text = name.strip().lower()
-    if not text or "chatgpt" in text or re.search(r"(?<![a-z0-9])codex(?![a-z0-9])", text):
-        return None
-    found = set()
-    for alias, family in FAMILY_ALIASES:
-        if re.search(rf"(?<![a-z0-9]){alias}(?![a-z0-9])", text):
-            found.add(family)
-    if len(found) != 1:
-        return None
-    return found.pop()
-
-
-# Line, then version numbers. Host and effort words are not a second model.
-# A missing version does not prove that two names are different models.
-_IDENTITY_LINES = ("haiku", "opus", "sonnet", "composer", "gemini", "grok", "gpt")
-_EASY_DOORS = {"되돌리기 쉬움", "양쪽 문"}
-_HARD_DOORS = {"되돌리기 어려움", "한쪽 문"}
-_ACTIVE_EXCEPTION = {"claude", "grok", "composer"}
-_FAMILY_LABELS = {
-    "claude": "claude", "클로드": "claude",
-    "grok": "grok", "그록": "grok",
-    "composer": "composer", "컴포저": "composer",
-    "gemini": "gemini", "gpt": "gpt",
-}
-_AGENT_PLACEHOLDER = {
-    "없음", "미확인", "unknown", "n/a", "na", "same", "동일", "해당 없음",
-    "agent", "bot", "사람", "같은에이전트", "self", "myself",
-}
-_EXCEPTION_HEADER = "같은 패밀리 예외:"
-_EXCEPTION_FIELDS = (
-    ("축", "axes"),
-    ("이유", "reason"),
-    ("작성 모델", "author_model"),
-    ("작성 패밀리", "author_family"),
-    ("리뷰 모델", "review_model"),
-    ("리뷰 패밀리", "review_family"),
-    ("작성 에이전트", "author_agent"),
-    ("리뷰 에이전트", "review_agent"),
-    ("검토 SHA", "sha"),
-    ("이전 작성 모델", "previous_models"),
-    ("이전 작성 에이전트", "previous_agents"),
-)
-_EXCEPTION_KEYS = {label: key for label, key in _EXCEPTION_FIELDS}
-_REASON = re.compile(r"다른 패밀리 불가:\s*\S.*")
-
-
-def model_identity(name):
-    """(line, version numbers) or None when the name is not one model line.
-
-    Words that are not the line or a number are ignored. Two lines in one name are unknown.
-    This does not ask a provider which model ran."""
-    if not isinstance(name, str):
-        return None
-    tokens = re.findall(r"[a-z0-9]+", name.strip().lower())
-    lines = [alias for alias in _IDENTITY_LINES if alias in tokens]
-    if len(lines) != 1:
-        return None
-    return (lines[0], tuple(int(token) for token in tokens if token.isdigit()))
-
-
-def proven_same(left, right):
-    """True when both names identify the same line and the same version numbers."""
-    return model_identity(left) is not None and model_identity(left) == model_identity(right)
-
-
-def proven_different(left, right):
-    """True only when both names identify one line and those identities differ.
-
-    A missing identity, a missing version, or a version tuple that is only a prefix
-    of the other is not proof of a different model. A date or build number appended
-    to the same components does not make a second model. The checker does not fill
-    in a version from anywhere else."""
-    left_id, right_id = model_identity(left), model_identity(right)
-    if left_id is None or right_id is None or left_id[0] != right_id[0]:
-        return left_id is not None and right_id is not None and left_id[0] != right_id[0]
-    left_version, right_version = left_id[1], right_id[1]
-    if not left_version or not right_version:
-        return False
-    shared = min(len(left_version), len(right_version))
-    return left_version[:shared] != right_version[:shared]
-
-
-def family_label(value):
-    """Canonical family for a declared label, or None when the label is not one family."""
-    if not isinstance(value, str):
-        return None
-    return _FAMILY_LABELS.get(value.strip().casefold())
-
-
-def door_kind(text):
-    """easy, hard, or None. None when Door is missing, repeated, or not a known value.
-
-    The field name matches scripts/workflow_policy.py. Deprecated values map the same way.
-    This does not decide whether the pull request is a gate path."""
-    if not isinstance(text, str):
-        return None
-    doors = [line[len("Door:"):].strip() for line in text.split("\n") if line.startswith("Door:")]
-    if len(doors) != 1:
-        return None
-    if doors[0] in _EASY_DOORS:
-        return "easy"
-    if doors[0] in _HARD_DOORS:
-        return "hard"
-    return None
-
-
-def agent_token(value):
-    """Comparable agent id, or None when the text is too short, blank, or a placeholder.
-
-    The comparison is the text itself. This does not look up an agent registry."""
-    if not isinstance(value, str):
-        return None
-    text = value.strip()
-    if len(text) < 8 or text.casefold() in _AGENT_PLACEHOLDER or re.search(r"\d", text) is None:
-        return None
-    return text.casefold()
-
-
-def _split_list(value):
-    if not isinstance(value, str) or value.strip() == "":
-        return []
-    return [part.strip() for part in value.split(",")]
-
-
-def _named_axes(raw):
-    """Axis keys named by a comma-separated cell, and whether a name was unusable."""
-    if not isinstance(raw, str) or raw.strip() == "":
-        return [], True
-    found = []
-    bad = False
-    for part in raw.split(","):
-        name = part.strip().lower()
-        if name == "":
-            bad = True
-            continue
-        key = AXIS_KEYS.get(name)
-        if key is None or key in found:
-            bad = True
-            continue
-        found.append(key)
-    return found, bad
-
-
-def exception_blocks(text):
-    """Parsed `같은 패밀리 예외:` blocks, in order. The body is not executed.
-
-    A block ends at the next non-empty line that is not a field. Missing fields are
-    empty strings. Duplicate or unknown fields mark the block malformed."""
-    if not isinstance(text, str):
-        return []
-    blocks = []
-    current = None
-    for line in text.split("\n"):
-        stripped = line.strip()
-        if stripped == _EXCEPTION_HEADER:
-            if current is not None:
-                blocks.append(_finish_exception(current))
-            current = {"fields": {}, "malformed": ""}
-            continue
-        if current is None:
-            continue
-        if stripped == "":
-            continue
-        match = re.fullmatch(r"- ([^:]+):\s*(.*)", stripped)
-        if match is None:
-            blocks.append(_finish_exception(current))
-            current = None
-            continue
-        key = _EXCEPTION_KEYS.get(match.group(1))
-        if key is None or key in current["fields"]:
-            current["malformed"] = "field"
-            continue
-        current["fields"][key] = match.group(2).strip()
-    if current is not None:
-        blocks.append(_finish_exception(current))
-    return blocks
-
-
-def _finish_exception(current):
-    row = {key: current["fields"].get(key, "") for _, key in _EXCEPTION_FIELDS}
-    row["malformed"] = current["malformed"]
-    return row
-
-
-def _dedupe(codes):
-    found = []
-    for code in codes:
-        if code not in found:
-            found.append(code)
-    return found
-
-
-def _exception_codes(block, reviewer, author_model, previous, head, axis, door):
-    """Why this block does not cover one same-family row. Empty means it does."""
-    if block.get("malformed"):
-        return ["exception-record"]
-    codes = []
-    family = model_family(reviewer)
-    if family not in _ACTIVE_EXCEPTION:
-        codes.append("inactive-roster")
-    authors = [author_model] + list(previous)
-    if any(not proven_different(reviewer, name) for name in authors):
-        codes.append("same-model")
-    if _REASON.fullmatch(block.get("reason", "").strip()) is None:
-        codes.append("exception-reason")
-    sha = block.get("sha", "").strip()
-    if not re.fullmatch(r"[0-9a-fA-F]{40}", sha) or sha.lower() != (head or "").lower():
-        codes.append("exception-sha")
-    author_agent = agent_token(block.get("author_agent", ""))
-    review_agent = agent_token(block.get("review_agent", ""))
-    if author_agent is None or review_agent is None:
-        codes.append("exception-agent")
-    elif author_agent == review_agent:
-        codes.append("same-agent")
-    if not proven_same(block.get("author_model", ""), author_model):
-        codes.append("exception-record")
-    if family_label(block.get("author_family", "")) != model_family(author_model):
-        codes.append("exception-record")
-    if not proven_same(block.get("review_model", ""), reviewer):
-        codes.append("exception-record")
-    if family_label(block.get("review_family", "")) != family:
-        codes.append("exception-record")
-    declared_models = _split_list(block.get("previous_models", ""))
-    declared_agents = _split_list(block.get("previous_agents", ""))
-    if len(declared_models) != len(previous) or any(
-            not proven_same(declared, actual) for declared, actual in zip(declared_models, previous)):
-        codes.append("exception-record")
-    if previous:
-        tokens = [agent_token(item) for item in declared_agents]
-        if len(declared_agents) != len(previous) or any(item is None for item in tokens):
-            codes.append("exception-agent")
-        elif review_agent is not None and any(item == review_agent for item in tokens):
-            codes.append("same-agent")
-    elif block.get("previous_models", "").strip() or block.get("previous_agents", "").strip():
-        codes.append("exception-record")
-    identity = model_identity(reviewer)
-    if identity is not None and identity[0] == "haiku" and (
-            axis == "security" or (axis == "bug" and door != "easy")):
-        codes.append("insufficient-capability")
-    return _dedupe(codes)
-
-
-def _cells(line):
-    stripped = line.strip()
-    if len(stripped) < 2 or not stripped.startswith("|") or not stripped.endswith("|"):
-        return None
-    return [cell.strip() for cell in stripped[1:-1].split("|")]
-
-
-def _separator(cells):
-    return bool(cells) and all(re.fullmatch(r":?-{3,}:?", cell) for cell in cells)
-
-
-def _integer(value):
-    return re.fullmatch(r"0|[1-9][0-9]*", value.strip()) is not None
-
-
-def _not_applicable(model):
-    text = model.strip()
-    return text.startswith("해당 없음:") and text.split(":", 1)[1].strip() != ""
-
-
-def _count(value):
-    text = value.strip() if isinstance(value, str) else ""
-    if not _integer(text):
-        return None
-    return int(text)
-
-
-# Explicit failure in the optional result column. Empty and pass do not use this set.
-# P2 above zero is not a failure by itself.
-_FAIL_RESULT = {"fail", "failed", "failure", "실패"}
 _HTML_COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
 
 
@@ -601,90 +257,34 @@ def visible_text(text):
     return stripped
 
 
-def _path_names(entry):
-    if not isinstance(entry, dict):
+def review_section(text):
+    """Fields of the last `## Review` section as {key: [values]}, or None without one. Parse only.
+
+    The section ends at the next `## ` header. A value is the text after the label plus any
+    following lines until the next field. A repeated label adds a second value."""
+    lines = text.split("\n")
+    starts = [index for index, line in enumerate(lines) if line.strip() == REVIEW_HEADER]
+    if not starts:
         return None
-    names = []
-    for key in ("filename", "previous_filename"):
-        value = entry.get(key)
-        if isinstance(value, str) and value != "":
-            names.append(value)
-    return names
+    found = {}
+    current = None
+    for line in lines[starts[-1] + 1:]:
+        if line.startswith("## "):
+            break
+        match = _REVIEW_LINE.fullmatch(line.strip())
+        if match:
+            current = _REVIEW_KEYS[match.group(1)]
+            found.setdefault(current, []).append(match.group(2).strip())
+        elif current and line.strip():
+            found[current][-1] = (found[current][-1] + " " + line.strip()).strip()
+    return found
 
 
-def security_evidence_required(files, extra):
-    """True when Security `해당 없음` cannot cover this diff.
+def evidence_problems(body):
+    """Why the body does not carry the review record. Empty means it does. The body is not executed.
 
-    files is None when compare did not return a classifiable list. An entry with no
-    path name is the same: the gate cannot show the change is outside the trust boundary."""
-    if files is None:
-        return True
-    patterns = COMMON_PATHS + DEPENDENCY_FILES + tuple(extra)
-    for entry in files:
-        names = _path_names(entry)
-        if not names:
-            return True
-        if any(matches(name, patterns) for name in names):
-            return True
-    return False
-
-
-def evidence_table(body):
-    """Rows of the last evidence table. An earlier table does not hide a later one. Parse only."""
-    lines = body.split("\n")
-    chosen = None
-    index = 0
-    while index < len(lines):
-        cells = _cells(lines[index])
-        mapped = [COLUMN_NAMES.get(cell.lower()) for cell in cells] if cells else []
-        named = [name for name in mapped if name]
-        if not cells or any(column not in named for column in TABLE_COLUMNS) or len(named) != len(set(named)):
-            index += 1
-            continue
-        # A later header replaces any earlier table. A broken later table does not keep the old one.
-        chosen = None
-        rows = []
-        broken = False
-        index += 1
-        while index < len(lines):
-            row = _cells(lines[index])
-            if row is None:
-                break
-            if _separator(row):
-                index += 1
-                continue
-            if len(row) != len(cells):
-                broken = True
-                break
-            rows.append({mapped[i]: row[i] for i in range(len(cells)) if mapped[i]})
-            index += 1
-        if not broken:
-            chosen = rows
-    return chosen
-
-
-def _row_results(row, problems):
-    """Record open P0/P1 counts and an explicit failure result. P2 may be above zero.
-
-    The cells are the counts still open. This function does not read disposition text."""
-    for column in ("p0", "p1", "p2"):
-        count = _count(row.get(column, ""))
-        if count is None:
-            problems.append(column)
-        elif column != "p2" and count > 0:
-            problems.append("open")
-    if row.get("effort", "").strip() == "":
-        problems.append("effort")
-    result = row.get("result")
-    if isinstance(result, str) and result.strip().casefold() in _FAIL_RESULT:
-        problems.append("result")
-
-
-def evidence_problems(body, head, security_required=False):
-    """Why the evidence table does not cover this head. Empty means it does. The body is not executed.
-
-    security_required is true when a trust-boundary path changed or the path list cannot
-    be classified. It does not read commit statuses."""
+    The record is the Author line and the three Review fields. It is not tied to a head SHA:
+    the owner comment is. An open finding in 남은 지적 does not fail the gate."""
     if not isinstance(body, str):
         return ["body"]
     text = visible_text(body.replace("\r\n", "\n").replace("\r", "\n"))
@@ -692,96 +292,21 @@ def evidence_problems(body, head, security_required=False):
         return ["comment"]
     text = text[:BODY_LIMIT]
     problems = []
-    record, previous, author_errors = parse_author(text)
+    record, _previous, author_errors = parse_author(text)
     if any("person author" in error for error in author_errors):
         problems.append("author-model")
-        families = set()
-        tool = model = None
     elif record is None or any("disagree" in error or "conflicts" in error for error in author_errors):
         problems.append("author")
-        families = set()
-        tool = model = None
-    else:
-        tool, model = record
-    if tool == "사람" and model == "없음":
-        families = set()
-    elif tool:
-        families = set()
-        author = model_family(model)
-        if author is None:
-            problems.append("unknown-family")
-        else:
-            families.add(author)
-    for name in previous:
-        family = model_family(name)
-        if family is None:
-            problems.append("unknown-family")
-        else:
-            families.add(family)
-    rows = evidence_table(text)
-    if rows is None:
-        problems.append("table")
+    fields = review_section(text)
+    if fields is None:
+        problems.append("review")
         return problems
-    blocks = exception_blocks(text)
-    door = door_kind(text)
-    seen = {}
-    same_axes = set()
-    for row in rows:
-        key = AXIS_KEYS.get(row.get("axis", "").strip().lower())
-        if key is None:
-            problems.append("axis-name")
-            continue
-        if key in seen:
+    for key in _REVIEW_KEYS.values():
+        values = fields.get(key, [])
+        if len(values) > 1:
             problems.append("duplicate")
-        seen[key] = row
-    wanted = (head or "").lower()
-    for key in ("standards", "spec", "bug", "security"):
-        row = seen.get(key)
-        if row is None:
-            problems.append("axis-" + key)
-            continue
-        reviewer = row.get("model", "")
-        if _not_applicable(reviewer):
-            if key in ("standards", "spec") or (key == "security" and security_required):
-                problems.append("not-applicable" if key != "security" else "security-required")
-            if any(row.get(column, "").strip() != "0" for column in ("p0", "p1", "p2")):
-                problems.append("p0")
-            if row.get("effort", "").strip() == "":
-                problems.append("effort")
-            result = row.get("result")
-            if isinstance(result, str) and result.strip().casefold() in _FAIL_RESULT:
-                problems.append("result")
-        elif reviewer.strip() == "" or reviewer.strip() == "미실행":
-            problems.append("model")
-        else:
-            family = model_family(reviewer)
-            if family is None:
-                problems.append("unknown-family")
-            elif family in families:
-                same_axes.add(key)
-                covering = []
-                for block in blocks:
-                    axes, _bad = _named_axes(block.get("axes", ""))
-                    if key in axes:
-                        covering.append(block)
-                if len(covering) != 1:
-                    problems.append("same-family")
-                    if len(covering) > 1:
-                        problems.append("exception-record")
-                else:
-                    extra = _exception_codes(
-                        covering[0], reviewer, model, previous, head, key, door)
-                    if extra:
-                        problems.append("same-family")
-                        problems.extend(extra)
-            _row_results(row, problems)
-        sha = row.get("sha", "").strip()
-        if not re.fullmatch(r"[0-9a-fA-F]{40}", sha) or sha.lower() != wanted:
-            problems.append("sha")
-    for block in blocks:
-        axes, bad = _named_axes(block.get("axes", ""))
-        if block.get("malformed") or bad or any(axis not in same_axes for axis in axes):
-            problems.append("exception-record")
+        if not values or values[0] == "" or (key == "reviewer" and values[0] == "미실행"):
+            problems.append(key)
     return problems
 
 
@@ -794,17 +319,9 @@ def missing(repo, number, head, base, read=read_api):
         return [BASE_REF]
     # A team profile does not require the owner comment. A 1-person profile does, on a gate path.
     solo = not team_profile(repo, base, read)
-    # The open pull request's file and commit lists follow its current head, which can move
-    # after this event. The owner comment follows compare(base, head). Advisory review
-    # statuses are not read: missing, failed, or untrusted review/independent and
-    # review/security do not change this result.
+    # The open pull request's file list follows its current head, which can move after this
+    # event. The owner comment follows compare(base, head). Advisory review statuses are not read.
     pinned, _ = pinned_change(repo, base, head, read)
-    # None means compare could not be classified, so Security 해당 없음 is not evidence.
-    # project_paths raises on a read error other than 404. Advisory statuses are not read.
-    if pinned is None:
-        needs_security = True
-    else:
-        needs_security = security_evidence_required(pinned, project_paths(repo, base, read))
     result = []
     # The owner comment is tied to this SHA. A posted status under another name does not replace it.
     if pinned is None:
@@ -814,15 +331,11 @@ def missing(repo, number, head, base, read=read_api):
         needs_owner = one_way(pinned, False) or profile_line_changes(pinned) or introduced
     if needs_owner and solo and not owner_approved(repo, number, head, read):
         result.append(OWNER)
-    # The body is the current pull request text. This run's head is the event SHA, not a later push.
-    # Dependabot is included. An empty body is not evidence.
+    # The body is the current pull request text. Dependabot is included. An empty body is not evidence.
     if isinstance(pull, dict):
-        found = evidence_problems(pull.get("body"), head, needs_security)
+        found = evidence_problems(pull.get("body"))
         if found:
-            detail = ", ".join(found)
-            if "unknown-family" in found:
-                detail += "; expected family " + FAMILY_NAMES
-            print("review evidence: " + detail)
+            print("review evidence: " + ", ".join(found))
             result.append(EVIDENCE)
     return result
 
@@ -845,7 +358,7 @@ def main(env=os.environ, read=read_api):
             print(f"review status FAIL on {head}: base is not the repository default branch")
         else:
             print(f"review status MISSING on {head}: " + ", ".join(absent)
-                  + "; fix the evidence table or the owner approval comment on this head, then re-run this job")
+                  + "; fix the Author line, the ## Review fields, or the owner approval comment on this head, then re-run this job")
         return 1
     print(f"review status PASS on {head}")
     return 0

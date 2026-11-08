@@ -58,8 +58,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "scripts"))
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 import check_review_status as review  # noqa: E402
 
 CONTEXT = "review/gate"
@@ -427,7 +427,7 @@ def status_description(state, sha, digest=None):
 
 
 def evidence_snapshot(body, head, comment_pages, owner):
-    """Parsed author, table, same-family exception blocks, and unedited owner approvals.
+    """Parsed author, ## Review fields, and unedited owner approvals.
 
     None when that parse is incomplete. HTML comments and other prose are not part of the
     snapshot. Callers compare this object, not the raw pull request body."""
@@ -437,29 +437,9 @@ def evidence_snapshot(body, head, comment_pages, owner):
     if text is None:
         return None
     record, previous, _errors = review.parse_author(text[:review.BODY_LIMIT])
-    rows = review.evidence_table(text[:review.BODY_LIMIT])
-    if rows is None:
+    fields = review.review_section(text[:review.BODY_LIMIT])
+    if fields is None:
         return None
-    by_axis = {}
-    for row in rows:
-        key = review.AXIS_KEYS.get(str(row.get("axis", "")).strip().lower())
-        if key:
-            by_axis[key] = row
-    canonical = []
-    for key in ("standards", "spec", "bug", "security"):
-        row = by_axis.get(key)
-        if row is None:
-            return None
-        canonical.append({
-            "axis": key,
-            "model": str(row.get("model", "")).strip(),
-            "effort": str(row.get("effort", "")).strip(),
-            "sha": str(row.get("sha", "")).strip().lower(),
-            "p0": str(row.get("p0", "")).strip(),
-            "p1": str(row.get("p1", "")).strip(),
-            "p2": str(row.get("p2", "")).strip(),
-            "result": str(row.get("result") or "").strip(),
-        })
     approvals = []
     wanted = head.lower()
     for page in comment_pages or []:
@@ -485,9 +465,7 @@ def evidence_snapshot(body, head, comment_pages, owner):
         "head": wanted,
         "author": [record[0], record[1]] if record else None,
         "previous": list(previous),
-        "rows": canonical,
-        "exceptions": review.exception_blocks(text[:review.BODY_LIMIT]),
-        "door": review.door_kind(text[:review.BODY_LIMIT]),
+        "review": fields,
         "approvals": approvals,
     }
     raw = json.dumps(payload, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode()

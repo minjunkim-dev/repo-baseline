@@ -1,4 +1,4 @@
-"""Evidence table and owner-approval requirements for a pull request head."""
+"""Review record and owner-approval requirements for a pull request head."""
 
 import base64
 from contextlib import redirect_stdout
@@ -8,7 +8,7 @@ import subprocess
 import sys
 import unittest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 import check_review_status as tool
 
 HEAD = "a" * 40
@@ -17,15 +17,15 @@ SECURITY = "review/security"
 
 
 def passing_body(head):
-    lines = [
-        "Author: Cursor 클라우드 에이전트 / grok-4.7", "",
-        "| axis | model | effort | head SHA | P0 | P1 | P2 | result |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- |",
-    ]
-    for axis, model in (("Standards", "Sonnet 5.5"), ("Spec", "Sonnet 5.5"),
-                        ("버그 찾기", "Opus 5.5"), ("Security", "Opus 5.5")):
-        lines.append(f"| {axis} | {model} | high | {head} | 0 | 0 | 0 | pass |")
-    return "\n".join(lines) + "\n"
+    """Slim PR template with every field filled. The head is not part of the record."""
+    return "\n".join([
+        "Author: Codex / gpt-5.6", "",
+        "## Summary", "why", "",
+        "## Review",
+        "리뷰어(구현과 다른 컨텍스트, 도구/모델): Claude Code / Opus 5.5",
+        "고친 것: 없음",
+        "남은 지적: 없음", "",
+    ])
 
 
 def status_rows(pairs, default_creator):
@@ -188,7 +188,7 @@ class ReviewStatusTests(unittest.TestCase):
     def test_trust_boundary_paths_do_not_require_a_review_status(self):
         for path in (".github/workflows/ci.yml", ".github/actions/x/action.yml", "scripts/check_review_status.py",
                      ".github/repo-baseline.json", "api/.env.local", "svc/Dockerfile", "web/package-lock.json",
-                     ".claude/skills/x/SKILL.md", ".mcp.json", tool.PROJECT_PATHS):
+                     ".claude/skills/x/SKILL.md", ".mcp.json", ".github/trust-boundary-paths"):
             with self.subTest(path=path):
                 owner = [tool.OWNER] if path in {".github/workflows/ci.yml", "scripts/check_review_status.py"} else []
                 self.assertEqual(run(api([{"filename": path}])), owner)
@@ -201,30 +201,12 @@ class ReviewStatusTests(unittest.TestCase):
         self.assertEqual(run(api(files)), [tool.OWNER])
         self.assertNotIn(SECURITY, run(api(files, [OK])))
 
-    def test_project_paths_come_from_the_base_commit(self):
-        files = [{"filename": "src/auth/login.py"}]
-        listed = api(files, project="# comment\nsrc/auth/**\n")
-        self.assertEqual(tool.project_paths("o/n", "BASE", listed), ("src/auth/**",))
-        self.assertTrue(tool.matches("src/auth/login.py", tool.project_paths("o/n", "BASE", listed)))
-        self.assertEqual(run(listed), [])
-        billing = api(files, project="src/billing/**\n")
-        self.assertFalse(tool.matches("src/auth/login.py", tool.project_paths("o/n", "BASE", billing)))
-        self.assertEqual(run(billing), [])
-        literal = [{"filename": "app/[id]/route.ts"}]
-        for spelling in ("app/[id]/**", "app/[id]/route.ts", "/app/[id]/route.ts"):
-            with self.subTest(spelling):
-                read = api(literal, project=spelling + "\n")
-                self.assertTrue(tool.matches("app/[id]/route.ts", tool.project_paths("o/n", "BASE", read)))
-                self.assertEqual(run(read), [])
-        bracket = api([{"filename": "x/[id].ts"}], project="[id].ts\n")
-        self.assertTrue(tool.matches("x/[id].ts", tool.project_paths("o/n", "BASE", bracket)))
-        self.assertEqual(run(bracket), [])
-        for spelling in ("/src", "src/auth", "src/auth/", "/src/auth/", "/src/auth/**"):
-            with self.subTest(spelling):
-                read = api(files, project=spelling + "\n")
-                self.assertTrue(tool.matches("src/auth/login.py", tool.project_paths("o/n", "BASE", read)))
-                self.assertEqual(run(read), [])
-        self.assertEqual(tool.project_paths("o/n", "BASE", api(files)), ())
+    def test_rooted_patterns_are_read_literally(self):
+        for pattern in ("app/[id]/**", "app/[id]/route.ts", "/app/[id]/route.ts"):
+            with self.subTest(pattern):
+                self.assertTrue(tool.matches("app/[id]/route.ts", (pattern,)))
+        self.assertTrue(tool.matches("x/[id].ts", ("[id].ts",)))
+        self.assertFalse(tool.matches("src/auth/login.py", ("src/billing/**",)))
 
     def test_a_capped_compare_needs_the_owner_comment(self):
         read = api([{"filename": "src/app.py"}], compare_files=[{"filename": "src/app.py"}] * 300)
@@ -254,7 +236,7 @@ class ReviewStatusTests(unittest.TestCase):
         self.assertEqual(run(api(app, [OK], author=bot)), [])
         self.assertEqual(run(api(app, [OK], body="", author=bot)), [tool.EVIDENCE])
         without_author = "\n".join(passing_body(HEAD).split("\n")[1:])
-        self.assertIn("author", tool.evidence_problems(without_author, HEAD))
+        self.assertIn("author", tool.evidence_problems(without_author))
         self.assertEqual(run(api(app, [OK], body=without_author, author=bot)), [tool.EVIDENCE])
         approved = comment(f"되돌리기 어려움 승인: {HEAD}")
         covered = [OK, (SECURITY, "success")]
@@ -455,168 +437,62 @@ class ReviewStatusTests(unittest.TestCase):
         files = [{"filename": "src/app.py"}]
         self.assertEqual(run(api(files, [(INDEPENDENT, "failure"), OK])), [])
 
-    def test_review_evidence_table_matches_this_head_and_not_the_author_model(self):
-        head = HEAD
-        other = "c" * 40
+    def test_review_record_needs_the_author_line_and_the_three_review_fields(self):
         files = [{"filename": "src/app.py"}]
+        body = passing_body(HEAD)
         self.assertEqual(run(api(files, [OK])), [])
         self.assertEqual(run(api(files, [OK], body="")), [tool.EVIDENCE])
         self.assertEqual(run(api(files, [OK], body="", author="dependabot[bot]")), [tool.EVIDENCE])
         shell = "Author: Cursor / grok-4.7\n$(touch /tmp/review-evidence-executed)\n"
-        self.assertIn("table", tool.evidence_problems(shell, head))
+        self.assertIn("review", tool.evidence_problems(shell))
         self.assertFalse(Path("/tmp/review-evidence-executed").exists())
+        self.assertEqual([], tool.evidence_problems(body))
+        # Any tool and any model pass. The reviewer's model family is not compared with the author's.
+        for author in ("Codex / gpt-5.6", "ChatGPT / codex-2", "Claude Code / Opus 5.5", "사람 / 없음"):
+            with self.subTest(author=author):
+                self.assertEqual([], tool.evidence_problems(body.replace("Codex / gpt-5.6", author)))
+        same = body.replace("Codex / gpt-5.6", "Claude Code / Opus 5.5")
+        self.assertEqual([], tool.evidence_problems(same))
+        self.assertIn("author-model", tool.evidence_problems(body.replace("Codex / gpt-5.6", "사람 / grok-4.7")))
+        self.assertIn("author", tool.evidence_problems(body.replace("Author: Codex / gpt-5.6\n", "")))
+        self.assertIn("author", tool.evidence_problems("Author: Cursor / grok-4.7\n" + body))
+        # A plain label and a label with a hint both count. A value may continue on the next lines.
+        plain = body.replace("리뷰어(구현과 다른 컨텍스트, 도구/모델):", "리뷰어:")
+        self.assertEqual([], tool.evidence_problems(plain))
+        wrapped = body.replace("고친 것: 없음", "고친 것:\n- off-by-one in parse")
+        self.assertEqual([], tool.evidence_problems(wrapped))
+        self.assertEqual([], tool.evidence_problems(body.replace("남은 지적: 없음", "남은 지적: P2 하나, 다음 PR")))
+        self.assertIn("reviewer", tool.evidence_problems(body.replace(": Claude Code / Opus 5.5", ":")))
+        self.assertIn("reviewer", tool.evidence_problems(body.replace(": Claude Code / Opus 5.5", ": 미실행")))
+        self.assertIn("fixed", tool.evidence_problems(body.replace("고친 것: 없음\n", "")))
+        self.assertIn("remaining", tool.evidence_problems(body.replace("남은 지적: 없음", "남은 지적:")))
+        self.assertIn("duplicate", tool.evidence_problems(body + "리뷰어: other\n"))
+        self.assertIn("review", tool.evidence_problems(body.replace("## Review", "## Notes")))
+        # The last ## Review section counts. A field after the next header is not in it.
+        stale = body.replace("## Review", "## Review\n리뷰어: old\n고친 것: x\n남은 지적: x\n\n## Review", 1)
+        self.assertEqual([], tool.evidence_problems(stale))
+        outside = body.replace("남은 지적: 없음", "## Other\n남은 지적: 없음")
+        self.assertIn("remaining", tool.evidence_problems(outside))
+        hidden = "<!--\n" + body + "-->\n"
+        self.assertIn("review", tool.evidence_problems(hidden))
+        self.assertIn("author", tool.evidence_problems(hidden))
+        self.assertEqual(["comment"], tool.evidence_problems("<!--\n" + body))
+        self.assertEqual(["body"], tool.evidence_problems(None))
 
-        def table(model, sha, p0="0", p1="0", axis="Standards"):
-            return "\n".join([
-                "Author: Cursor / grok-4.7",
-                "| axis | model | effort | head SHA | P0 | P1 | P2 | result |",
-                "| --- | --- | --- | --- | --- | --- | --- | --- |",
-                f"| {axis} | {model} | high | {sha} | {p0} | {p1} | 0 | pass |",
-                f"| Spec | Sonnet 5.5 | high | {sha} | 0 | 0 | 0 | pass |",
-                f"| 버그 찾기 | Opus 5.5 | high | {sha} | 0 | 0 | 0 | pass |",
-                f"| Security | Opus 5.5 | high | {sha} | 0 | 0 | 0 | pass |",
-                "",
-            ])
-
-        self.assertEqual(tool.evidence_problems(table("Sonnet 5.5", head), head), [])
-        self.assertIn("sha", tool.evidence_problems(table("Sonnet 5.5", other), head))
-        self.assertIn("sha", tool.evidence_problems(table("Sonnet 5.5", "HEAD"), head))
-        self.assertIn("same-family", tool.evidence_problems(table("Opus 5.5", head).replace(
-            "Author: Cursor / grok-4.7", "Author: Claude Code / claude-opus-5.5"), head))
-        self.assertIn("same-family", tool.evidence_problems(table("Sonnet 5.5", head).replace(
-            "Author: Cursor / grok-4.7", "Author: Claude Code / Opus 5.5"), head))
-        self.assertIn("same-family", tool.evidence_problems(table("cursor-grok-4.6", head), head))
-        self.assertEqual([], tool.evidence_problems(table("Composer 2.5", head), head))
-        stale = table("Sonnet 5.5", other) + "\n" + table("Composer 2.5", head)
-        self.assertEqual([], tool.evidence_problems(stale, head))
-        self.assertIn("sha", tool.evidence_problems(table("Composer 2.5", head) + "\n" + table("Sonnet 5.5", other), head))
-        broken = table("Sonnet 5.5", head) + "\n| axis | model | effort | head SHA | P0 | P1 | P2 | result |\n| Standards | Sonnet 5.5 | high | " + head + " | 0 |\n"
-        self.assertIn("table", tool.evidence_problems(broken, head))
-        hidden = "Author: Cursor / grok-4.7\nAuthor: Claude Code / Opus 5.5\n" + table("Sonnet 5.5", head)
-        self.assertIn("author", tool.evidence_problems(hidden, head))
-        self.assertIn("unknown-family", tool.evidence_problems(table("mystery-model", head), head))
-        self.assertIn("author-model", tool.evidence_problems(table("Sonnet 5.5", head).replace(
-            "Author: Cursor / grok-4.7", "Author: 사람 / grok-4.7"), head))
-        self.assertEqual("claude", tool.model_family("Opus 5.5"))
-        self.assertEqual("claude", tool.model_family("claude-opus-5-5-high"))
-        self.assertEqual("claude", tool.model_family("Sonnet 5.5"))
-        self.assertEqual("grok", tool.model_family("grok-4.7-high-fast"))
-        self.assertEqual("composer", tool.model_family("Composer 2.5"))
-        self.assertEqual("gemini", tool.model_family("Gemini 4"))
-        self.assertEqual("gpt", tool.model_family("GPT-5.6"))
-        self.assertIsNone(tool.model_family("grok-composer"))
-        self.assertIsNone(tool.model_family("chatgpt"))
-        self.assertIsNone(tool.model_family("codex"))
-        self.assertIsNone(tool.model_family("not-a-model"))
-        self.assertIn("p0", tool.evidence_problems(table("Sonnet 5.5", head, p0="no"), head))
-        self.assertIn("p1", tool.evidence_problems(table("Sonnet 5.5", head, p1=""), head))
-        self.assertIn("model", tool.evidence_problems(table("미실행", head), head))
-        skipped = table("Sonnet 5.5", head).replace(
-            "| 버그 찾기 | Opus 5.5 |", "| 버그 찾기 | 해당 없음: 코드 diff 없음 |")
-        self.assertEqual(tool.evidence_problems(skipped, head), [])
-        bad_p2 = skipped.replace(
-            f"| 버그 찾기 | 해당 없음: 코드 diff 없음 | high | {head} | 0 | 0 | 0 |",
-            f"| 버그 찾기 | 해당 없음: 코드 diff 없음 | high | {head} | 0 | 0 | 1 |")
-        self.assertIn("p0", tool.evidence_problems(bad_p2, head))
-        self.assertIn("not-applicable", tool.evidence_problems(table("해당 없음: 문서", head), head))
-        korean = "\n".join([
-            "작성 도구: Cursor",
-            "작성 모델: grok-4.7",
-            "| 축 | 모델 | effort | head SHA | P0 | P1 | P2 |",
-            "| --- | --- | --- | --- | --- | --- | --- |",
-            f"| Standards | Sonnet 5.5 | high | {head} | 0 | 0 | 0 |",
-            f"| Spec | Sonnet 5.5 | high | {head} | 0 | 0 | 0 |",
-            f"| 버그 찾기 | Opus 5.5 | high | {head} | 0 | 0 | 0 |",
-            f"| Security | 해당 없음: 신뢰 경계 변경 아님 | 해당 없음 | {head} | 0 | 0 | 0 |",
-            "",
-        ])
-        self.assertEqual(tool.evidence_problems(korean, head), [])
-        self.assertIn("unknown-family", tool.evidence_problems(
-            table("Sonnet 5.5", head) + "이전 작성 모델: not-a-model\n", head))
-        self.assertIn("same-family", tool.evidence_problems(
-            table("Sonnet 5.5", head).replace("Author: Cursor / grok-4.7",
-                                              "작성 도구: Cursor\n작성 모델: grok-4.7\n이전 작성 모델: Sonnet 5.5"), head))
-        self.assertIn("p2", tool.evidence_problems(table("Sonnet 5.5", head).replace("| 0 | pass |", "| note | pass |", 1), head))
-        self.assertIn("open", tool.evidence_problems(table("Sonnet 5.5", head, p0="1"), head))
-        self.assertIn("open", tool.evidence_problems(table("Sonnet 5.5", head, p1="2"), head))
-        dismissed = table("Sonnet 5.5", head, p0="1") + "기각. 오탐. docs/development-workflow.md:105\n한계 수용: " + head + "\n"
-        self.assertIn("open", tool.evidence_problems(dismissed, head))
-        closed = table("Sonnet 5.5", head) + "기각. 오탐. docs/development-workflow.md:105\n"
-        self.assertEqual(tool.evidence_problems(closed, head), [])
-        historical_p2 = table("Sonnet 5.5", head).replace("| 0 | 0 | 0 | pass |", "| 0 | 0 | 3 | pass |", 1)
-        self.assertEqual(tool.evidence_problems(historical_p2, head), [])
-        self.assertIn("result", tool.evidence_problems(table("Sonnet 5.5", head).replace("| pass |", "| FAIL |", 1), head))
-        self.assertIn("effort", tool.evidence_problems(table("Sonnet 5.5", head).replace("| high |", "|  |", 1), head))
-        commented = "<!--\n" + table("Sonnet 5.5", other) + "-->\n" + table("Composer 2.5", head)
-        self.assertEqual(tool.evidence_problems(commented, head), [])
-        only_hidden = "<!--\nAuthor: Cursor / grok-4.7\n" + table("Sonnet 5.5", head) + "-->\n"
-        self.assertIn("table", tool.evidence_problems(only_hidden, head))
-        self.assertIn("author", tool.evidence_problems(only_hidden, head))
-        self.assertEqual(["comment"], tool.evidence_problems("<!--\n" + table("Sonnet 5.5", head), head))
-
-    def test_security_evidence_follows_the_trust_boundary_not_a_status(self):
-        head = HEAD
-
-        def na_body(sha=head):
-            return "\n".join([
-                "Author: Cursor 클라우드 에이전트 / grok-4.7",
-                "| axis | model | effort | head SHA | P0 | P1 | P2 | result |",
-                "| --- | --- | --- | --- | --- | --- | --- | --- |",
-                f"| Standards | Sonnet 5.5 | high | {sha} | 0 | 0 | 0 | pass |",
-                f"| Spec | Sonnet 5.5 | high | {sha} | 0 | 0 | 0 | pass |",
-                f"| 버그 찾기 | Opus 5.5 | high | {sha} | 0 | 0 | 0 | pass |",
-                f"| Security | 해당 없음: 신뢰 경계 변경 아님 | 해당 없음 | {sha} | 0 | 0 | 0 | pass |",
-                "",
-            ])
-
-        self.assertEqual(run(api([{"filename": "src/app.py"}], body=na_body())), [])
-        self.assertEqual(run(api([{"filename": "docs/readme.md"}], body=na_body())), [])
-        boundary = (
-            ".github/actions/x/action.yml",
-            "scripts/check_github_settings.py",
-            ".claude/hooks/x.sh",
-            ".mcp.json",
-            "svc/Dockerfile",
-            "web/package.json",
-            ".github/CODEOWNERS",
-        )
-        for path in boundary:
+    def test_trust_boundary_paths_need_no_extra_review_evidence(self):
+        for path in (".github/actions/x/action.yml", "web/package.json", ".mcp.json", "svc/Dockerfile"):
             with self.subTest(path=path):
-                found = run(api([{"filename": path}], body=na_body()))
-                self.assertEqual(found, [tool.EVIDENCE])
                 self.assertEqual(run(api([{"filename": path}])), [])
-        renamed = [{"filename": "docs/keep.txt", "previous_filename": ".github/actions/old/action.yml"}]
-        self.assertEqual(run(api(renamed, body=na_body())), [tool.EVIDENCE])
-        unnamed = api([{"filename": "src/app.py"}], body=na_body(),
-                      compare_files=[{"patch": "@@\n-a\n+b\n"}])
-        self.assertEqual(run(unnamed), [tool.EVIDENCE])
-        capped = api([{"filename": "src/app.py"}], body=na_body(),
-                     compare_files=[{"filename": "src/app.py"}] * 300)
-        self.assertEqual(run(capped), [tool.OWNER, tool.EVIDENCE])
-        base = api([{"filename": "src/app.py"}], body=na_body())
-
-        def unread(endpoint):
-            if endpoint.endswith("/statuses?per_page=100"):
-                raise subprocess.CalledProcessError(1, "gh", stderr="HTTP 500")
-            return base(endpoint)
-
-        self.assertEqual(run(unread), [])
-        env = {"REPO": "o/n", "PR_NUMBER": "1", "HEAD_SHA": HEAD, "BASE_SHA": "BASE"}
-
-        def broken_list(endpoint):
-            if "trust-boundary-paths" in endpoint:
-                raise subprocess.CalledProcessError(1, "gh", stderr="HTTP 500")
-            return base(endpoint)
-
-        self.assertEqual(tool.main(env, broken_list), 2)
+        capped = api([{"filename": "src/app.py"}], compare_files=[{"filename": "src/app.py"}] * 300)
+        self.assertEqual(run(capped), [tool.OWNER])
+        base = api([{"filename": "src/app.py"}])
 
         def too_big(endpoint):
             if "/compare/" in endpoint and not endpoint.endswith("...main"):
                 raise subprocess.CalledProcessError(1, "gh", stderr="HTTP 406")
             return base(endpoint)
 
-        self.assertIn(tool.EVIDENCE, run(too_big))
-        self.assertIn(tool.OWNER, run(too_big))
+        self.assertEqual(run(too_big), [tool.OWNER])
 
     def test_a_side_base_fails_and_a_main_base_still_passes(self):
         files = [{"filename": "src/app.py"}]
@@ -697,233 +573,6 @@ class ReviewStatusTests(unittest.TestCase):
             raise subprocess.CalledProcessError(1, "gh", stderr="HTTP 403")
         self.assertEqual(tool.main(env, broken), 2)
         self.assertEqual(tool.main({}, api([])), 2)
-
-
-AUTHOR_AGENT = "bc-author-11111111"
-REVIEW_AGENT = "bc-review-22222222"
-PREVIOUS_AGENT = "bc-prev-33333333"
-
-
-def exception_block(head, axes="Standards, Spec, 버그 찾기", author="Sonnet 5.5",
-                    author_family="Claude", review="Opus 5.5", review_family="Claude",
-                    author_agent=AUTHOR_AGENT, review_agent=REVIEW_AGENT, reason="기록된 불가",
-                    previous_models="", previous_agents=""):
-    lines = [
-        "같은 패밀리 예외:",
-        f"- 축: {axes}",
-        f"- 이유: 다른 패밀리 불가: {reason}",
-        f"- 작성 모델: {author}",
-        f"- 작성 패밀리: {author_family}",
-        f"- 리뷰 모델: {review}",
-        f"- 리뷰 패밀리: {review_family}",
-        f"- 작성 에이전트: {author_agent}",
-        f"- 리뷰 에이전트: {review_agent}",
-        f"- 검토 SHA: {head}",
-    ]
-    if previous_models:
-        lines.append(f"- 이전 작성 모델: {previous_models}")
-    if previous_agents:
-        lines.append(f"- 이전 작성 에이전트: {previous_agents}")
-    return "\n".join(lines)
-
-
-def same_family_body(head, author="Sonnet 5.5", review="Opus 5.5", security=None, door="되돌리기 쉬움",
-                     block=True, previous="", **block_kwargs):
-    security_cell = review if security is None else security
-    security_effort = "high" if not str(security_cell).startswith("해당 없음:") else "해당 없음"
-    axes = "Standards, Spec, 버그 찾기"
-    if not str(security_cell).startswith("해당 없음:"):
-        axes += ", Security"
-    lines = [
-        f"Author: Claude Code / {author}",
-        f"Door: {door}",
-    ]
-    if previous:
-        lines.append(f"이전 작성 모델: {previous}")
-    lines.extend([
-        "| axis | model | effort | head SHA | P0 | P1 | P2 | result |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- |",
-        f"| Standards | {review} | high | {head} | 0 | 0 | 0 | pass |",
-        f"| Spec | {review} | high | {head} | 0 | 0 | 0 | pass |",
-        f"| 버그 찾기 | {review} | high | {head} | 0 | 0 | 0 | pass |",
-        f"| Security | {security_cell} | {security_effort} | {head} | 0 | 0 | 0 | pass |",
-    ])
-    if block:
-        kwargs = {"author": author, "review": review, "axes": axes}
-        kwargs.update(block_kwargs)
-        lines.append(exception_block(head, **kwargs))
-    return "\n".join(lines) + "\n"
-
-
-class SameFamilyExceptionTests(unittest.TestCase):
-    def test_identities_distinguish_effort_from_a_different_model(self):
-        self.assertEqual(tool.model_identity("Opus 5.5"), ("opus", (5, 5)))
-        self.assertEqual(tool.model_identity("claude-opus-5-5-high"), ("opus", (5, 5)))
-        self.assertTrue(tool.proven_same("Opus 5.5", "claude-opus-5-5-high"))
-        self.assertFalse(tool.proven_different("grok-4.7", "grok-4.7-high-fast"))
-        self.assertTrue(tool.proven_different("grok-4.7", "cursor-grok-4.6"))
-        self.assertTrue(tool.proven_different("Sonnet 5.5", "Opus 5.5"))
-        self.assertFalse(tool.proven_different("Haiku", "claude-haiku-4-5"))
-        self.assertEqual(tool.model_identity("Opus 4.5"), ("opus", (4, 5)))
-        self.assertEqual(tool.model_identity("claude-opus-4-5-20251101"), ("opus", (4, 5, 20251101)))
-        self.assertFalse(tool.proven_different("Opus 4.5", "claude-opus-4-5-20251101"))
-        self.assertTrue(tool.proven_different("Opus 4.5", "Opus 4.6"))
-        self.assertTrue(tool.proven_different("claude-opus-4-5-20251101", "claude-opus-4-6-20251101"))
-        self.assertIsNone(tool.model_identity("not-a-model"))
-
-    def test_a_different_model_in_the_same_family_passes_only_with_the_record(self):
-        head = HEAD
-        self.assertEqual(tool.evidence_problems(same_family_body(head), head), [])
-        grok = same_family_body(
-            head, author="grok-4.7", review="cursor-grok-4.6", door="되돌리기 어려움",
-            author_family="Grok", review_family="Grok",
-            reason="가용성 추정 없이 남긴 문장")
-        self.assertEqual(tool.evidence_problems(grok, head), [])
-        sonnet = same_family_body(
-            head, author="Opus 5.5", review="Sonnet 5.5", security="Sonnet 5.5",
-            door="되돌리기 어려움")
-        self.assertEqual(tool.evidence_problems(sonnet, head), [])
-        easy_haiku = same_family_body(
-            head, author="Opus 5.5", review="claude-haiku-4-5",
-            security="해당 없음: 신뢰 경계 변경 아님", door="되돌리기 쉬움")
-        self.assertEqual(tool.evidence_problems(easy_haiku, head), [])
-        crossed = "\n".join([
-            "Author: Cursor / grok-4.7",
-            "Door: 되돌리기 쉬움",
-            "| axis | model | effort | head SHA | P0 | P1 | P2 | result |",
-            "| --- | --- | --- | --- | --- | --- | --- | --- |",
-            f"| Standards | Sonnet 5.5 | high | {head} | 0 | 0 | 0 | pass |",
-            f"| Spec | Sonnet 5.5 | high | {head} | 0 | 0 | 0 | pass |",
-            f"| 버그 찾기 | Opus 5.5 | high | {head} | 0 | 0 | 0 | pass |",
-            f"| Security | 해당 없음: 신뢰 경계 변경 아님 | 해당 없음 | {head} | 0 | 0 | 0 | pass |",
-        ])
-        self.assertEqual(tool.evidence_problems(crossed, head), [])
-
-    def test_the_same_model_or_the_same_agent_does_not_pass(self):
-        head = HEAD
-        dated = same_family_body(head, author="Opus 4.5", review="claude-opus-4-5-20251101")
-        dated_problems = tool.evidence_problems(dated, head)
-        self.assertIn("same-model", dated_problems)
-        self.assertIn("same-family", dated_problems)
-        renamed = same_family_body(head, author="Opus 5.5", review="claude-opus-5-5-high")
-        self.assertIn("same-model", tool.evidence_problems(renamed, head))
-        self.assertIn("same-family", tool.evidence_problems(renamed, head))
-        effort = same_family_body(
-            head, author="grok-4.7", review="grok-4.7-high-fast",
-            author_family="Grok", review_family="Grok")
-        self.assertIn("same-model", tool.evidence_problems(effort, head))
-        same_agent = same_family_body(head, review_agent=AUTHOR_AGENT)
-        found = tool.evidence_problems(same_agent, head)
-        self.assertIn("same-agent", found)
-        self.assertIn("same-family", found)
-        self.assertNotIn("same-model", found)
-
-    def test_a_missing_reason_sha_or_agent_record_fails(self):
-        head = HEAD
-        bare = same_family_body(head, block=False)
-        self.assertIn("same-family", tool.evidence_problems(bare, head))
-        self.assertNotIn("exception-reason", tool.evidence_problems(bare, head))
-        no_prefix = same_family_body(head).replace(
-            "- 이유: 다른 패밀리 불가: 기록된 불가", "- 이유: 크레딧 부족")
-        self.assertIn("exception-reason", tool.evidence_problems(no_prefix, head))
-        empty_reason = same_family_body(head).replace(
-            "- 이유: 다른 패밀리 불가: 기록된 불가", "- 이유: 다른 패밀리 불가:")
-        self.assertIn("exception-reason", tool.evidence_problems(empty_reason, head))
-        other = "b" * 40
-        wrong_sha = same_family_body(head).replace(f"- 검토 SHA: {head}", f"- 검토 SHA: {other}")
-        self.assertIn("exception-sha", tool.evidence_problems(wrong_sha, head))
-        missing_agent = same_family_body(head, review_agent="")
-        self.assertIn("exception-agent", tool.evidence_problems(missing_agent, head))
-        placeholder = same_family_body(head, review_agent="미확인")
-        self.assertIn("exception-agent", tool.evidence_problems(placeholder, head))
-        short = same_family_body(head, author_agent="agent-1")
-        self.assertIn("exception-agent", tool.evidence_problems(short, head))
-        hidden = "<!--\n" + exception_block(head) + "\n-->\n" + same_family_body(head, block=False)
-        self.assertIn("same-family", tool.evidence_problems(hidden, head))
-        self.assertNotIn("exception-reason", tool.evidence_problems(hidden, head))
-
-    def test_the_record_must_match_the_author_and_the_review_names(self):
-        head = HEAD
-        wrong_author = same_family_body(head, author="Sonnet 5.5")
-        wrong_author = wrong_author.replace("- 작성 모델: Sonnet 5.5", "- 작성 모델: Opus 5.5", 1)
-        self.assertIn("exception-record", tool.evidence_problems(wrong_author, head))
-        wrong_family = same_family_body(head).replace("- 리뷰 패밀리: Claude", "- 리뷰 패밀리: Grok")
-        self.assertIn("exception-record", tool.evidence_problems(wrong_family, head))
-        stray = "\n".join([
-            "Author: Cursor / grok-4.7",
-            "| axis | model | effort | head SHA | P0 | P1 | P2 | result |",
-            "| --- | --- | --- | --- | --- | --- | --- | --- |",
-            f"| Standards | Sonnet 5.5 | high | {head} | 0 | 0 | 0 | pass |",
-            f"| Spec | Sonnet 5.5 | high | {head} | 0 | 0 | 0 | pass |",
-            f"| 버그 찾기 | Opus 5.5 | high | {head} | 0 | 0 | 0 | pass |",
-            f"| Security | 해당 없음: 신뢰 경계 변경 아님 | 해당 없음 | {head} | 0 | 0 | 0 | pass |",
-            exception_block(head, author="grok-4.7", author_family="Grok",
-                            review="Sonnet 5.5", review_family="Claude"),
-        ])
-        self.assertIn("exception-record", tool.evidence_problems(stray, head))
-
-    def test_haiku_is_not_enough_for_security_or_a_hard_bug_review(self):
-        head = HEAD
-        security = same_family_body(
-            head, author="Opus 5.5", review="claude-haiku-4-5", security="claude-haiku-4-5",
-            door="되돌리기 쉬움")
-        self.assertIn("insufficient-capability", tool.evidence_problems(security, head))
-        hard_bug = same_family_body(
-            head, author="Opus 5.5", review="claude-haiku-4-5",
-            security="해당 없음: 신뢰 경계 변경 아님", door="되돌리기 어려움")
-        self.assertIn("insufficient-capability", tool.evidence_problems(hard_bug, head))
-        no_door = same_family_body(
-            head, author="Opus 5.5", review="claude-haiku-4-5",
-            security="해당 없음: 신뢰 경계 변경 아님", door="되돌리기 쉬움").replace(
-            "Door: 되돌리기 쉬움\n", "")
-        self.assertIn("insufficient-capability", tool.evidence_problems(no_door, head))
-        gemini = same_family_body(
-            head, author="Gemini 2.5", review="Gemini 4",
-            author_family="Gemini", review_family="Gemini")
-        found = tool.evidence_problems(gemini, head)
-        self.assertIn("inactive-roster", found)
-        self.assertIn("same-family", found)
-
-    def test_previous_authors_stay_out_of_the_review_model_and_agent(self):
-        head = HEAD
-        covered = same_family_body(
-            head, author="grok-4.7", review="Opus 5.5", previous="Sonnet 5.5",
-            author_family="Grok", review_family="Claude",
-            previous_models="Sonnet 5.5", previous_agents=PREVIOUS_AGENT)
-        self.assertEqual(tool.evidence_problems(covered, head), [])
-        reused = same_family_body(
-            head, author="grok-4.7", review="Sonnet 5.5", previous="Sonnet 5.5",
-            author_family="Grok", review_family="Claude",
-            previous_models="Sonnet 5.5", previous_agents=PREVIOUS_AGENT)
-        self.assertIn("same-model", tool.evidence_problems(reused, head))
-        same_previous_agent = same_family_body(
-            head, author="grok-4.7", review="Opus 5.5", previous="Sonnet 5.5",
-            author_family="Grok", review_family="Claude",
-            previous_models="Sonnet 5.5", previous_agents=REVIEW_AGENT)
-        self.assertIn("same-agent", tool.evidence_problems(same_previous_agent, head))
-        missing_previous = same_family_body(
-            head, author="grok-4.7", review="Opus 5.5", previous="Sonnet 5.5",
-            author_family="Grok", review_family="Claude")
-        found = tool.evidence_problems(missing_previous, head)
-        self.assertIn("exception-record", found)
-        self.assertIn("exception-agent", found)
-
-    def test_the_exception_does_not_waive_owner_approval_or_required_axes(self):
-        head = HEAD
-        body = same_family_body(head, security="Opus 5.5", door="되돌리기 어려움")
-        open_p0 = body.replace("| 0 | 0 | 0 | pass |", "| 1 | 0 | 0 | pass |", 1)
-        self.assertIn("open", tool.evidence_problems(open_p0, head))
-        unrun = body.replace("| 버그 찾기 | Opus 5.5 | high |", "| 버그 찾기 | 미실행 | 미실행 |")
-        self.assertIn("model", tool.evidence_problems(unrun, head))
-        dropped = "\n".join(line for line in body.split("\n") if not line.startswith("| Security"))
-        self.assertIn("axis-security", tool.evidence_problems(dropped, head))
-        read = api([{"filename": "scripts/check_review_status.py"}], body=body, head=head)
-        self.assertEqual(tool.missing("o/n", "1", head, "BASE", read), [tool.OWNER])
-        self.assertIn(tool.EVIDENCE, tool.missing("o/n", "1", head, "BASE", api(
-            [{"filename": "scripts/check_review_status.py"}], body=body.replace(
-                f"| {head} |", f"| {'c' * 40} |"), head=head)))
-        docs = api([{"filename": "docs/readme.md"}], body=same_family_body(head), head=head)
-        self.assertEqual(tool.missing("o/n", "1", head, "BASE", docs), [])
 
 
 if __name__ == "__main__":

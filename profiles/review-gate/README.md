@@ -1,4 +1,39 @@
-# review/gate 전용 GitHub App
+# review-gate 프로필
+
+선택 프로필이다. 기본값은 브랜치 보호 + 필수 CI + 사람 병합이다(`docs/redesign-2026-11.md` D2). 이 폴더는 그 위에 "승인 위조까지 막는" 게이트를 더한다.
+
+## 언제 켜는가
+
+- 에이전트나 workflow 토큰이 병합 조건을 스스로 채울 수 있다는 것이 걱정될 때. 하네스 거부 규칙은 습관이지 보안 경계가 아니다.
+- 1인 레포에서 workflow·설정·게이트 파일을 바꾸는 PR에 소유자의 SHA 승인 댓글을 기계적으로 요구하고 싶을 때.
+- 소유자 Mac에서 GitHub App(Commit statuses 쓰기) 하나와 Keychain PEM을 관리할 수 있을 때. 못 하면 켜지 않는다.
+
+## 켜는 법
+
+1. 소비 레포에 복사한다: `check_review_status.py`, `pr_author.py`, `test_review_status.py` → `scripts/`. `review-status.yml` → `.github/workflows/`.
+2. 이 문서 아래 "앱 만들기"대로 전용 App을 만들고, 정수 `app_id`를 `.github/repository-settings.json`의 필수 체크 `review/gate`에 넣는다. `python3 tools/apply_github_settings.py . --apply`는 소유자 기기에서만 돌린다.
+3. 조직·엔터프라이즈 Actions 이벤트 정책이 있으면 `review-status-policy.json`과 `review_status_policy.py`로 `pull_request_target`이 허용되는지 확인한다.
+4. 병합은 소유자 Mac의 이 저장소 깨끗한 `main`에서 `python3 -I profiles/review-gate/post_review_gate.py --repo <owner/name> --pr <N> --sha <head> --merge`로만 한다.
+
+## 검사기가 보는 것
+
+- PR 본문의 `Author: <도구> / <모델>` 한 줄. 도구 이름은 아무것이나 된다. 사람은 `사람 / 없음`.
+- 마지막 `## Review` 섹션의 세 칸: `리뷰어`, `고친 것`, `남은 지적`(`templates/core/pull_request_template.md`). `리뷰어`가 비었거나 `미실행`이면 실패한다. `남은 지적`에 지적이 남아 있어도 실패하지 않는다.
+- 1인 프로필에서 게이트 경로(`check_review_status.py`의 `ONE_WAY_PATHS`)를 바꾸면 소유자 댓글 `되돌리기 어려움 승인: <전체 head SHA>`.
+- base가 기본 브랜치인지.
+
+## 옮기면서 뺀 것 (2026-11, #66)
+
+- 모델 패밀리 판정, 같은 패밀리 예외 블록, Codex·ChatGPT 이름 거부, 작성 도구 허용 목록. 다른 패밀리 리뷰는 권장이다(D3).
+- 4축 근거 표(axis·model·effort·head SHA·P0·P1·P2). 대신 위 세 칸을 본다.
+- 리뷰 기록과 head SHA의 연결. 이제 본문의 리뷰 기록은 특정 head를 가리키지 않는다. SHA에 묶이는 것은 소유자 승인 댓글뿐이다.
+- 신뢰 경계 경로에서 Security 축을 요구하던 규칙. 소비 레포의 `.github/trust-boundary-paths`는 더 읽지 않는다.
+
+아래는 옮기기 전의 운영 문서다. "근거 표"는 이제 위의 `## Review` 세 칸을 뜻한다. `tools/`·`scripts/` 경로는 소비 레포 배치다. 이 저장소에서는 `profiles/review-gate/`에 있다.
+
+---
+
+## review/gate 전용 GitHub App
 
 이 문서는 `POLICY.md` §5의 승인 경계를 Mac에서 만드는 절차다. 이 저장소의 PR은 설계와 도구와 기대값만 둔다. 앱을 만들지 않고, branch protection을 쓰지 않고, status를 올리지 않고, 병합하지 않는다.
 
@@ -23,9 +58,9 @@
 
 Dependabot PR은 다른 PR과 같은 근거다. 브랜치 보호는 작성자별로 빼지 못하므로 `review/gate`는 그 PR에도 필요하다. 버전·해시·Action SHA만 바꾼 diff여도 스크립트는 `--merge`에서만, 근거 표가 있을 때 success를 올린다. 1인 프로필에서 게이트 경로면 소유자 SHA 댓글도 있어야 한다. 팀 프로필은 그 댓글을 요구하지 않고 `POLICY.md` §9의 사람 승인이다. `--merge`가 없으면 success를 올리지 않는다. `review/independent`와 `review/security`는 없어도 success다. 자동 성공 경로는 없다. 2026-11-04의 pin 전용 면제(주 버전만 승인, `uses:` pin 모양, web-flow 커밋터, 숨은 줄바꿈)는 쓰지 않는다.
 
-검사기와 이 게이트는 `review/independent`와 `review/security`를 읽지 않는다. 없어도, failure여도, `[bot]`이 올렸어도 게이트는 그 이유로 실패하지 않는다. 앱은 `review/gate`만 올린다. 근거 표의 head SHA는 이 head여야 한다. 이전 head의 표는 통과하지 못한다. 승인 댓글의 작성자가 `[bot]`이면 그 댓글은 승인이 아니다.
+검사기와 이 게이트는 `review/independent`와 `review/security`를 읽지 않는다. 없어도, failure여도, `[bot]`이 올렸어도 게이트는 그 이유로 실패하지 않는다. 앱은 `review/gate`만 올린다. 승인 댓글의 작성자가 `[bot]`이면 그 댓글은 승인이 아니다.
 
-합의(증거-in-gate, 2026-11-06 Adopt-with-tweak): 게이트는 별도 필수 `review/independent`·`review/security` status에 의존하지 않는다. PR 본문 근거 표(필요한 축마다 모델 또는 `해당 없음:`)와, 필요할 때의 하드도어 승인 댓글로 판정한 뒤 `review/gate`만 올린다. 그 둘의 status는 참고로 남길 수 있다. 품질 기준(Standards·Spec은 Composer, 버그 찾기와 Security는 Opus, 패밀리는 작성과 다른 것이 기본)은 status와 별개로 `docs/development-workflow.md`에 있다. 2026-11-07 같은 패밀리 예외는 Issue #59다. 그 예외는 `review/gate` 면제나 auto-merge가 아니다.
+합의(증거-in-gate, 2026-11-06 Adopt-with-tweak): 게이트는 별도 필수 `review/independent`·`review/security` status에 의존하지 않는다. PR 본문의 리뷰 기록(`## Review` 세 칸)과, 필요할 때의 하드도어 승인 댓글로 판정한 뒤 `review/gate`만 올린다. 그 둘의 status는 참고로 남길 수 있다.
 
 ## 권장: 개발자 gh(읽기·병합) + Keychain(앱 PEM) + 기본 브랜치 checkout
 
@@ -35,7 +70,7 @@ Dependabot PR은 다른 PR과 같은 근거다. 브랜치 보호는 작성자별
 
 ### 무엇을 쓰나 (현재 코드와 맞춤)
 
-`tools/post_review_gate.py`는 환경 변수 `GH_TOKEN`이 비어 있으면 `review gate refused: GH_TOKEN must be set for reads`로 끝난다. 권장 일상 경로는 그 값을 **이 프로세스 안에서만** `gh auth token`으로 채운다. 스크립트는 `gh auth token`을 호출하지 않고, 토큰이 다른 계정의 것인지 검사하지 않는다. 개발자 토큰은 읽기 전용으로 좁혀져 있지 않다. 그 한계는 남는다. 별도 읽기 PAT를 발급하는 절차는 권장 경로에 없다.
+`profiles/review-gate/post_review_gate.py`는 환경 변수 `GH_TOKEN`이 비어 있으면 `review gate refused: GH_TOKEN must be set for reads`로 끝난다. 권장 일상 경로는 그 값을 **이 프로세스 안에서만** `gh auth token`으로 채운다. 스크립트는 `gh auth token`을 호출하지 않고, 토큰이 다른 계정의 것인지 검사하지 않는다. 개발자 토큰은 읽기 전용으로 좁혀져 있지 않다. 그 한계는 남는다. 별도 읽기 PAT를 발급하는 절차는 권장 경로에 없다.
 
 같은 `GH_TOKEN`으로 두 종류의 읽기를 한다.
 
@@ -50,7 +85,7 @@ Dependabot PR은 다른 PR과 같은 근거다. 브랜치 보호는 작성자별
 
 ### 체크아웃
 
-게이트 스크립트는 `scripts/check_review_status.py`를 가져온다. **파일 한두 개만 복사하면 실패**한다. 고정 디렉터리의 clone(예: `$HOME/src/repo-baseline-gate`)에서 **`main`의 깨끗한 트리**로 맞춘 뒤 실행한다.
+게이트 스크립트는 같은 폴더의 `check_review_status.py`와 `pr_author.py`를 가져온다. **파일 한두 개만 복사하면 실패**한다. 고정 디렉터리의 clone(예: `$HOME/src/repo-baseline-gate`)에서 **`main`의 깨끗한 트리**로 맞춘 뒤 실행한다.
 
 ```bash
 GATE_TREE="$HOME/src/repo-baseline-gate"   # PR head 워크스페이스가 아님
@@ -119,16 +154,16 @@ unset GH_TOKEN GITHUB_TOKEN
   export GH_TOKEN="$(gh auth token)"
   cd "$GATE_TREE"
   set +e
-  dry=$(python3 -I tools/post_review_gate.py --repo "$REPO" --pr "$PR" --sha "$SHA" --dry-run)
+  dry=$(python3 -I profiles/review-gate/post_review_gate.py --repo "$REPO" --pr "$PR" --sha "$SHA" --dry-run)
   set -e
   printf '%s\n' "$dry"
   kind=$(printf '%s\n' "$dry" | python3 -c 'import json,sys; print(json.loads(sys.stdin.read().splitlines()[-1])["kind"])')
   if [ "$kind" = failure ]; then
-    python3 -I tools/post_review_gate.py --repo "$REPO" --pr "$PR" --sha "$SHA"
+    python3 -I profiles/review-gate/post_review_gate.py --repo "$REPO" --pr "$PR" --sha "$SHA"
   elif [ "$kind" = success ]; then
     # success를 올리고 그 SHA로 squash 병합한다. 개발자 gh 로그인이 되어 있어야 한다.
     # 이 서브셸의 GH_TOKEN은 읽기에만 쓴다. 스크립트가 gh pr merge에는 넘기지 않는다.
-    python3 -I tools/post_review_gate.py --repo "$REPO" --pr "$PR" --sha "$SHA" --merge
+    python3 -I profiles/review-gate/post_review_gate.py --repo "$REPO" --pr "$PR" --sha "$SHA" --merge
   else
     echo "review gate not posted: $kind" >&2
     exit 1
@@ -189,7 +224,7 @@ unset GH_TOKEN GITHUB_TOKEN
 
 소비 프로젝트의 `.github/repository-settings.json`에는 `review/gate`의 `app_id`를 **전용 앱의 정수**로 둔다. 이 저장소(repo-baseline)의 기록은 **`5641238`**이다. `templates/repository-settings.json`을 채울 때는 아직 앱이 없으면 자리표시자를 쓰고, **정수로 바꾸기 전에는** `tools/apply_github_settings.py`가 조회 전에 멈춘다.
 
-`tools/apply_github_settings.py`는 값이 `REPLACE`로 시작하면 조회 전에 멈춘다. `scripts/check_github_settings.py`도 그 문자열인 동안 `validate_profile`이 실패해 UNVERIFIED로 끝난다. 0, -1, 15368은 `review/gate`의 `app_id`로 통과하지 않는다. 적용 도구와 `validate_profile`이 둘 다 거절한다. 정수가 된 뒤에만 계획을 본다.
+`tools/apply_github_settings.py`는 값이 `REPLACE`로 시작하면 조회 전에 멈춘다. `tools/check_github_settings.py`도 그 문자열인 동안 `validate_profile`이 실패해 UNVERIFIED로 끝난다. 0, -1, 15368은 `review/gate`의 `app_id`로 통과하지 않는다. 적용 도구와 `validate_profile`이 둘 다 거절한다. 정수가 된 뒤에만 계획을 본다.
 
 ```bash
 python3 tools/apply_github_settings.py .

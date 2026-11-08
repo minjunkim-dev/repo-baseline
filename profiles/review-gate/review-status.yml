@@ -15,7 +15,7 @@ name: Review status
 # This workflow does not subscribe to issue_comment. Creating, editing, or deleting an approval comment does not
 # re-run Review status and does not post review/gate. A hard door still needs a new owner comment whose first line
 # is the prefix plus the full head SHA. Do not edit an old approval. Post a new comment, then re-run this workflow
-# for that head by hand (gh run rerun). Posting success is tools/post_review_gate.py --merge only.
+# for that head by hand (gh run rerun). Posting success is repo-baseline profiles/review-gate/post_review_gate.py --merge only.
 # The checker counts a comment only when REST updated_at equals created_at. Timestamps are whole seconds, so a
 # same-second edit is not distinguished. It does not read or write review/independent or review/security.
 # Those statuses are advisory. It does not write review/gate.
