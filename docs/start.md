@@ -7,6 +7,7 @@
 프로젝트 루트에서 실행한다.
 
 ```bash
+git rev-parse --git-dir >/dev/null 2>&1 || git init   # 빈 프로젝트면 저장소부터 만든다
 git clone --depth 1 https://github.com/minjunkim-dev/repo-baseline /tmp/repo-baseline
 B=/tmp/repo-baseline/templates/core
 cp -n "$B/AGENTS.md" "$B/CLAUDE.md" "$B/REVIEW.md" .
