@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Read GitHub settings and report drift; never change repository settings."""
 
-import hashlib
 import json
 from pathlib import Path
 import re
@@ -42,69 +41,6 @@ def read_api(endpoint):
     return json.loads(result.stdout) if result.stdout.strip() else None
 
 
-def codeql_source_drift(profile):
-    """Offline PR check: the pinned main blob must match the checked-out workflow,
-    and every github/codeql-action step must use one commit (init and analyze fail apart)."""
-    source = profile["expected"].get("codeql_main_source")
-    if source is None:  # default setup: no workflow file to pin
-        return []
-    data = (ROOT / source["path"]).read_bytes()
-    blob = hashlib.sha1(b"blob %d\0" % len(data) + data).hexdigest()
-    result = [] if blob == source["sha"] else ["codeql_main_source.sha"]
-    refs = set(codeql_action_refs(data.decode("utf-8")))
-    pinned = len(refs) == 1 and re.fullmatch(r"[0-9a-f]{40}", next(iter(refs)))
-    return result + ([] if pinned or not refs else ["codeql_workflow.action_pins"])
-
-
-def strip_comment(line):
-    """Drop a YAML comment: a `#` at line start or after whitespace, outside quotes."""
-    quote = None
-    for i, char in enumerate(line):
-        if quote:
-            if char == "\\" and quote == '"':
-                continue
-            if char == quote and not (quote == '"' and i and line[i - 1] == "\\"):
-                quote = None
-        elif char in "'\"":
-            quote = char
-        elif char == "#" and (i == 0 or line[i - 1].isspace()):
-            return line[:i].rstrip()
-    return line.rstrip()
-
-
-def codeql_action_refs(text):
-    """Every github/codeql-action ref outside comments and block-scalar text (`run:` scripts).
-    YAML structure is not parsed, so step layout cannot hide a ref. A ref that cannot be read,
-    or a `uses:` given as a block scalar, counts as unpinned and fails the check.
-    Escapes and multi-line quoted scalars are not decoded, so any double-quoted scalar with a
-    backslash, or a quoted scalar not closed on its line, counts as unpinned wherever it sits.
-    shortcut: a plain (unquoted) scalar folded over lines is not read; parse YAML if that appears."""
-    refs, block = [], None
-    for raw in text.splitlines():
-        line = strip_comment(raw)
-        if not line.strip():
-            continue
-        indent = len(line) - len(line.lstrip())
-        if block is not None and indent > block:
-            continue
-        block = None
-        # A quote opens a scalar only at its start, so "Don't" in a plain step name is not one.
-        scalar = r"(?:^\s*(?:[-?]\s+)*|[:?-]\s+|(?<=[\"'\]}]):\s*|[\[{,]\s*)(?:[&!]\S*\s+)*(?:'[^']*('?)|\"((?:[^\"\\]|\\.)*)(\"?))"
-        for match in re.finditer(scalar, line):
-            if match[2] is None and not match[1] or match[2] is not None and ("\\" in match[2] or not match[3]):
-                refs.append("unrecognized")
-                break
-        unquoted = re.sub(r"\"(?:[^\"\\]|\\.)*\"|'[^']*'", "''", line)
-        if re.search(r":\s*[|>][-+0-9]*$", unquoted):
-            block = len(re.match(r"\s*(?:-\s+)*", line)[0])  # the owning key's column
-            if re.search(r"(?:^|[\s{,])[\"']?uses[\"']?\s*:\s*[|>]", line):
-                refs.append("unrecognized")
-        # GitHub owner/repo names are case-insensitive: GitHub/CodeQL-Action is the same action.
-        for match in re.finditer(r"github/codeql-action/[\w-]*(?:@([^\s\"',}\]]+))?", line, re.IGNORECASE):
-            refs.append(match[1].lower() if match[1] else "unrecognized")
-    return refs
-
-
 # Required controls cannot disappear when someone edits the baseline.
 REQUIRED_FIELDS = {
     "repository": "default_branch visibility allow_merge_commit allow_rebase_merge allow_squash_merge allow_auto_merge delete_branch_on_merge allow_update_branch squash_merge_commit_title squash_merge_commit_message security_and_analysis.dependabot_security_updates.status security_and_analysis.secret_scanning.status security_and_analysis.secret_scanning_push_protection.status",
@@ -118,13 +54,12 @@ REQUIRED_FIELDS = {
     "dependabot_alerts": "enabled",
     "codeql": "state",
     "codeql_workflow": "path state",
-    "codeql_main_source": "path type sha",
 }
 # Only advanced setup has a workflow file; default setup must not list it.
-ADVANCED_CODEQL = {"codeql_workflow", "codeql_main_source"}
+ADVANCED_CODEQL = {"codeql_workflow"}
 STRING_FIELDS = {
     "default_branch", "visibility", "squash_merge_commit_title", "squash_merge_commit_message",
-    "status", "allowed_actions", "default_workflow_permissions", "approval_policy", "state", "path", "type", "sha",
+    "status", "allowed_actions", "default_workflow_permissions", "approval_policy", "state", "path",
 }
 
 
@@ -159,22 +94,15 @@ def validate_exceptions(profile):
     return exceptions
 
 
-ACTIONS_APP_ID = 15368
-# Kept after review-gate was archived (docs/archive/review-gate/): a hand-pinned review/gate check still needs a real App id.
-GATE_CONTEXT = "review/gate"
-
-
-def review_gate_app_ok(app_id):
-    """True for the dedicated review-gate App. Actions (15368), 0, and negatives are not it."""
-    return type(app_id) is int and app_id > 0 and app_id != ACTIONS_APP_ID
-
-
 def validate_profile(profile):
     if not isinstance(profile, dict):
         raise ValueError("Baseline must be an object")
     expected = profile.get("expected")
     if not isinstance(expected, dict):
         raise ValueError("Baseline must include every required control")
+    if "codeql_main_source" in expected:
+        # Every codeql-action bump rewrote the pinned blob sha and left the audit drifting.
+        raise ValueError("codeql_main_source is no longer checked; remove it from the baseline")
     exceptions = validate_exceptions(profile)
     codeql = expected.get("codeql")
     default_setup = isinstance(codeql, dict) and codeql.get("state") == "configured"
@@ -213,10 +141,6 @@ def validate_profile(profile):
             for check in checks
         )):
             raise ValueError("Required checks must include names and App IDs")
-        if checks is not None:
-            for check in checks:
-                if check.get("context") == GATE_CONTEXT and not review_gate_app_ok(check.get("app_id")):
-                    raise ValueError("review/gate App ID must be a positive integer other than 15368")
     if type(profile.get("repository_id")) is not int or profile["repository_id"] <= 0:
         raise ValueError("Invalid repository ID")
 
@@ -253,7 +177,6 @@ def audit(profile, read=None):
         "immutable_releases": "immutable-releases",
         "codeql": "code-scanning/default-setup",
         "codeql_workflow": "actions/workflows/codeql.yml",
-        "codeql_main_source": f"contents/.github/workflows/codeql.yml?ref={branch}",
     }
     result = []
     for name, expected in profile["expected"].items():
