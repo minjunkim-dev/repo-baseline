@@ -12,17 +12,11 @@
     "scripts/test_github_settings.py": {
       "source": "tools/test_github_settings.py"
     },
-    "scripts/check_review_status.py": {
-      "source": "profiles/review-gate/check_review_status.py"
-    },
-    "scripts/test_review_status.py": {
-      "source": "profiles/review-gate/test_review_status.py"
-    },
     "scripts/workflow_policy.py": {
       "source": "profiles/pr-conventions/workflow_policy.py"
     },
     "scripts/pr_author.py": {
-      "source": "profiles/review-gate/pr_author.py"
+      "source": "profiles/pr-conventions/pr_author.py"
     },
     "scripts/test_workflow_policy.py": {
       "source": "profiles/pr-conventions/test_workflow_policy.py"

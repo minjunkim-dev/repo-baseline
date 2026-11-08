@@ -1,4 +1,6 @@
-# review-gate 프로필
+# review-gate 프로필 (보관)
+
+보관 문서다. 2026-11에 보관했다. 기본 GitHub 설정(workflow 토큰 읽기 전용, 클라우드 에이전트에 병합 권한 없음)이 이미 막는 것만 막고, 같은 OS 사용자로 도는 로컬 에이전트는 막지 못했다. 실제 App 흐름은 #66 이동 뒤 검증하지 않았다. `pr_author.py`는 `profiles/pr-conventions/`로 옮겼다. 아래 경로는 보관 전 기준이다이고, 이 폴더의 코드는 `pr_author.py`가 없어 그대로는 실행되지 않는다.
 
 선택 프로필이다. 기본값은 브랜치 보호 + 필수 CI + 사람 병합이다(`docs/archive/redesign-2026-11.md` D2). 이 폴더는 그 위에 "승인 위조까지 막는" 게이트를 더한다.
 
@@ -11,7 +13,7 @@
 ## 켜는 법
 
 1. 소비 레포에 복사한다: `check_review_status.py`, `pr_author.py`, `test_review_status.py` → `scripts/`. `review-status.yml` → `.github/workflows/`.
-2. 전용 GitHub App(권한: Commit statuses 쓰기, Metadata 읽기)을 만들고(옛 상세 절차: [docs/archive/review-gate-app-2026.md](../../docs/archive/review-gate-app-2026.md)), 정수 `app_id`를 `.github/repository-settings.json`의 필수 체크 `review/gate`에 넣는다. 소유자 기기에서 `python3 <repo-baseline>/tools/apply_github_settings.py <project> --apply`로 적용한다.
+2. 전용 GitHub App(권한: Commit statuses 쓰기, Metadata 읽기)을 만들고(옛 상세 절차: [docs/archive/review-gate-app-2026.md](../review-gate-app-2026.md)), 정수 `app_id`를 `.github/repository-settings.json`의 필수 체크 `review/gate`에 넣는다. 소유자 기기에서 `python3 <repo-baseline>/tools/apply_github_settings.py <project> --apply`로 적용한다.
 3. 조직·엔터프라이즈 Actions 이벤트 정책이 있으면 `review-status-policy.json`과 `review_status_policy.py`로 `pull_request_target`이 허용되는지 확인한다.
 4. 병합은 소유자 Mac의 이 저장소 깨끗한 `main`에서 `python3 -I profiles/review-gate/post_review_gate.py --repo <owner/name> --pr <N> --sha <head> --merge`로만 한다.
 

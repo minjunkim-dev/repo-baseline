@@ -12,13 +12,15 @@ import unittest
 from unittest.mock import patch
 
 HERE = Path(__file__).resolve().parent
-# pr_author.py lives in profiles/review-gate/. A consumer copies it beside this file.
-sys.path.insert(0, str(HERE.parent / "review-gate"))
+sys.path.insert(0, str(HERE))
 import workflow_policy  # noqa: E402
 from workflow_policy import parse_author, validate_body, validate_flags, validate_pr  # noqa: E402
 
-ROOT = HERE.parents[1]
-SOURCES = {"workflow_policy.py": HERE / "workflow_policy.py", "pr_author.py": HERE.parent / "review-gate" / "pr_author.py"}
+# repo-baseline keeps this file in profiles/pr-conventions/. A consumer copies it to scripts/.
+IN_BASELINE = (HERE.parent.name, HERE.name) == ("profiles", "pr-conventions")
+ROOT = HERE.parents[1] if IN_BASELINE else HERE.parent
+TEMPLATE = ROOT / ("templates/core" if IN_BASELINE else ".github") / "pull_request_template.md"
+SOURCES = {"workflow_policy.py": HERE / "workflow_policy.py", "pr_author.py": HERE / "pr_author.py"}
 BODY = """Author: Cursor / grok-4.7
 
 ## Summary
@@ -222,11 +224,9 @@ class ConventionsTest(unittest.TestCase):
         renamed = BODY.replace(current, "분류: 되돌리기 어려움")
         self.assertTrue(any("Door must be" in error for error in validate_body(renamed)))
 
-    def test_both_checks_use_the_one_author_parser(self):
-        import check_review_status as review
+    def test_the_check_uses_the_shared_author_parser(self):
         import pr_author
         self.assertIs(workflow_policy.parse_author, pr_author.parse_author)
-        self.assertIs(review.parse_author, pr_author.parse_author)
         disagreed = "Author: Claude Code / Opus 5.5\n작성 도구: Cursor\n작성 모델: grok-4.7\n"
         self.assertTrue(any("disagree" in error for error in parse_author(disagreed)[2]))
         model_only = "Author: Cursor / grok-4.7\n작성 모델: Opus 5.5\n"
@@ -306,7 +306,7 @@ class ConventionsTest(unittest.TestCase):
             os.chdir(previous)
 
     def test_template_has_the_sections_and_review_fields(self):
-        text = (ROOT / "templates/core/pull_request_template.md").read_text(encoding="utf-8")
+        text = TEMPLATE.read_text(encoding="utf-8")
         for header in ("## Summary", "## Evidence", "## Merge Danger", "## Review", "Author:", "Door:",
                        "리뷰어", "고친 것:", "남은 지적:"):
             self.assertIn(header, text)

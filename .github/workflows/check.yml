@@ -30,6 +30,6 @@ jobs:
         run: python3 -m unittest discover -s tools -p 'test_*.py'
       - name: Profiles
         run: |
-          for d in profiles/review-gate profiles/pr-conventions profiles/hash-copy; do
+          for d in profiles/pr-conventions profiles/hash-copy; do
             python3 -m unittest discover -s "$d" -p 'test_*.py'
           done

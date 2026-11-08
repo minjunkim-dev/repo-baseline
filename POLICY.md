@@ -45,7 +45,7 @@ Door는 "망가지면 누가 무엇을 잃나"로 정한다. 작성자가 아니
 | 에이전트 권한 설정 | 하네스의 권한·거부 규칙 파일 |
 | 프로젝트가 정한 경로 | 인증, 결제, 권한, migration 등. `REVIEW.md`의 신뢰 경계 절에 적는다 |
 
-이 저장소에서는 다음도 신뢰 경계다: `templates/github/**`, `profiles/review-gate/**`, `tools/apply_github_settings.py`. 소비 저장소가 복사해 CI나 서버 설정으로 쓰기 때문이다.
+이 저장소에서는 다음도 신뢰 경계다: `templates/github/**`, `tools/apply_github_settings.py`. 소비 저장소가 복사해 CI나 서버 설정으로 쓰기 때문이다.
 
 되돌리기 어려움이면:
 
@@ -60,7 +60,7 @@ PR 본문 Merge Danger에 Door, 영향 범위, 되돌리는 법, 걸린 신뢰 �
 - 병합은 사람만 한다. 자동 병합은 쓰지 않는다(저장소 설정 `allow_auto_merge: false`).
 - 클라우드 에이전트에게 주는 토큰에는 병합 권한이 없다.
 - 로컬 에이전트는 하네스의 거부 규칙으로 병합·`main` push·보호 설정 변경을 막는다. 이것은 습관이지 보안 경계가 아니다. 같은 사용자 권한으로 도는 에이전트는 다른 명령으로 우회할 수 있다.
-- 기계적으로 막아야 하는 프로젝트는 [review-gate 프로필](profiles/review-gate/)을 켠다.
+- 로컬 에이전트의 병합을 기계적으로 막는 장치는 두지 않는다. 막아야 하는 프로젝트는 에이전트를 별도 OS 사용자와 GitHub 계정으로 돌린다.
 - GitHub에 올리면 [github 프로필](templates/github/)로 PR 필수, 필수 CI, force push·삭제 금지를 켠다.
 
 ## 6. 회고
