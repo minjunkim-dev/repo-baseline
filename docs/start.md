@@ -44,7 +44,7 @@ grep -n '^\.env$' .gitignore
 브랜치를 만들고 커밋한 뒤 PR을 연다. 본문은 `.github/pull_request_template.md`의 슬림 양식이다.
 
 - Author: 쓴 도구와 모델. 사람이면 `사람 / 없음`.
-- Summary: 코어 적용.
+- Summary: 코어 적용. 완료 기준: `AGENTS.md`·`REVIEW.md`에 템플릿 빈칸이 없고 `.gitignore`에 `.env` 줄이 있다. 전에 통과하던 프로젝트 명령은 그대로 통과한다.
 - Evidence: 4칸 명령을 돌린 결과. 돌리지 않은 칸과 이유.
 - Merge Danger: 문서만 더했으면 되돌리기 쉬움. 신뢰 경계: 없음.
 - Review: 구현과 다른 컨텍스트의 리뷰어가 `REVIEW.md`로 본 결과.
