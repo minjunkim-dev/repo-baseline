@@ -6,8 +6,8 @@ import subprocess
 import sys
 import unittest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from tools import review_status_policy as policy
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import review_status_policy as policy
 
 TARGET = policy.TARGET
 
@@ -72,7 +72,7 @@ class PolicyTests(unittest.TestCase):
 
     def test_cli_stops_on_an_unevaluable_pattern(self):
         result = subprocess.run(
-            [sys.executable, str(Path(__file__).resolve().parents[1] / "tools/review_status_policy.py")],
+            [sys.executable, str(Path(__file__).resolve().parent / "review_status_policy.py")],
             input=json.dumps(sample([".github/workflows/{review-status.yml}"])),
             capture_output=True, text=True)
         self.assertEqual(result.returncode, 2)

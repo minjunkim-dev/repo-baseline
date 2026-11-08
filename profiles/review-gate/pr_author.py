@@ -1,21 +1,25 @@
 """One author-line parser for the PR convention check and the review-evidence check.
 
-Both scripts are copied into a consumer's scripts/ directory. This module is copied
-with them, and each script imports it. There is no second copy of the rules.
+This file lives in profiles/review-gate/. profiles/pr-conventions/workflow_policy.py
+imports it too, so a consumer copies it beside either script. There is no second copy.
+Any non-empty tool name is accepted. A template placeholder such as `<도구>` is not a value.
+A person author is `사람 / 없음`.
 """
 
-TOOLS = ("Claude Code", "Cursor 클라우드 에이전트", "Cursor", "사람")
+import re
 
 
 def text_of(body):
     return (body or "").replace("\r\n", "\n").replace("\r", "\n")
 
 
+def filled(value):
+    """The text, or None when it is empty or still holds a `<...>` placeholder."""
+    return value if value and not re.search(r"<[^>]*>", value) else None
+
+
 def tool_name(value):
-    for name in TOOLS:
-        if value == name:
-            return name
-    return None
+    return filled(value)
 
 
 def parse_author(body):
@@ -28,7 +32,7 @@ def parse_author(body):
         if line.startswith("Author:") and "/" in line:
             tool_text, model_text = line[len("Author:"):].split("/", 1)
             found = tool_name(tool_text.strip())
-            pair = (found, model_text.strip()) if found and model_text.strip() else None
+            pair = (found, model_text.strip()) if found and filled(model_text.strip()) else None
             if pair and pair not in authors:
                 authors.append(pair)
         elif line.startswith("작성 도구:"):
@@ -36,7 +40,7 @@ def parse_author(body):
             if found and found not in tools:
                 tools.append(found)
         elif line.startswith("작성 모델:"):
-            value = line[len("작성 모델:"):].strip()
+            value = filled(line[len("작성 모델:"):].strip())
             if value and value not in models:
                 models.append(value)
         elif line.startswith("이전 작성 모델:"):

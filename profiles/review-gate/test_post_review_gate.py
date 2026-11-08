@@ -16,8 +16,8 @@ import tempfile
 import time
 import unittest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from tools import post_review_gate as gate
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import post_review_gate as gate
 import check_review_status as review
 
 HEAD = "a" * 40
@@ -28,17 +28,15 @@ OWNER = "minjunkim-dev"
 API = "https://api.github.com"
 
 
-def evidence(head, security="해당 없음: 신뢰 경계 변경 아님", standards="Sonnet 5.5"):
-    lines = [
+def evidence(head, reviewer="Claude Code / Opus 5.5"):
+    """Slim PR body. The head is not part of the review record; the owner comment carries it."""
+    return "\n".join([
         "Author: Cursor 클라우드 에이전트 / grok-4.7", "",
-        "| axis | model | effort | head SHA | P0 | P1 | P2 | result |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- |",
-        f"| Standards | {standards} | high | {head} | 0 | 0 | 0 | pass |",
-        f"| Spec | Sonnet 5.5 | high | {head} | 0 | 0 | 0 | pass |",
-        f"| 버그 찾기 | Opus 5.5 | high | {head} | 0 | 0 | 0 | pass |",
-        f"| Security | {security} | 해당 없음 | {head} | 0 | 0 | 0 | pass |",
-    ]
-    return "\n".join(lines) + "\n"
+        "## Review",
+        f"리뷰어(구현과 다른 컨텍스트, 도구/모델): {reviewer}",
+        "고친 것: 없음",
+        "남은 지적: 없음", "",
+    ])
 
 
 def pull(head=HEAD, state="open", body=None, user=OWNER, files_commit_count=1, ref="main"):
@@ -112,9 +110,9 @@ class DecideTests(unittest.TestCase):
         self.assertNotIn("review/independent", found.detail)
         self.assertNotIn("review/security", found.detail)
 
-    def test_a_security_model_in_the_table_does_not_require_a_security_status(self):
+    def test_the_review_record_does_not_require_a_security_status(self):
         files = [{"filename": "README.md", "patch": "@@\n-a\n+b\n"}]
-        body = evidence(HEAD, security="Opus 5.5")
+        body = evidence(HEAD)
         found = decide(Scripted(pull(body=body), files, []))
         self.assertEqual(found.kind, "success")
         failed = [status("review/independent", state="failure"), status("review/security", state="failure")]
@@ -122,7 +120,7 @@ class DecideTests(unittest.TestCase):
 
     def test_a_trust_boundary_path_needs_the_owner_comment(self):
         files = [{"filename": ".github/repository-settings.json", "patch": "@@\n-a\n+b\n"}]
-        body = evidence(HEAD, security="Opus 5.5")
+        body = evidence(HEAD)
         bare = decide(Scripted(pull(body=body), files, []))
         self.assertEqual(bare.kind, "failure")
         self.assertIn(review.OWNER, bare.detail)
@@ -152,31 +150,8 @@ class DecideTests(unittest.TestCase):
         self.assertEqual(found.kind, "success")
         self.assertNotIn("review/independent", found.detail)
 
-    def test_a_recorded_same_family_review_still_needs_the_owner_on_a_gate_path(self):
-        rows = "\n".join(
-            f"| {axis} | cursor-grok-4.6 | high | {HEAD} | 0 | 0 | 0 | pass |"
-            for axis in ("Standards", "Spec", "버그 찾기", "Security"))
-        record = "\n".join([
-            "같은 패밀리 예외:",
-            "- 축: Standards, Spec, 버그 찾기, Security",
-            "- 이유: 다른 패밀리 불가: 크레딧 부족",
-            "- 작성 모델: grok-4.7",
-            "- 작성 패밀리: Grok",
-            "- 리뷰 모델: cursor-grok-4.6",
-            "- 리뷰 패밀리: Grok",
-            "- 작성 에이전트: bc-author-11111111",
-            "- 리뷰 에이전트: bc-review-22222222",
-            f"- 검토 SHA: {HEAD}",
-        ])
-        body = "\n".join([
-            "Author: Cursor 클라우드 에이전트 / grok-4.7",
-            "Door: 되돌리기 어려움",
-            "| axis | model | effort | head SHA | P0 | P1 | P2 | result |",
-            "| --- | --- | --- | --- | --- | --- | --- | --- |",
-            rows,
-            record,
-            "",
-        ])
+    def test_a_same_family_review_passes_and_still_needs_the_owner_on_a_gate_path(self):
+        body = evidence(HEAD, reviewer="Cursor / grok-4.6")
         docs = [{"filename": "README.md", "patch": "@@\n-a\n+b\n"}]
         self.assertEqual(decide(Scripted(pull(body=body), docs, [])).kind, "success")
         gate_path = [{"filename": "scripts/check_review_status.py", "patch": "@@\n-a\n+b\n"}]
@@ -186,21 +161,16 @@ class DecideTests(unittest.TestCase):
         self.assertNotIn(review.EVIDENCE, bare.detail)
         approved = decide(Scripted(pull(body=body), gate_path, [], comments=[comment(HEAD)]))
         self.assertEqual(approved.kind, "success")
-        other = body.replace("bc-review-22222222", "bc-review-33333333")
         first = gate.evidence_snapshot(body, HEAD, [], OWNER)
-        second = gate.evidence_snapshot(other, HEAD, [], OWNER)
-        self.assertNotEqual(first[0]["exceptions"], second[0]["exceptions"])
+        second = gate.evidence_snapshot(body.replace("남은 지적: 없음", "남은 지적: P2 하나"), HEAD, [], OWNER)
+        self.assertEqual(first[0]["review"]["reviewer"], ["Cursor / grok-4.6"])
+        self.assertNotEqual(first[0]["review"], second[0]["review"])
         self.assertNotEqual(first[1], second[1])
-        easy = body.replace("Door: 되돌리기 어려움", "Door: 되돌리기 쉬움", 1)
-        hard = gate.evidence_snapshot(body, HEAD, [], OWNER)
-        soft = gate.evidence_snapshot(easy, HEAD, [], OWNER)
-        self.assertEqual(hard[0]["door"], "hard")
-        self.assertEqual(soft[0]["door"], "easy")
-        self.assertNotEqual(hard[1], soft[1])
+        self.assertIsNone(gate.evidence_snapshot("Author: Cursor / grok-4.7\n", HEAD, [], OWNER))
 
-    def test_same_family_evidence_fails_and_an_actions_status_does_not(self):
+    def test_an_unrun_review_fails_and_an_actions_status_does_not(self):
         files = [{"filename": "README.md", "patch": "@@\n-a\n+b\n"}]
-        same = decide(Scripted(pull(body=evidence(HEAD, standards="grok-4.7")), files, []))
+        same = decide(Scripted(pull(body=evidence(HEAD, reviewer="미실행")), files, []))
         self.assertEqual(same.kind, "failure")
         self.assertIn(review.EVIDENCE, same.detail)
         forged = [status("review/independent", login="github-actions[bot]"), status("review/independent")]
@@ -215,7 +185,7 @@ class DecideTests(unittest.TestCase):
             "+        uses: actions/checkout@" + "b" * 40 + " # v4.2.1",
         ])
         files = [{"filename": ".github/workflows/check.yml", "status": "modified", "patch": patch}]
-        covered = evidence(HEAD, security="Opus 5.5")
+        covered = evidence(HEAD)
         bot = pull(user="dependabot[bot]", body=covered)
         bare = decide(Scripted(bot, files, []))
         self.assertEqual(bare.kind, "failure")
@@ -224,9 +194,9 @@ class DecideTests(unittest.TestCase):
         self.assertNotIn("review/security", bare.detail)
         empty = pull(body="", user="dependabot[bot]")
         statuses = [status("review/independent"), status("review/security")]
-        missing_table = decide(Scripted(empty, files, statuses, comments=[comment(HEAD)]))
-        self.assertEqual(missing_table.kind, "failure")
-        self.assertIn(review.EVIDENCE, missing_table.detail)
+        missing_record = decide(Scripted(empty, files, statuses, comments=[comment(HEAD)]))
+        self.assertEqual(missing_record.kind, "failure")
+        self.assertIn(review.EVIDENCE, missing_record.detail)
         approved = decide(Scripted(bot, files, statuses, comments=[comment(HEAD)]))
         self.assertEqual(approved.kind, "success")
         person = pull(body=covered)
@@ -412,7 +382,7 @@ class HttpTests(unittest.TestCase):
         directory, key = _key()
         self.addCleanup(directory.cleanup)
         hub = self.hub(statuses=[status("review/independent", login="github-actions[bot]")])
-        hub.pull = pull(body=evidence(HEAD, standards="grok-4.7"))
+        hub.pull = pull(body=evidence(HEAD, reviewer="미실행"))
         code = gate.main(
             ["--repo", REPO, "--pr", "7", "--sha", HEAD],
             self.env(key), hub, now=lambda: 1700000000, sign=lambda data, path: b"sig")
@@ -590,12 +560,12 @@ class MergeTests(unittest.TestCase):
         posts = [item[3]["state"] for item in hub.calls if "/statuses/" in item[1]]
         self.assertEqual(posts, ["failure"])
         broken = self.hub()
-        broken.pull = pull(body="Author: Cursor / grok-4.7\nnot a table\n")
+        broken.pull = pull(body="Author: Cursor / grok-4.7\nno review section\n")
         code, _sleeps = self.invoke(broken, key, boom)
         self.assertEqual(code, 1)
         self.assertEqual([item[3]["state"] for item in broken.calls if "/statuses/" in item[1]], ["failure"])
         opened = self.hub()
-        opened.pull = pull(body=evidence(HEAD).replace("| 0 | 0 | 0 | pass |", "| 1 | 0 | 0 | pass |", 1))
+        opened.pull = pull(body=evidence(HEAD, reviewer=""))
         code, _sleeps = self.invoke(opened, key, boom)
         self.assertEqual(code, 1)
         self.assertEqual([item[3]["state"] for item in opened.calls if "/statuses/" in item[1]], ["failure"])
@@ -626,14 +596,14 @@ class MergeTests(unittest.TestCase):
         self.assertEqual(states, ["success", "failure"])
         self.assertTrue(all(item[1].endswith("/" + HEAD) for item in late.calls if "/statuses/" in item[1]))
 
-    def test_a_semantic_table_change_clears_success_and_a_comment_does_not(self):
+    def test_a_semantic_review_change_clears_success_and_a_comment_does_not(self):
         directory, key = _key()
         self.addCleanup(directory.cleanup)
         changed = self.hub()
         original = changed.pull["body"]
 
         def edit():
-            changed.pull["body"] = original.replace("Sonnet 5.5", "Composer 2.5", 1)
+            changed.pull["body"] = original.replace("남은 지적: 없음", "남은 지적: P2 하나", 1)
 
         changed.on_success = edit
         code, _sleeps = self.invoke(changed, key, lambda argv, env: (_ for _ in ()).throw(AssertionError("merge")))
@@ -1066,8 +1036,8 @@ class SignalCleanupTests(unittest.TestCase):
         runner = Path(bindir.name) / "run_gate.py"
         runner.write_text(
             "import os, sys\n"
-            f"sys.path.insert(0, {str(gate.ROOT)!r})\n"
-            "from tools import post_review_gate as gate\n"
+            f"sys.path.insert(0, {str(Path(gate.__file__).parent)!r})\n"
+            "import post_review_gate as gate\n"
             "raise SystemExit(gate.main(["
             f"{'--repo'!r}, {REPO!r}, {'--pr'!r}, {'7'!r}, {'--sha'!r}, {HEAD!r}, {'--merge'!r}]))\n",
             encoding="utf-8")

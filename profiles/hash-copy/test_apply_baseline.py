@@ -12,6 +12,7 @@ from unittest.mock import patch
 import apply_baseline
 
 CHECKER = "scripts/check_repo_baseline.py"
+SOURCE = "profiles/hash-copy/check_repo_baseline.py"
 
 
 def fake_git(*args):
@@ -24,7 +25,7 @@ class ApplyBaselineTests(unittest.TestCase):
         self.addCleanup(folder.cleanup)
         self.project = Path(folder.name)
         (self.project / ".github").mkdir()
-        self.write_manifest({"files": {CHECKER: {"source": CHECKER}}, "project_note": "keep"})
+        self.write_manifest({"files": {CHECKER: {"source": SOURCE}}, "project_note": "keep"})
 
     def write_manifest(self, data):
         (self.project / apply_baseline.MANIFEST).write_text(json.dumps(data))
@@ -58,7 +59,7 @@ class ApplyBaselineTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "Commit repo-baseline"):
                 apply_baseline.apply(self.project)
         for files in [{"x.py": {"source": "missing.py"}}, {"x.py": {"source": "/etc/hosts"}},
-                      {"x.py": {"source": "../outside.py"}}, {"../x.py": {"source": CHECKER}}, {}]:
+                      {"x.py": {"source": "../outside.py"}}, {"../x.py": {"source": SOURCE}}, {}]:
             with self.subTest(files=files):
                 self.write_manifest({"files": files})
                 with self.assertRaises(ValueError):
@@ -67,11 +68,11 @@ class ApplyBaselineTests(unittest.TestCase):
     def test_dependabot_config_is_generated_per_ecosystem(self):
         target = ".github/dependabot.yml"
         ecosystems = [{"package-ecosystem": "cargo", "directory": "/services/api"}]
-        self.write_manifest({"files": {target: {"source": "templates/dependabot.yml", "ecosystems": ecosystems}}})
+        self.write_manifest({"files": {target: {"source": "templates/github/dependabot.yml", "ecosystems": ecosystems}}})
         with patch.object(apply_baseline, "git", fake_git):
             apply_baseline.apply(self.project)
         text = (self.project / target).read_text()
-        self.assertTrue(text.startswith((apply_baseline.HERE / "templates/dependabot.yml").read_text()))
+        self.assertTrue(text.startswith((apply_baseline.HERE / "templates/github/dependabot.yml").read_text()))
         self.assertIn("  - package-ecosystem: cargo\n    directory: /services/api\n", text)
         self.assertEqual(text.count("interval: weekly"), 2)
         self.assertEqual(apply_baseline.apply(self.project, check=True), [])
@@ -86,7 +87,7 @@ class ApplyBaselineTests(unittest.TestCase):
             with self.subTest(item=item):
                 ecosystems = [item] if item is not None else [bad[1] | {"directory": "/a"}] * 2
                 self.write_manifest({"files": {".github/dependabot.yml":
-                                               {"source": "templates/dependabot.yml", "ecosystems": ecosystems}}})
+                                               {"source": "templates/github/dependabot.yml", "ecosystems": ecosystems}}})
                 with self.assertRaisesRegex(ValueError, "Invalid ecosystems"):
                     apply_baseline.apply(self.project, check=True)
 
