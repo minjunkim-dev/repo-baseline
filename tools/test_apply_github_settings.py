@@ -366,10 +366,7 @@ class ApplyGitHubSettingsTests(unittest.TestCase):
         required = own["expected"]["protection"]["required_status_checks"]["checks"]
         self.assertEqual(
             [(item["context"], item["app_id"]) for item in required],
-            [
-                ("Baseline checks (Python 3.11)", 15368),
-                ("Baseline checks (Python 3.13)", 15368),
-            ],
+            [("Baseline checks", 15368)],
         )
         filled = copy.deepcopy(own)
         for item in filled["expected"]["protection"]["required_status_checks"]["checks"]:
