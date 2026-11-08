@@ -17,8 +17,7 @@ sys.path.insert(0, str(HERE.parent / "review-gate"))
 import workflow_policy  # noqa: E402
 from workflow_policy import parse_author, validate_body, validate_flags, validate_pr  # noqa: E402
 
-# Here: profiles/pr-conventions/. A consumer's copy sits in scripts/ with pr_author.py beside it.
-IN_BASELINE = HERE.parent.name == "profiles"
+IN_BASELINE = (HERE.parent / "review-gate").is_dir()
 ROOT = HERE.parents[1] if IN_BASELINE else HERE.parent
 AUTHOR = HERE.parent / "review-gate" / "pr_author.py" if IN_BASELINE else HERE / "pr_author.py"
 TEMPLATE = ROOT / ("templates/core" if IN_BASELINE else ".github") / "pull_request_template.md"
