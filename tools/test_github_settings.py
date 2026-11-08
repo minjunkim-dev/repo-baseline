@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import check_github_settings as settings
 import unittest
 
-from check_github_settings import audit, codeql_source_drift, differences
+from check_github_settings import audit, codeql_action_refs, codeql_source_drift, differences
 
 # Synthetic default-setup profile: unit tests must not depend on a consumer checkout.
 BASELINE = {
@@ -354,6 +354,17 @@ class GitHubSettingsTests(unittest.TestCase):
         self.assertEqual(status, 1)
         self.assertIn("protection.enforce_admins.enabled", out)
         self.assertEqual(err, "")
+
+
+class CodeqlActionRefsTests(unittest.TestCase):
+    def test_escaped_or_continued_quoted_uses_is_unpinned(self):
+        sha = "a" * 40
+        self.assertEqual(codeql_action_refs(f'- uses: "github/codeql-action/analyze@{sha}"\n'), [sha])
+        escaped = '- uses: "github/codeql\\x2daction/analyze@v4"\n'
+        continued = '- uses: "github/codeql-act\\\n    ion/analyze@v4"\n'
+        unclosed = '- uses: "github/codeql-\n    action/analyze@v4"\n'
+        for text in (escaped, continued, unclosed):
+            self.assertIn("unrecognized", codeql_action_refs(text), text)
 
 
 if __name__ == "__main__":
