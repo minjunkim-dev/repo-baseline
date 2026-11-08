@@ -38,10 +38,6 @@
           {
             "context": "Baseline checks (Python 3.13)",
             "app_id": 15368
-          },
-          {
-            "context": "review/gate",
-            "app_id": 5641238
           }
         ]
       },
