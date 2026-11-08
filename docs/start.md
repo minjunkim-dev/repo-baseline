@@ -14,7 +14,7 @@ mkdir -p .github && cp -n "$B/pull_request_template.md" .github/
 { echo; cat "$B/gitignore"; } >> .gitignore   # 앞의 echo는 기존 마지막 줄과 붙지 않게 한다
 ```
 
-- `cp -n`은 있는 파일을 덮어쓰지 않는다. `AGENTS.md`·`REVIEW.md`가 이미 있으면 템플릿 내용을 손으로 합친다.
+- `cp -n`은 있는 파일을 덮어쓰지 않는다. `AGENTS.md`·`REVIEW.md`가 이미 있으면 템플릿 내용을 손으로 합친다. 이때 macOS의 `cp -n`은 종료 코드 1을 낸다. 실패가 아니니 `set -e` 스크립트에 넣을 때만 주의한다.
 - `.gitignore`는 덮어쓰지 않고 뒤에 붙인다.
 
 ## 2. AGENTS.md 채우기
