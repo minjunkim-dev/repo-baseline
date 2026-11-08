@@ -7,6 +7,7 @@
 프로젝트 루트에서 실행한다.
 
 ```bash
+git rev-parse --git-dir >/dev/null 2>&1 || git init   # 빈 프로젝트면 저장소부터 만든다
 git clone --depth 1 https://github.com/minjunkim-dev/repo-baseline /tmp/repo-baseline
 B=/tmp/repo-baseline/templates/core
 cp -n "$B/AGENTS.md" "$B/CLAUDE.md" "$B/REVIEW.md" .
@@ -36,7 +37,7 @@ mkdir -p .github && cp -n "$B/pull_request_template.md" .github/
 
 ```bash
 grep -nE '<[^>]+>' AGENTS.md REVIEW.md   # N/A: <이유>와 배운 규칙 형식 예시만 남아야 한다
-grep -n '^\.env$' .gitignore
+git check-ignore -q .env && git check-ignore -q .env.local && echo ignored   # 예외 줄(`!.env`)이 있거나 이미 커밋돼 있으면 출력이 없다
 ```
 
 ## 5. 첫 PR
@@ -44,7 +45,7 @@ grep -n '^\.env$' .gitignore
 브랜치를 만들고 커밋한 뒤 PR을 연다. 본문은 `.github/pull_request_template.md`의 슬림 양식이다.
 
 - Author: 쓴 도구와 모델. 사람이면 `사람 / 없음`.
-- Summary: 코어 적용. 완료 기준: `AGENTS.md`·`REVIEW.md`에 템플릿 빈칸이 없고 `.gitignore`에 `.env` 줄이 있다. 전에 통과하던 프로젝트 명령은 그대로 통과한다.
+- Summary: 코어 적용. 완료 기준: `AGENTS.md`·`REVIEW.md`에 템플릿 빈칸이 없고 Git이 `.env`·`.env.*`를 무시한다. 전에 통과하던 프로젝트 명령은 그대로 통과한다.
 - Evidence: 4칸 명령을 돌린 결과. 돌리지 않은 칸과 이유.
 - Merge Danger: 문서만 더했으면 되돌리기 쉬움. 신뢰 경계: 없음.
 - Review: 구현과 다른 컨텍스트의 리뷰어가 `REVIEW.md`로 본 결과.
