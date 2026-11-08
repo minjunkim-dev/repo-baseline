@@ -17,3 +17,4 @@
 - 자체 CI를 Python 3.11·3.13 두 벌에서 최신 안정 버전 한 벌(`Baseline checks`)로 줄였다. 스크립트는 표준 라이브러리만 쓰고 3.9~3.15에서 통과했다. 서버 보호는 아직 옛 두 context를 요구하므로, 병합 직전에 소유자가 `python3 tools/apply_github_settings.py . --apply`로 필수 체크를 `Baseline checks`로 바꾼 뒤 이 PR을 병합한다.
 - 첫 PR 확인의 `.env` 검사를 `grep`에서 `git check-ignore`로 바꿨다. `.gitignore`에 `!.env` 예외 줄이 있거나 `.env`가 이미 커밋돼 있어도 `grep`은 통과했다.
 - `POLICY.md`에 작업 추적 절(§8)을 더했다. 원본 트래커는 하나, 공개 이슈는 연동으로 가져온다. 트래커가 없으면 건너뛴다. §7에 취약점 제보는 비공개 경로로 받는다는 줄을 더했다. pr-conventions 프로필은 `#N`과 함께 트래커 ID(`Fixes ENG-123`)도 이슈 연결로 받는다.
+- GitHub 설정 기준선에 `private_vulnerability_reporting`(비공개 취약점 보고)을 필수 항목으로 더했다. 규칙만 있고 켜는 설정이 없었다. 소비 레포는 기준선에 이 키를 더해야 검사가 통과한다. 비공개 저장소처럼 기능이 없으면 예외로 적는다.

@@ -51,6 +51,7 @@ REQUIRED_FIELDS = {
     "workflow_token": "default_workflow_permissions can_approve_pull_request_reviews",
     "fork_policy": "approval_policy",
     "immutable_releases": "enabled",
+    "private_vulnerability_reporting": "enabled",
     "dependabot_alerts": "enabled",
     "codeql": "state",
     "codeql_workflow": "path state",
@@ -109,7 +110,8 @@ def validate_profile(profile):
     required = set(REQUIRED_FIELDS) - (ADVANCED_CODEQL if default_setup or "codeql" in exceptions else set())
     required -= {name for name in exceptions if "." not in name}
     if set(expected) != required:
-        raise ValueError("Baseline must include every required control")
+        names = ", ".join(sorted(set(expected) ^ required))
+        raise ValueError(f"Baseline must include every required control (missing or extra: {names})")
     for control, fields in REQUIRED_FIELDS.items():
         if control not in required:
             continue
@@ -175,6 +177,7 @@ def audit(profile, read=None):
         "workflow_token": "actions/permissions/workflow",
         "fork_policy": "actions/permissions/fork-pr-contributor-approval",
         "immutable_releases": "immutable-releases",
+        "private_vulnerability_reporting": "private-vulnerability-reporting",
         "codeql": "code-scanning/default-setup",
         "codeql_workflow": "actions/workflows/codeql.yml",
     }

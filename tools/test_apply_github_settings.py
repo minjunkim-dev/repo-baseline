@@ -53,6 +53,7 @@ class FakeGitHub:
                                                  "can_approve_pull_request_reviews": True},
                 "actions/permissions/fork-pr-contributor-approval": {"approval_policy": "first_time_contributors"},
                 "immutable-releases": {"enabled": False, "enforced_by_owner": False},
+                "private-vulnerability-reporting": {"enabled": False},
                 "code-scanning/default-setup": {"state": "not-configured"},
             })
 
@@ -101,6 +102,8 @@ class FakeGitHub:
             self.alerts = on
         elif rel == "immutable-releases":
             self.state[rel] = {"enabled": on, "enforced_by_owner": False}
+        elif rel == "private-vulnerability-reporting":
+            self.state[rel] = {"enabled": on}
         elif rel == "code-scanning/default-setup":
             self.state[rel] = {"state": body["state"], "languages": ["python"]}
         elif rel == PROTECTION:
@@ -187,12 +190,13 @@ class ApplyGitHubSettingsTests(unittest.TestCase):
     def test_switching_features_off_uses_delete(self):
         profile = copy.deepcopy(BASELINE)
         profile["expected"]["immutable_releases"]["enabled"] = False
+        profile["expected"]["private_vulnerability_reporting"]["enabled"] = False
         profile["expected"]["repository"]["security_and_analysis"]["dependabot_security_updates"]["status"] = "disabled"
         server = FakeGitHub()
         self.assertEqual(self.run_tool(server, profile, apply=True)[0], 0)
         self.assertEqual(sorted(server.writes), sorted([
             ("PATCH", ""), ("DELETE", "automated-security-fixes"),
-            ("DELETE", "immutable-releases")]))
+            ("DELETE", "immutable-releases"), ("DELETE", "private-vulnerability-reporting")]))
 
     def test_visibility_and_rulesets_are_left_to_a_person(self):
         server = FakeGitHub()
@@ -289,6 +293,13 @@ class ApplyGitHubSettingsTests(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertIn("FAILED: timed out", err)
         self.assertIn("Outcome unknown: PUT repos/owner/repo/vulnerability-alerts", err)
+
+    def test_unavailable_vulnerability_reporting_stops_before_any_write(self):
+        server = FakeGitHub(fresh=True)
+        server.state["private-vulnerability-reporting"] = None  # a private repository answers 404
+        code, _, err = self.run_tool(server, apply=True)
+        self.assertEqual((code, server.writes), (2, []), err)
+        self.assertIn("private-vulnerability-reporting answered 404", err)
 
     def test_bad_profiles_and_read_errors_write_nothing(self):
         cases = {

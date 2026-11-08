@@ -32,7 +32,7 @@ import check_github_settings as checker  # noqa: E402
 PROFILE = ".github/repository-settings.json"
 # Write order matters: security updates need alerts on; selected actions need allowed_actions=selected.
 ORDER = ("dependabot_alerts", "repository", "protection", "actions", "allowed_actions",
-         "workflow_token", "fork_policy", "immutable_releases", "codeql")
+         "workflow_token", "fork_policy", "immutable_releases", "private_vulnerability_reporting", "codeql")
 MANUAL = ("rulesets", "codeql_workflow")
 MERGE_FIELDS = ("allow_merge_commit", "allow_rebase_merge", "allow_squash_merge", "allow_auto_merge",
                 "delete_branch_on_merge", "allow_update_branch",
@@ -57,6 +57,7 @@ def endpoint(name, branch):
         "workflow_token": "actions/permissions/workflow",
         "fork_policy": "actions/permissions/fork-pr-contributor-approval",
         "immutable_releases": "immutable-releases",
+        "private_vulnerability_reporting": "private-vulnerability-reporting",
         "codeql": "code-scanning/default-setup",
         "codeql_workflow": "actions/workflows/codeql.yml",
     }[name]
@@ -156,7 +157,7 @@ def writes_for(name, expected, prefix, branch):
             **{flag: expected[flag]["enabled"] for flag in PROTECTION_FLAGS},
         }
         return [("PUT", f"{prefix}/{endpoint(name, branch)}", body)]
-    if name in ("dependabot_alerts", "immutable_releases"):
+    if name in ("dependabot_alerts", "immutable_releases", "private_vulnerability_reporting"):
         return [(toggle(expected["enabled"]), f"{prefix}/{endpoint(name, branch)}", None)]
     if name == "codeql":
         return [("PATCH", f"{prefix}/{endpoint(name, branch)}", {"state": expected["state"]})]
@@ -188,6 +189,9 @@ def plan(profile, read=None):
             actual, found = get(read, f"{prefix}/{endpoint(name, branch)}")
             if name == "dependabot_alerts":
                 actual = {"enabled": found}  # 204 with no body when on, 404 when off
+            if name == "private_vulnerability_reporting" and not found:
+                # Off answers {"enabled": false}; 404 means the feature is unavailable (private repository).
+                raise ValueError("private-vulnerability-reporting answered 404; declare it as an exception")
         current[name] = actual if isinstance(actual, dict) else {}
         # A control that is not set yet differs in every field; list them so unaudited ones still show.
         drift = leaves(expected[name], name) if actual is None else checker.differences(expected[name], actual, name)
