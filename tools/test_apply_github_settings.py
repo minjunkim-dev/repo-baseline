@@ -253,6 +253,20 @@ class ApplyGitHubSettingsTests(unittest.TestCase):
         self.run_tool(server, profile, apply=True)
         self.assertIn(("PATCH", "code-scanning/default-setup"), server.writes)
 
+    def test_retired_workflow_pin_stops_before_any_request(self):
+        profile = copy.deepcopy(BASELINE)
+        workflow = ".github/workflows/codeql.yml"
+        profile["expected"]["codeql"] = {"state": "not-configured"}
+        profile["expected"]["codeql_workflow"] = {"path": workflow, "state": "active"}
+        profile["expected"]["codeql_main_source"] = {"path": workflow, "type": "file", "sha": "0" * 40}
+        server = FakeGitHub()
+        reads = []
+        server_read = server.read
+        server.read = lambda path: reads.append(path) or server_read(path)
+        code, _, err = self.run_tool(server, profile, apply=True)
+        self.assertEqual((code, reads, server.writes), (2, [], []))
+        self.assertIn("codeql_main_source", err)
+
     def test_fields_the_auditor_does_not_require_are_not_written(self):
         profile = copy.deepcopy(BASELINE)
         profile["expected"]["repository"]["has_wiki"] = False
