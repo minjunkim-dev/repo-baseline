@@ -4,7 +4,7 @@
 Usage: tools/apply_github_settings.py <project> [--apply]
 
 Reads <project>/.github/repository-settings.json, the baseline that the project's
-read-only scripts/check_github_settings.py audits. Without --apply it only reads:
+read-only tools/check_github_settings.py audits. Without --apply it only reads:
 for each control that differs it prints every differing value (current -> baseline)
 and the write that would fix it. --apply plans again, makes those writes, then
 audits. A control is written whole, so one differing field resends its other
@@ -26,7 +26,7 @@ import sys
 import time
 
 HERE = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(HERE / "scripts"))
+sys.path.insert(0, str(HERE / "tools"))
 import check_github_settings as checker  # noqa: E402
 
 PROFILE = ".github/repository-settings.json"

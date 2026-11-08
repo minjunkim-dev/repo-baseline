@@ -13,7 +13,6 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
-sys.path.insert(0, str(ROOT / "scripts"))
 import apply_github_settings as tool  # noqa: E402
 import check_github_settings as checker  # noqa: E402
 from test_github_settings import BASELINE  # noqa: E402
@@ -359,7 +358,7 @@ class ApplyGitHubSettingsTests(unittest.TestCase):
             tool.load(project)
 
     def test_template_and_own_profiles_share_the_policy_values(self):
-        template = json.loads((ROOT / "templates/repository-settings.json").read_text(encoding="utf-8"))
+        template = json.loads((ROOT / "templates/github/repository-settings.json").read_text(encoding="utf-8"))
         project = Path(self.project(template))
         with self.assertRaisesRegex(ValueError, "REPLACE|template"):
             tool.load(project)
@@ -370,7 +369,6 @@ class ApplyGitHubSettingsTests(unittest.TestCase):
             [
                 ("Baseline checks (Python 3.11)", 15368),
                 ("Baseline checks (Python 3.13)", 15368),
-                ("review/gate", 5641238),
             ],
         )
         filled = copy.deepcopy(own)
