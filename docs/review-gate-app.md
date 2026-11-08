@@ -116,7 +116,7 @@ unset GH_TOKEN GITHUB_TOKEN
   export REVIEW_GATE_APP_ID="5641238"
   # 상속된 REVIEW_GATE_API를 비운 뒤에 개발자 토큰을 넣는다. 남아 있으면 첫 읽기가 그 주소로 토큰을 보낸다. 비우면 기본 주소는 https://api.github.com 이다.
   unset REVIEW_GATE_API
-  export GH_TOKEN="$(gh auth token --hostname github.com)"
+  export GH_TOKEN="$(gh auth token)"
   cd "$GATE_TREE"
   set +e
   dry=$(python3 -I tools/post_review_gate.py --repo "$REPO" --pr "$PR" --sha "$SHA" --dry-run)
