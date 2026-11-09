@@ -52,7 +52,7 @@ ls CLAUDE.md CLAUDE.local.md .claude/CLAUDE.md 2>/dev/null   # 나온 파일은 
 - Merge Danger: 문서만 더했으면 되돌리기 쉬움. 신뢰 경계: 없음.
 - Review: 새 세션에 [prompts/review.md](../prompts/review.md)를 첨부해 리뷰한 결과.
 
-병합은 사람이 한다.
+이 PR은 문서만 더하면 되돌리기 쉬움이다. 병합은 소유자가 하거나, `POLICY.md` §5의 조건을 갖춘 뒤 에이전트에게 지시한다.
 
 ## 다음
 

@@ -6,7 +6,7 @@
 
 `main` push 거부는 명시적 표기만 잡는다. `main`에 있는 채로 `git push origin`을 하면 통과한다. 그 경우는 서버의 브랜치 보호(PR 필수, `enforce_admins`)가 거절한다. GitHub 프로필을 켜지 않은 저장소에서는 이 구멍이 남는다.
 
-막을 것은 네 가지다: `.env` 읽기, `gh pr merge`, `main`으로의 push, 브랜치 보호·저장소 설정을 쓰는 `gh api`.
+막을 것은 세 가지다: `.env` 읽기, `main`으로의 push, 브랜치 보호·저장소 설정을 쓰는 `gh api`. `gh pr merge`는 막지 않고 매번 확인을 받는다. 되돌리기 쉬움 PR은 소유자가 지시하면 에이전트가 병합할 수 있기 때문이다(POLICY §5). 확인 창에서 PR 번호와 `--match-head-commit`이 붙었는지 본다.
 
 확인일: 2026-11-08. 하네스가 바뀌면 링크한 공식 문서를 다시 본다.
 
@@ -46,7 +46,7 @@ Claude Code에는 같은 이름의 내장 `/code-review`가 있다. Matt 플러�
 [Rules](https://developers.openai.com/codex/rules)로 명령을 막는다. 프로젝트의 `.codex/rules/default.rules`에 둔다. 프로젝트 `.codex/`를 신뢰한 경우에만 읽힌다. 기능은 실험 단계다.
 
 ```python
-prefix_rule(pattern = ["gh", "pr", "merge"], decision = "forbidden", justification = "병합은 사람이 한다")
+prefix_rule(pattern = ["gh", "pr", "merge"], decision = "prompt", justification = "지시받은 되돌리기 쉬움 PR인지 사람이 본다")
 prefix_rule(pattern = ["git", "push"], decision = "prompt", justification = "main으로 push하지 않는다")
 prefix_rule(pattern = ["gh", "repo", "edit"], decision = "forbidden", justification = "저장소 설정은 소유자가 바꾼다")
 prefix_rule(pattern = ["gh", "api"], decision = "prompt", justification = "보호·설정 쓰기인지 사람이 본다")
@@ -69,5 +69,6 @@ CLI는 [Permissions](https://cursor.com/docs/cli/reference/permissions)대로 �
 ```
 
 - `Read(.env*)`는 문서 예시 그대로다.
+- 문서의 규칙 종류는 allow와 deny뿐이라 병합에 확인을 받는 설정이 없다. 그래서 `gh pr merge`를 deny로 둔다. Cursor로 POLICY §5의 에이전트 병합을 쓰려면 이 항목을 빼고, 병합 명령마다 PR 번호와 `--match-head-commit`을 사람이 본다. 승인하지 않은 명령을 Cursor가 실행 전에 묻는지는 미확인이다.
 - `Shell(명령:인자)`의 인자 글롭은 문서 예시가 `curl:*`뿐이다. `gh:pr merge*`처럼 공백이 든 인자가 맞는지: 미확인. 적용 뒤 한 번 시험한다.
 - IDE(에디터 안 에이전트)에서 같은 파일을 읽는지, 같은 의미의 설정이 무엇인지: 미확인.
