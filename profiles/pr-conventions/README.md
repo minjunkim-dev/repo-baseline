@@ -29,5 +29,5 @@
 {"feature_flags": false, "bot_branch_prefixes": ["claude", "codex", "cursor", "dependabot"]}
 ```
 
-4. 이미 쓰던 레포가 검사기를 올릴 때는 검사기(와 필요한 `.github/workflow-policy.json`)만 담은 PR을 먼저 병합하고, `CLAUDE.md` 같은 파일 변경은 다음 PR에서 한다. workflow는 base 커밋의 검사기를 돌리므로, 한 PR에 넣으면 옛 검사기가 실패시킨다.
+4. 이미 쓰던 레포가 검사기를 올릴 때: workflow는 base 커밋의 검사기를 돌린다. 기본 설정에서 `CLAUDE.md`를 새로 더하려면 검사기 PR을 먼저 병합하고 다음 PR에서 더한다. `reject_claude_md: false`로 내용 있는 `CLAUDE.md`를 두던 레포는 검사기를 올리는 같은 PR에서 내용을 `AGENTS.md`로 옮기고 `CLAUDE.md`를 지우거나 `@AGENTS.md` 한 줄로 바꾼다(옛 검사기는 이 PR을 통과시킨다).
 5. 필수 체크로 만들지는 프로젝트가 정한다. `pull_request` 이벤트라 PR이 이 workflow 파일을 고쳐 검사를 빼 버릴 수 있다.

@@ -9,7 +9,7 @@ PR을 연 뒤, 구현한 세션이 아닌 **새 세션**에 이 파일을 첨부
 
 ## 입력
 
-- 변경분: 먼저 `gh pr view <번호> --json headRefOid,baseRefName`으로 PR head SHA와 base를 확인하고, `git fetch origin <base> pull/<번호>/head`로 가져온다. `git diff origin/<base>...<head SHA> -- . ':!.env*'`로 본다. 2라운드부터는 직전 리뷰 이후 바뀐 부분(직전 리뷰의 마지막 커밋부터 현재 head까지)만 본다. 그 사이 구현 쪽에서 push한 커밋도 포함한다.
+- 변경분: `gh pr checkout <PR URL>`로 PR head 브랜치를 작업 트리에 받는다(fork PR도 된다). `gh pr view <PR URL> --json headRefOid,baseRefName`으로 head SHA와 base를 적어 두고, `git diff <base 원격>/<base>...<head SHA> -- . ':!.env*'`로 본다. 2라운드부터는 직전 리뷰 이후 바뀐 부분(직전 리뷰의 마지막 커밋부터 현재 head까지)만 본다. 그 사이 구현 쪽에서 push한 커밋도 포함한다.
 - 기준: 저장소 루트의 `REVIEW.md`.
 - 완료 기준: PR 본문 Summary의 `완료 기준:` 줄.
 - Door와 신뢰 경계: PR 본문 Merge Danger. 본문을 믿지 말고 diff로 다시 정한다. 애매하면 되돌리기 어려움이다.
@@ -36,6 +36,8 @@ PR을 연 뒤, 구현한 세션이 아닌 **새 세션**에 이 파일을 첨부
 - 최대 3라운드다. 3라운드 뒤에도 지적이 남으면 목록을 늘리지 말고 구현 방식을 다시 생각하라고 보고한다.
 
 ## 보고
+
+보고 직전에 PR head SHA를 다시 확인한다. 리뷰를 시작한 뒤 바뀌었으면 추가 변경을 보거나, 보지 않은 커밋을 「남은 지적」에 "미검토"로 적는다.
 
 PR 본문 Review 칸에 아래를 적는다. 본문을 고칠 수 없으면 보고만 한다.
 
