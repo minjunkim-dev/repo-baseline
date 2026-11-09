@@ -79,6 +79,23 @@ class SharedInstructionsTest(unittest.TestCase):
                 self.assertEqual(0, self.run_policy()[0])
                 claude.unlink()
 
+    def test_claude_dir_symlink_is_not_followed(self):
+        outside = TemporaryDirectory()
+        self.addCleanup(outside.cleanup)
+        target = Path(outside.name)
+        (target / "CLAUDE.md").write_text("@AGENTS.md\n")
+        for where in ("outside", "inside"):
+            with self.subTest(where=where):
+                link = target if where == "outside" else self.root / "inner"
+                if where == "inside":
+                    link.mkdir()
+                    (link / "CLAUDE.md").write_text("@AGENTS.md\n")
+                (self.root / ".claude").symlink_to(link)
+                result, output = self.run_policy()
+                self.assertEqual(1, result)
+                self.assertIn(".claude/CLAUDE.md must be the single line @AGENTS.md", output)
+                (self.root / ".claude").unlink()
+
     def test_claude_file_or_symlink_is_rejected_when_configured(self):
         (self.root / ".github").mkdir()
         (self.root / ".github/workflow-policy.json").write_text('{"reject_claude_md": true}\n')
