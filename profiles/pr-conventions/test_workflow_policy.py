@@ -61,17 +61,40 @@ class SharedInstructionsTest(unittest.TestCase):
         self.assertEqual(0, self.run_policy()[0])
 
     def test_claude_file_other_than_the_pointer_is_rejected_by_default(self):
-        claude = self.root / "CLAUDE.md"
-        for kind in ("other text", "pointer plus rules", "symlink"):
-            with self.subTest(kind=kind):
-                if kind == "symlink":
-                    claude.symlink_to("AGENTS.md")
-                else:
-                    claude.write_text("Run tests first\n" if kind == "other text" else "@AGENTS.md\nRun tests first\n")
+        (self.root / ".claude").mkdir()
+        for name, pointer in (("CLAUDE.md", "@AGENTS.md"), (".claude/CLAUDE.md", "@../AGENTS.md"), ("CLAUDE.local.md", "@AGENTS.md")):
+            claude = self.root / name
+            for kind in ("other text", "pointer plus rules", "symlink"):
+                with self.subTest(name=name, kind=kind):
+                    if kind == "symlink":
+                        claude.symlink_to(self.root / "AGENTS.md")
+                    else:
+                        claude.write_text("Run tests first\n" if kind == "other text" else f"{pointer}\nRun tests first\n")
+                    result, output = self.run_policy()
+                    self.assertEqual(1, result)
+                    self.assertIn(f"{name} must be the single line {pointer}", output)
+                    claude.unlink()
+            with self.subTest(name=name, kind="pointer"):
+                claude.write_text(f"{pointer}\n")
+                self.assertEqual(0, self.run_policy()[0])
+                claude.unlink()
+
+    def test_claude_dir_symlink_is_not_followed(self):
+        outside = TemporaryDirectory()
+        self.addCleanup(outside.cleanup)
+        target = Path(outside.name)
+        (target / "CLAUDE.md").write_text("@../AGENTS.md\n")
+        for where in ("outside", "inside"):
+            with self.subTest(where=where):
+                link = target if where == "outside" else self.root / "inner"
+                if where == "inside":
+                    link.mkdir()
+                    (link / "CLAUDE.md").write_text("@../AGENTS.md\n")
+                (self.root / ".claude").symlink_to(link)
                 result, output = self.run_policy()
                 self.assertEqual(1, result)
-                self.assertIn("must be the single line @AGENTS.md", output)
-                claude.unlink()
+                self.assertIn(".claude/CLAUDE.md must be the single line @../AGENTS.md", output)
+                (self.root / ".claude").unlink()
 
     def test_claude_file_or_symlink_is_rejected_when_configured(self):
         (self.root / ".github").mkdir()

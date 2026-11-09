@@ -1,12 +1,12 @@
 # repo-baseline
 
 1인·소규모 팀이 언어·스택·하네스(어떤 코딩 에이전트든)와 관계없이 바로 안전하게 개발을 시작하게 하는 최소 기준이다.
-코어는 복사만 하는 작은 파일 5개와 한 쪽짜리 규칙([POLICY.md](POLICY.md))이다. 나머지는 이유가 있을 때만 켜는 프로필이다.
+코어는 복사만 하는 작은 파일 4개와 한 쪽짜리 규칙([POLICY.md](POLICY.md))이다. 나머지는 이유가 있을 때만 켜는 프로필이다.
 
 ## 코어 적용 3단계
 
 1. 이 저장소를 받는다(공개, 인증 불필요): `git clone https://github.com/minjunkim-dev/repo-baseline`
-2. [templates/core/](templates/core/)를 프로젝트에 복사한다. `AGENTS.md`, `CLAUDE.md`, `REVIEW.md`, `.github/pull_request_template.md`, `.gitignore` 추가분.
+2. [templates/core/](templates/core/)를 프로젝트에 복사한다. `AGENTS.md`, `REVIEW.md`, `.github/pull_request_template.md`, `.gitignore` 추가분. Claude Code·Codex·Cursor 모두 `AGENTS.md`를 읽으므로 `CLAUDE.md`는 두지 않는다.
 3. `AGENTS.md`의 명령 4칸(setup/check/test/build)과 `REVIEW.md`의 빈칸을 채우고, 첫 PR을 슬림 양식으로 연다.
 
 명령은 [docs/start.md](docs/start.md)에 있다. 에이전트에게 맡기려면 [prompts/setup.md](prompts/setup.md) 하나를 첨부한다.

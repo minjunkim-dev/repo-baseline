@@ -4,7 +4,7 @@ import re
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-CORE = ["AGENTS.md", "CLAUDE.md", "REVIEW.md", "gitignore", "pull_request_template.md"]
+CORE = ["AGENTS.md", "REVIEW.md", "gitignore", "pull_request_template.md"]
 LINK = re.compile(r"\]\(([^)#\s]+)(?:#[^)]*)?\)")
 
 
@@ -21,7 +21,6 @@ class DistributionTests(unittest.TestCase):
         core = ROOT / "templates/core"
         self.assertEqual(sorted(p.name for p in core.iterdir()), sorted(CORE))
         self.assertLessEqual(len((core / "AGENTS.md").read_text(encoding="utf-8").splitlines()), 60)
-        self.assertEqual((core / "CLAUDE.md").read_text(encoding="utf-8").strip(), "@AGENTS.md")
 
     def test_own_pr_template_is_the_core_template(self):
         self.assertEqual((ROOT / ".github/pull_request_template.md").read_text(encoding="utf-8"),
