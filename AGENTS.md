@@ -6,7 +6,7 @@
 
 모든 에이전트와 사람이 같은 명령을 쓴다. 스크립트는 Python 표준 라이브러리만 쓴다.
 
-- setup: `N/A: 설치할 의존성이 없다(Python 3.9 이상과 시스템 IANA 시간대 데이터. 없으면 pip install tzdata)`
+- setup: `N/A: 설치할 의존성이 없다(Python 3.9 이상과 시스템 IANA 시간대 데이터. 없으면 python3 -m pip install tzdata)`
 - check: `N/A: 별도 린터가 없다. 링크·코어 구성·POLICY 길이 같은 결정적 검사는 test의 tools/test_distribution.py가 한다`
 - test: `python3 -m unittest discover -s tools -p 'test_*.py' && for d in profiles/pr-conventions profiles/hash-copy; do python3 -m unittest discover -s "$d" -p 'test_*.py' || exit 1; done`
 - build: `N/A: 배포는 파일 복사다`

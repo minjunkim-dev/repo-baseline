@@ -39,7 +39,7 @@ mkdir -p .github && cp -n "$B/pull_request_template.md" .github/
 ```bash
 grep -nE '<[^>]+>' AGENTS.md REVIEW.md   # N/A: <이유>와 배운 규칙 형식 예시만 남아야 한다
 git check-ignore -q .env && git check-ignore -q .env.local && echo ignored
-ls CLAUDE.md CLAUDE.local.md .claude/CLAUDE.md 2>/dev/null   # 출력이 없어야 한다. 있으면 지우거나 @AGENTS.md(.claude/ 안은 @../AGENTS.md) 한 줄로 바꾼다   # 예외 줄(`!.env`)이 있거나 이미 커밋돼 있으면 출력이 없다
+ls CLAUDE.md CLAUDE.local.md .claude/CLAUDE.md 2>/dev/null   # 나온 파일은 내용을 AGENTS.md로 옮긴 뒤 지우거나 @AGENTS.md(.claude/ 안은 @../AGENTS.md) 한 줄로 바꾼다. 출력이 없거나 포인터 한 줄뿐이면 통과다   # 예외 줄(`!.env`)이 있거나 이미 커밋돼 있으면 출력이 없다
 ```
 
 ## 5. 첫 PR
