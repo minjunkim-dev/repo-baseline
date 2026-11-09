@@ -56,7 +56,26 @@ class SharedInstructionsTest(unittest.TestCase):
     def test_agents_only_passes(self):
         self.assertEqual(0, self.run_policy()[0])
 
-    def test_claude_file_or_symlink_is_rejected(self):
+    def test_core_claude_file_passes_by_default(self):
+        (self.root / "CLAUDE.md").write_text("@AGENTS.md\n")
+        self.assertEqual(0, self.run_policy()[0])
+
+    def test_claude_file_other_than_the_pointer_is_rejected_by_default(self):
+        claude = self.root / "CLAUDE.md"
+        for kind in ("other text", "pointer plus rules", "symlink"):
+            with self.subTest(kind=kind):
+                if kind == "symlink":
+                    claude.symlink_to("AGENTS.md")
+                else:
+                    claude.write_text("Run tests first\n" if kind == "other text" else "@AGENTS.md\nRun tests first\n")
+                result, output = self.run_policy()
+                self.assertEqual(1, result)
+                self.assertIn("must be the single line @AGENTS.md", output)
+                claude.unlink()
+
+    def test_claude_file_or_symlink_is_rejected_when_configured(self):
+        (self.root / ".github").mkdir()
+        (self.root / ".github/workflow-policy.json").write_text('{"reject_claude_md": true}\n')
         claude = self.root / "CLAUDE.md"
         for kind in ("file", "symlink", "dangling symlink"):
             with self.subTest(kind=kind):
@@ -145,7 +164,7 @@ class SharedInstructionsTest(unittest.TestCase):
     def test_config_can_turn_repo_specific_checks_off(self):
         (self.root / "AGENTS.md").unlink()
         (self.root / "config/feature-flags.json").unlink()
-        (self.root / "CLAUDE.md").write_text("@AGENTS.md\n")
+        (self.root / "CLAUDE.md").write_text("Run tests first\n")  # a CLAUDE.md-only repo
         github = self.root / ".github"
         github.mkdir()
         (github / "workflow-policy.json").write_text(json.dumps({
@@ -386,10 +405,9 @@ class ConventionsTest(unittest.TestCase):
         self.assertEqual(0, ok.returncode, ok.stdout + ok.stderr)
         stub = subprocess.run([sys.executable, "policy-head/scripts/workflow_policy.py"], cwd=work, capture_output=True, text=True, timeout=30)
         self.assertEqual(0, stub.returncode, stub.stdout + stub.stderr)
-        (pull / "CLAUDE.md").write_text("not used\n", encoding="utf-8")
+        (pull / "CLAUDE.md").write_text("@AGENTS.md\n", encoding="utf-8")
         claude = subprocess.run(command, cwd=work, env=env, capture_output=True, text=True, timeout=30)
-        self.assertEqual(1, claude.returncode, claude.stdout + claude.stderr)
-        self.assertIn("remove CLAUDE.md", claude.stdout)
+        self.assertEqual(0, claude.returncode, claude.stdout + claude.stderr)
         (pull / "CLAUDE.md").unlink()
         (pull / "AGENTS.md").unlink()
         (pull / ".github").mkdir()

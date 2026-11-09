@@ -13,8 +13,6 @@
 /scripts/check_*.py @REPLACE-OWNERS
 /scripts/workflow_policy.py @REPLACE-OWNERS
 /scripts/pr_author.py @REPLACE-OWNERS
-/tools/apply_github_settings.py @REPLACE-OWNERS
-/.github/trust-boundary-paths @REPLACE-OWNERS
 /.claude/settings.json @REPLACE-OWNERS
 /.claude/hooks/ @REPLACE-OWNERS
 /.claude/agents/ @REPLACE-OWNERS

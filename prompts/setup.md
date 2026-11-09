@@ -65,7 +65,7 @@
 - Summary: 코어 적용(했으면 GitHub 프로필도). 완료 기준: 템플릿 빈칸이 없다, `.env`가 무시된다, 비밀값이 스테이징되지 않았다, `CLAUDE.md`가 `@AGENTS.md` 한 줄이다, (GitHub 프로필을 했으면) workflow YAML이 파싱된다. 전에 통과하던 프로젝트 명령은 그대로 통과한다.
 - Evidence: 3단계 출력. 확인하지 않은 범위.
 - Merge Danger: 코어만이면 되돌리기 쉬움, GitHub 프로필을 했으면 되돌리기 어려움과 걸린 경로.
-- Review: 비워 둔다. 리뷰는 다른 컨텍스트가 한다.
+- Review: 비워 둔다. 리뷰는 다른 컨텍스트가 원본 저장소의 `prompts/review.md`로 한다.
 
 ## 완료 보고
 

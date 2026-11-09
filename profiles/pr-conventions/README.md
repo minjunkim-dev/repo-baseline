@@ -16,7 +16,7 @@
 - 브랜치: `<type>/<issue>-<slug>`. `docs`·`build`·`ci`·`chore`는 이슈 번호를 생략할 수 있다. 에이전트 접두사(`claude/`, `codex/` 등)는 설정으로 허용한다.
 - 본문: `## Summary`, `## Evidence`, `## Merge Danger`, `Door:` 한 줄, `Author: <도구> / <모델>` 한 줄. 도구 이름은 아무것이나 된다.
 - `feat`·`fix`·`refactor`·`perf`·`test`·`revert`는 `Refs #N`, `Closes #N`, 또는 트래커 ID(`Fixes ENG-123`)가 있어야 한다.
-- 기본값으로 `AGENTS.md`가 있어야 하고 `CLAUDE.md`를 거부한다. 코어의 `CLAUDE.md`(`@AGENTS.md` 한 줄)를 쓰면 아래 설정에서 `"reject_claude_md": false`를 둔다.
+- 기본값으로 `AGENTS.md`가 있어야 한다. `CLAUDE.md`는 없거나 `@AGENTS.md` 한 줄이어야 한다. 다른 내용이 있으면 실패한다. 둘 다 있으면 Claude Code는 기본 설정에서 `CLAUDE.md`만 읽어서 지침이 갈라지기 때문이다. `CLAUDE.md`를 아예 두지 않으려면 아래 설정에서 `"reject_claude_md": true`를 둔다. `"require_agents_md": false`면 `CLAUDE.md` 내용도 보지 않는다.
 - 피처 플래그 파일이 있으면 그 형식과 `remove_by` 날짜.
 
 ## 켜는 법
@@ -26,7 +26,8 @@
 3. 기본값을 바꿀 때만 `.github/workflow-policy.json`을 둔다. 예:
 
 ```json
-{"reject_claude_md": false, "feature_flags": false, "bot_branch_prefixes": ["claude", "codex", "cursor", "dependabot"]}
+{"feature_flags": false, "bot_branch_prefixes": ["claude", "codex", "cursor", "dependabot"]}
 ```
 
-4. 필수 체크로 만들지는 프로젝트가 정한다. `pull_request` 이벤트라 PR이 이 workflow 파일을 고쳐 검사를 빼 버릴 수 있다.
+4. 이미 쓰던 레포가 검사기를 올릴 때: workflow는 base 커밋의 검사기를 돌린다. 기본 설정에서 `CLAUDE.md`를 새로 더하려면 검사기 PR을 먼저 병합하고 다음 PR에서 더한다. `reject_claude_md: false`로 내용 있는 `CLAUDE.md`를 두던 레포는 검사기를 올리는 같은 PR에서 내용을 `AGENTS.md`로 옮기고 `CLAUDE.md`를 지우거나 `@AGENTS.md` 한 줄로 바꾼다(옛 검사기는 이 PR을 통과시킨다).
+5. 필수 체크로 만들지는 프로젝트가 정한다. `pull_request` 이벤트라 PR이 이 workflow 파일을 고쳐 검사를 빼 버릴 수 있다.
