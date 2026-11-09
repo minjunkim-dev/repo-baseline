@@ -41,7 +41,7 @@
 `git remote -v`가 GitHub를 가리키지 않으면 이 단계를 건너뛰고 보고에 적는다.
 
 1. `templates/github/README.md`를 읽고 그대로 따른다. 거기 없는 값을 새로 고르지 않는다.
-2. 파일로 두는 것만 한다: CI 골격(`.github/workflows/`), Dependabot 설정, 에이전트 권한 설정 예시, 저장소 설정 기준선 JSON.
+2. 파일로 두는 것만 한다: CI 골격(`.github/workflows/`), Dependabot 설정, 에이전트 권한 설정 예시, 저장소 설정 기준선 JSON, `SECURITY.md`.
 3. CI 골격은 `AGENTS.md`의 check·test 명령을 부르게 채운다.
 4. 서버에 설정을 적용하는 명령(`--apply` 등)은 실행하지 않는다. 소유자가 실행할 명령을 보고에 적는다.
 
@@ -56,7 +56,7 @@
 - `git check-ignore -q .env && git check-ignore -q .env.local && echo ignored`: `ignored`가 나온다. 예외 줄(`!.env`)이 있거나 이미 커밋된 파일이면 나오지 않는다.
 - `git status`: 비밀값 파일이 스테이징되지 않았다.
 - `CLAUDE.md`·`CLAUDE.local.md`가 없거나 `@AGENTS.md` 한 줄이고, `.claude/CLAUDE.md`가 없거나 `@../AGENTS.md` 한 줄이다. 상위 폴더에 `CLAUDE.md`가 있으면 보고에 적는다.
-- GitHub 프로필을 했으면: workflow 파일의 YAML이 파싱된다(쓸 수 있는 도구로). 확인하지 못했으면 그렇게 적는다.
+- GitHub 프로필을 했으면: workflow 파일의 YAML이 파싱된다(쓸 수 있는 도구로). 확인하지 못했으면 그렇게 적는다. `SECURITY.md`가 `.github/`, 루트, `docs/` 중 한 곳에만 있고, 그 파일에 `grep -n 'OWNER/REPO'`가 아무것도 출력하지 않는다.
 
 ## 4. PR 열기
 
