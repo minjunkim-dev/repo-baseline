@@ -9,7 +9,7 @@ PR을 연 뒤, 구현한 세션이 아닌 **새 세션**에 이 파일을 첨부
 
 ## 입력
 
-- 변경분: `gh pr checkout <PR URL>`로 PR head 브랜치를 작업 트리에 받는다(fork PR도 된다). `gh pr view <PR URL> --json headRefOid,baseRefName`으로 head SHA와 base를 적어 두고, `git diff <base 원격>/<base>...<head SHA> -- . ':!.env*'`로 본다. 2라운드부터는 직전 리뷰 이후 바뀐 부분(직전 리뷰의 마지막 커밋부터 현재 head까지)만 본다. 그 사이 구현 쪽에서 push한 커밋도 포함한다.
+- 변경분: `gh pr checkout <PR URL>`로 PR head 브랜치를 작업 트리에 받는다(fork PR도 된다). `gh pr view <PR URL> --json headRefOid,baseRefName`으로 head SHA와 base를 적어 두고, `git diff <base 원격>/<base>...<head SHA> -- . ':!.env*'`로 본다. `git status`가 깨끗하고 `git rev-parse HEAD`가 그 head SHA와 같을 때만 리뷰한다. 다르면 다시 받는다. 2라운드부터는 직전 리뷰 이후 바뀐 부분(직전 리뷰의 마지막 커밋부터 현재 head까지)만 본다. 그 사이 구현 쪽에서 push한 커밋도 포함한다.
 - 기준: 저장소 루트의 `REVIEW.md`.
 - 완료 기준: PR 본문 Summary의 `완료 기준:` 줄.
 - Door와 신뢰 경계: PR 본문 Merge Danger. 본문을 믿지 말고 diff로 다시 정한다. 애매하면 되돌리기 어려움이다.
