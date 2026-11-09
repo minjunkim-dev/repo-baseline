@@ -7,7 +7,7 @@
 | `ci.yml` | `.github/workflows/ci.yml` | `check`·`test` 단계를 `AGENTS.md`의 명령으로 바꾼다. 바꾸기 전에는 실패한다 |
 | `dependabot.yml` | `.github/dependabot.yml` | 패키지 관리자마다 `dependabot-ecosystem.yml`의 블록을 붙인다 |
 | `repository-settings.json` | `.github/repository-settings.json` | `REPLACE` 값을 채운다 |
-| `SECURITY.md` | 저장소 루트 | GitHub은 `.github/`, 루트, `docs/` 순서로 이 파일을 찾는다. 셋 중 하나에 이미 있으면 그 파일에 합친다. `OWNER/REPO`를 채운다. 비공개 저장소는 비공개 취약점 보고가 없으므로 링크 대신 소유자에게 비공개로 연락할 경로를 적는다 |
+| `SECURITY.md` | 저장소 루트 | GitHub은 `.github/`, 루트, `docs/` 순서로 이 파일을 찾는다. 셋 중 하나에 이미 있으면 그 파일에 합친다. `OWNER/REPO`를 채운다. 공개 저장소는 비공개 취약점 보고를 켠 뒤 이 파일을 병합한다. 비공개 저장소는 비공개 취약점 보고와 보안 권고가 없으므로 보고 안내·링크·권고 목록 줄을 소유자에게 비공개로 연락할 경로로 바꾼다 |
 | `agents/` | 하네스별 | `agents/README.md` |
 
 ## 적용 순서
