@@ -21,7 +21,7 @@
 1. 작업 브랜치를 만든다.
 2. `templates/core/`에서 복사한다.
    - `AGENTS.md`, `REVIEW.md` → 저장소 루트
-   - `CLAUDE.md`는 만들지 않는다. 이미 있으면 내용을 `AGENTS.md`에 합치고 `CLAUDE.md`를 지운다. 지울 수 없는 이유가 있으면 `@AGENTS.md` 한 줄로 바꾼다. Claude Code는 둘 다 있으면 기본 설정에서 `CLAUDE.md`만 읽는다.
+   - `CLAUDE.md`는 만들지 않는다. 이미 있으면 내용을 `AGENTS.md`에 합치고 `CLAUDE.md`를 지운다. 지울 수 없는 이유가 있으면 `@AGENTS.md` 한 줄로 바꾼다. Claude Code는 둘 다 있으면 기본 설정에서 `CLAUDE.md`만 읽는다. `.claude/CLAUDE.md`도 같다. Claude Code가 v2.1.277 미만이면 `AGENTS.md`를 읽지 못하므로 `@AGENTS.md` 한 줄짜리 `CLAUDE.md`를 둔다.
    - `pull_request_template.md` → `.github/pull_request_template.md`
    - `gitignore` → 저장소의 `.gitignore` 뒤에 붙인다(없는 줄만)
 3. `AGENTS.md`를 채운다.

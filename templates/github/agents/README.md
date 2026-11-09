@@ -15,7 +15,7 @@
 `claude-settings.json`을 프로젝트의 `.claude/settings.json`으로 복사한다. 이미 있으면 `permissions.deny`만 합친다.
 
 - 문법: [Permissions](https://code.claude.com/docs/en/permissions), [Settings](https://code.claude.com/docs/en/settings). `*`는 규칙의 어느 자리에나 올 수 있다. `.env` 예시 `Read(./.env)`, `Read(./.env.*)`는 Settings 문서의 예시와 같다. 하위 폴더의 `.env`는 `**/` 규칙으로 막는다.
-- 지침 파일은 `AGENTS.md` 하나다. Claude Code는 `CLAUDE.md`·`CLAUDE.local.md`가 없을 때 `AGENTS.md`를 읽는다([Memory](https://code.claude.com/docs/en/memory), 확인일 2026-11-09). 개인용 `CLAUDE.local.md`를 하나 두기만 해도 `AGENTS.md`를 읽지 않으므로 만들지 않는다. 꼭 써야 하면 설정 `pluginConfigs."cc-plugin-agents-md@builtin".options.instructionFiles`를 `"claude-md-and-agents-md"`로 둔다.
+- 지침 파일은 `AGENTS.md` 하나다. Claude Code v2.1.277 이상은 작업 폴더와 그 위 폴더에 `CLAUDE.md`·`.claude/CLAUDE.md`·`CLAUDE.local.md`가 없을 때 `AGENTS.md`를 읽는다([Memory](https://code.claude.com/docs/en/memory), 확인일 2026-11-09). 그보다 낮은 버전이면 `@AGENTS.md` 한 줄짜리 `CLAUDE.md`를 둔다. 개인용 `CLAUDE.local.md`를 하나 두기만 해도 `AGENTS.md`를 읽지 않으므로 만들지 않는다. 꼭 써야 하면 사용자 설정 `~/.claude/settings.json`에서 `pluginConfigs."cc-plugin-agents-md@builtin".options.instructionFiles`를 `"claude-md-and-agents-md"`로 둔다. 이 설정은 프로젝트의 `.claude/settings.json`에 두면 무시된다. v2.1.285 미만은 키가 `agents-md@builtin`이다.
 - `.env.example`도 막힌다. 필요하면 사람이 내용을 알려 준다.
 - `gh api *protection*`은 보호 설정 읽기도 막는다. 감사는 소유자가 `tools/apply_github_settings.py`로 한다.
 - Claude 프로젝트의 클라우드 스레드는 저장소의 `.claude/settings.json`을 읽지 않는다([Claude projects](https://code.claude.com/docs/en/claude-projects), 확인일 2026-11-08). 그 스레드에는 이 거부 규칙이 없다. 그 환경에는 비밀값을 두지 않고, 병합 권한 없는 토큰만 준다(POLICY §5·§7).

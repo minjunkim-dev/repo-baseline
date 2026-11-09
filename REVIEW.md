@@ -30,7 +30,7 @@
 
 ## 신뢰 경계
 
-Door가 되돌리기 어려움이거나 이 경로를 건드리면 보안 관점의 리뷰를 더한다: `.github/workflows/**`, `.github/repository-settings.json`, `.github/dependabot.yml`, `templates/github/**`, `tools/apply_github_settings.py`, `profiles/pr-conventions/*.py`, `profiles/pr-conventions/pr-policy.yml`, `profiles/hash-copy/*.py`, `profiles/team/CODEOWNERS`. 뒤의 다섯은 소비 레포가 복사해 CI나 소유권 설정으로 쓴다.
+Door가 되돌리기 어려움이거나 이 경로를 건드리면 보안 관점의 리뷰를 더한다: `.github/workflows/**`, `.github/repository-settings.json`, `.github/dependabot.yml`, `templates/github/**`, `tools/apply_github_settings.py`, `profiles/pr-conventions/*.py`, `profiles/pr-conventions/pr-policy.yml`, `profiles/hash-copy/*.py`, `profiles/team/CODEOWNERS`. `profiles/`의 넷은 소비 레포가 복사해 CI나 소유권 설정으로 쓴다.
 
 ## 보고와 수정
 
