@@ -4,7 +4,7 @@
 
 ## 2026-11 — 재설계 이후
 
-- 리뷰 프롬프트가 fork PR은 `gh pr checkout`하지 않고 check·test도 로컬에서 돌리지 않게 했다. 전에는 fork PR을 연 사람이 정한 테스트 코드와 `AGENTS.md` 명령이 소유자 `gh` 로그인이 있는 기기에서 돌았다. fork PR은 `refs/pull/<번호>/head`를 받아 git으로만 읽고, 검사는 승인된 CI 결과로 본다. 소비 레포는 손으로 옮길 것이 없다.
+- 리뷰 프롬프트가 fork PR은 `gh pr checkout`하지 않고 check·test도 로컬에서 돌리지 않게 했다. 전에는 fork PR을 연 사람이 정한 테스트 코드와 `AGENTS.md` 명령이 소유자 `gh` 로그인이 있는 기기에서 돌았다. fork PR은 `refs/pull/<번호>/head`를 받아 git으로만 읽고, 검사는 승인된 CI 결과로 본다. PR이 workflow·테스트·검사 명령을 바꿨거나 체크가 끝나지 않았거나 SHA가 다르면 "검사 미확인"으로 적는다. 소비 레포는 손으로 옮길 것이 없다.
 
 - `.github/workflows/check.yml`과 `templates/github/ci.yml`에 `concurrency`를 더했다. PR에 새로 push하면 같은 PR의 이전 실행을 취소한다. PR이 아닌 실행은 `github.run_id`로 group을 따로 둔다. `cancel-in-progress`만 끄면 main에서 대기 중인 실행이 새 실행에 밀려 취소되기 때문이다. CI 템플릿에 의존성 캐시는 setup 액션의 `cache:` 옵션(lockfile 해시가 키)을 쓰라는 주석을 더했다. 소비 레포는 원하면 `concurrency` 블록을 자기 `ci.yml`에 손으로 옮긴다.
 - 리뷰 프롬프트의 `.env*` 이름 확인을 커밋마다도 하게 했다(`git log --no-renames --name-only --cc`). PR 안에서 `.env`를 더한 뒤 이름을 바꾸면 세 점 diff에는 새 이름만 남아 확인을 지났다. 소비 레포는 손으로 옮길 것이 없다.
