@@ -56,7 +56,7 @@
 - `git check-ignore -q .env && git check-ignore -q .env.local && echo ignored`: `ignored`가 나온다. 예외 줄(`!.env`)이 있거나 이미 커밋된 파일이면 나오지 않는다.
 - `git status`: 비밀값 파일이 스테이징되지 않았다.
 - `CLAUDE.md`·`CLAUDE.local.md`가 없거나 `@AGENTS.md` 한 줄이고, `.claude/CLAUDE.md`가 없거나 `@../AGENTS.md` 한 줄이다. 상위 폴더에 `CLAUDE.md`가 있으면 보고에 적는다.
-- GitHub 프로필을 했으면: workflow 파일의 YAML이 파싱된다(쓸 수 있는 도구로). 확인하지 못했으면 그렇게 적는다. `grep -n 'OWNER/REPO' SECURITY.md`가 아무것도 출력하지 않는다.
+- GitHub 프로필을 했으면: workflow 파일의 YAML이 파싱된다(쓸 수 있는 도구로). 확인하지 못했으면 그렇게 적는다. `SECURITY.md`가 저장소 루트에 있고, `grep -n 'OWNER/REPO' SECURITY.md`가 아무것도 출력하지 않는다.
 
 ## 4. PR 열기
 
