@@ -9,7 +9,7 @@ PR을 연 뒤, 구현한 세션이 아닌 **새 세션**에 이 파일을 첨부
 
 ## 입력
 
-- 변경분: `gh pr checkout <PR URL>`로 PR head 브랜치를 작업 트리에 받는다(fork PR도 된다). `gh pr view <PR URL> --json headRefOid,baseRefName`으로 head SHA와 base를 적어 둔다. diff 본문을 보기 전에 `git diff --name-only --no-renames <base 원격>/<base>...<head SHA>`로 파일 이름만 본다. 경로의 폴더·파일 이름 중 하나라도 `.env`로 시작하면 걸린다. `--no-renames`가 있어야 `sub/.env`를 다른 이름으로 바꾼 변경도 옛 경로로 걸린다. 걸리면 diff 본문을 열지 말고 경로만 적어 소유자에게 넘긴다. 걸리지 않으면 `git diff <base 원격>/<base>...<head SHA> -- . ':!.env*' ':!**/.env*'`로 본다. 두 pathspec이 다 있어야 한다. `':!.env*'`만 주면 루트의 `.env*`만 빠지고 `sub/.env` 같은 하위 폴더 파일은 diff에 나온다. `git status`가 깨끗하고 `git rev-parse HEAD`가 그 head SHA와 같을 때만 리뷰한다. 다르면 다시 받는다. 2라운드부터는 직전 리뷰 이후 바뀐 부분(직전 리뷰의 마지막 커밋부터 현재 head까지)만 본다. 그 사이 구현 쪽에서 push한 커밋도 포함한다.
+- 변경분: `gh pr checkout <PR URL>`로 PR head 브랜치를 작업 트리에 받는다(fork PR도 된다). `gh pr view <PR URL> --json headRefOid,baseRefName`으로 head SHA와 base를 적어 두고, `git fetch <base 원격> <base> <head SHA>`로 둘 다 새로 받는다. `gh pr checkout`은 base를 새로 받지 않는다. diff 본문을 보기 전에 `git diff --name-only --no-renames <base 원격>/<base>...<head SHA>`로 파일 이름만 본다. 경로의 폴더·파일 이름 중 하나라도 `.env`로 시작하면 걸린다. `--no-renames`가 있어야 `sub/.env`를 다른 이름으로 바꾼 변경도 옛 경로로 걸린다. 걸리면 diff 본문을 열지 말고 경로만 적어 소유자에게 넘긴다. 걸리지 않으면 `git diff <base 원격>/<base>...<head SHA> -- . ':!.env*' ':!**/.env*'`로 본다. 두 pathspec이 다 있어야 한다. `':!.env*'`만 주면 루트의 `.env*`만 빠지고 `sub/.env` 같은 하위 폴더 파일은 diff에 나온다. `git status`가 깨끗하고 `git rev-parse HEAD`가 그 head SHA와 같을 때만 리뷰한다. 다르면 다시 받는다. 2라운드부터는 직전 리뷰 이후 바뀐 부분(직전 리뷰의 마지막 커밋부터 현재 head까지)만 본다. 그 사이 구현 쪽에서 push한 커밋도 포함한다.
 - 기준: 저장소 루트의 `REVIEW.md`.
 - 완료 기준: PR 본문 Summary의 `완료 기준:` 줄.
 - Door와 신뢰 경계: PR 본문 Merge Danger. 본문을 믿지 말고 diff로 다시 정한다. 애매하면 되돌리기 어려움이다.
@@ -22,7 +22,7 @@ PR을 연 뒤, 구현한 세션이 아닌 **새 세션**에 이 파일을 첨부
 2. Door가 되돌리기 어려움이거나 신뢰 경계 경로를 건드리면 보안 관점으로 한 번 더 본다.
 3. 확실한 결함은 이 브랜치에 직접 고쳐 커밋·push하고, 영향받는 check·test를 다시 돌린다. push한 뒤 PR head SHA가 고친 커밋인지 확인한다. push하지 못했으면 고친 것으로 보고하지 말고 "PR에 미반영"으로 적는다.
 4. 판단이 필요한 것은 고치지 말고 남긴다. 지적은 버그 유형으로 묶는다.
-5. 리뷰한 head에 대한 외부 리뷰가 끝난 뒤, 댓글을 다시 받기 전에 입력의 이름 확인을 지금 PR head로 다시 한다. `gh pr view <PR URL> --json headRefOid`로 head SHA를 다시 받고 `git fetch <base 원격> <그 SHA>` 뒤 같은 `git diff --name-only --no-renames` 명령을 쓴다. `gh pr diff --name-only`는 이름을 바꾼 파일을 새 이름으로만 보여 줄 수 있어 쓰지 않는다. 걸리면 댓글을 읽지 않고 「남은 지적」에 "외부 리뷰 미판정(비밀값 파일)"으로 적는다. 걸리지 않으면 입력의 명령으로 댓글을 다시 받아 그 지적마다 받아들일지 판정한다. 끝나지 않았으면 「남은 지적」에 "외부 리뷰 미판정"으로 적는다. 받아들인 것은 네 지적으로 다룬다(3·4번). 버린 것은 이유를 한 줄로 적는다.
+5. 리뷰한 head에 대한 외부 리뷰가 끝난 뒤, 댓글을 다시 받기 전에 입력의 `gh pr view`·`git fetch`와 이름 확인을 지금 PR head와 base로 다시 한다. `gh pr diff --name-only`는 이름을 바꾼 파일을 새 이름으로만 보여 줄 수 있어 쓰지 않는다. 걸리면 댓글을 읽지 않고 「남은 지적」에 "외부 리뷰 미판정(비밀값 파일)"으로 적는다. 걸리지 않으면 입력의 명령으로 댓글을 다시 받아 그 지적마다 받아들일지 판정한다. 끝나지 않았으면 「남은 지적」에 "외부 리뷰 미판정"으로 적는다. 받아들인 것은 네 지적으로 다룬다(3·4번). 버린 것은 이유를 한 줄로 적는다.
 6. 「배운 규칙」에 있는 규칙을 어긴 곳이 있으면 그 규칙을 근거로 적는다.
 
 ## 하지 않는 것
