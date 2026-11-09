@@ -7,6 +7,7 @@
 | `ci.yml` | `.github/workflows/ci.yml` | `check`·`test` 단계를 `AGENTS.md`의 명령으로 바꾼다. 바꾸기 전에는 실패한다 |
 | `dependabot.yml` | `.github/dependabot.yml` | 패키지 관리자마다 `dependabot-ecosystem.yml`의 블록을 붙인다 |
 | `repository-settings.json` | `.github/repository-settings.json` | `REPLACE` 값을 채운다 |
+| `SECURITY.md` | 저장소 루트 | `OWNER/REPO`를 채운다. 비공개 저장소는 비공개 취약점 보고가 없으므로 링크 대신 소유자에게 비공개로 연락할 경로를 적는다 |
 | `agents/` | 하네스별 | `agents/README.md` |
 
 ## 적용 순서
