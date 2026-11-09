@@ -29,4 +29,5 @@
 {"feature_flags": false, "bot_branch_prefixes": ["claude", "codex", "cursor", "dependabot"]}
 ```
 
-4. 필수 체크로 만들지는 프로젝트가 정한다. `pull_request` 이벤트라 PR이 이 workflow 파일을 고쳐 검사를 빼 버릴 수 있다.
+4. 이미 쓰던 레포가 검사기를 올릴 때는 검사기(와 필요한 `.github/workflow-policy.json`)만 담은 PR을 먼저 병합하고, `CLAUDE.md` 같은 파일 변경은 다음 PR에서 한다. workflow는 base 커밋의 검사기를 돌리므로, 한 PR에 넣으면 옛 검사기가 실패시킨다.
+5. 필수 체크로 만들지는 프로젝트가 정한다. `pull_request` 이벤트라 PR이 이 workflow 파일을 고쳐 검사를 빼 버릴 수 있다.
