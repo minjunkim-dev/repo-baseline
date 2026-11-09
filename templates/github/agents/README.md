@@ -6,13 +6,13 @@
 
 `main` push 거부는 명시적 표기만 잡는다. `main`에 있는 채로 `git push origin`을 하면 통과한다. 그 경우는 서버의 브랜치 보호(PR 필수, `enforce_admins`)가 거절한다. GitHub 프로필을 켜지 않은 저장소에서는 이 구멍이 남는다.
 
-막을 것은 네 가지다: `.env` 읽기, `gh pr merge`, `main`으로의 push, 브랜치 보호·저장소 설정을 쓰는 `gh api`.
+막을 것은 세 가지다: `.env` 읽기, `main`으로의 push, 브랜치 보호·저장소 설정을 쓰는 `gh api`. `gh pr merge`는 막지 않고 매번 확인을 받는다. 되돌리기 쉬움 PR은 소유자가 지시하면 에이전트가 병합할 수 있기 때문이다(POLICY §5). 확인 창에서 PR 번호와 `--match-head-commit`이 붙었는지 본다.
 
 확인일: 2026-11-08. 하네스가 바뀌면 링크한 공식 문서를 다시 본다.
 
 ## Claude Code
 
-`claude-settings.json`을 프로젝트의 `.claude/settings.json`으로 복사한다. 이미 있으면 `permissions.deny`만 합친다.
+`claude-settings.json`을 프로젝트의 `.claude/settings.json`으로 복사한다. 이미 있으면 `permissions.deny`와 `permissions.ask`를 합친다. 예전 예시에서 가져온 `gh pr merge` deny 항목은 지운다. deny가 ask보다 먼저 걸려서 남아 있으면 병합이 계속 막힌다.
 
 - 문법: [Permissions](https://code.claude.com/docs/en/permissions), [Settings](https://code.claude.com/docs/en/settings). `*`는 규칙의 어느 자리에나 올 수 있다. `.env` 예시 `Read(./.env)`, `Read(./.env.*)`는 Settings 문서의 예시와 같다. 하위 폴더의 `.env`는 `**/` 규칙으로 막는다.
 - 지침 파일은 `AGENTS.md` 하나다. Claude Code는 작업 폴더와 그 위 폴더에 `CLAUDE.md`·`.claude/CLAUDE.md`·`CLAUDE.local.md`가 없을 때 `AGENTS.md`를 읽는다([Memory](https://code.claude.com/docs/en/memory), 확인일 2026-11-09). 개인용 `CLAUDE.local.md`를 하나 두기만 해도 `AGENTS.md`를 읽지 않으므로 만들지 않는다. 꼭 써야 하면 사용자 설정 `~/.claude/settings.json`에서 `pluginConfigs."cc-plugin-agents-md@builtin".options.instructionFiles`를 `"claude-md-and-agents-md"`로 둔다. 이 설정은 프로젝트의 `.claude/settings.json`에 두면 무시된다.
@@ -46,7 +46,7 @@ Claude Code에는 같은 이름의 내장 `/code-review`가 있다. Matt 플러�
 [Rules](https://developers.openai.com/codex/rules)로 명령을 막는다. 프로젝트의 `.codex/rules/default.rules`에 둔다. 프로젝트 `.codex/`를 신뢰한 경우에만 읽힌다. 기능은 실험 단계다.
 
 ```python
-prefix_rule(pattern = ["gh", "pr", "merge"], decision = "forbidden", justification = "병합은 사람이 한다")
+prefix_rule(pattern = ["gh", "pr", "merge"], decision = "prompt", justification = "지시받은 되돌리기 쉬움 PR인지 사람이 본다")
 prefix_rule(pattern = ["git", "push"], decision = "prompt", justification = "main으로 push하지 않는다")
 prefix_rule(pattern = ["gh", "repo", "edit"], decision = "forbidden", justification = "저장소 설정은 소유자가 바꾼다")
 prefix_rule(pattern = ["gh", "api"], decision = "prompt", justification = "보호·설정 쓰기인지 사람이 본다")
@@ -69,5 +69,6 @@ CLI는 [Permissions](https://cursor.com/docs/cli/reference/permissions)대로 �
 ```
 
 - `Read(.env*)`는 문서 예시 그대로다.
+- 문서의 규칙 종류는 allow와 deny뿐이라 병합에 확인을 받는 설정이 없다. 그래서 `gh pr merge`를 deny로 둔다. Cursor로 POLICY §5의 에이전트 병합을 쓰려면 이 항목을 빼고, 병합 명령마다 PR 번호와 `--match-head-commit`을 사람이 본다. 승인하지 않은 명령을 Cursor가 실행 전에 묻는지는 미확인이다.
 - `Shell(명령:인자)`의 인자 글롭은 문서 예시가 `curl:*`뿐이다. `gh:pr merge*`처럼 공백이 든 인자가 맞는지: 미확인. 적용 뒤 한 번 시험한다.
 - IDE(에디터 안 에이전트)에서 같은 파일을 읽는지, 같은 의미의 설정이 무엇인지: 미확인.
