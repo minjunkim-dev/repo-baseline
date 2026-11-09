@@ -9,7 +9,7 @@
 - setup: `N/A: 설치할 의존성이 없다(Python 3.9 이상과 시스템 IANA 시간대 데이터. 없으면 python3 -m pip install tzdata)`
 - check: `N/A: 별도 린터가 없다. 링크·코어 구성·POLICY 길이 같은 결정적 검사는 test의 tools/test_distribution.py가 한다`
 - test: `python3 -m unittest discover -s tools -p 'test_*.py' && for d in profiles/pr-conventions profiles/hash-copy; do python3 -m unittest discover -s "$d" -p 'test_*.py' || exit 1; done`
-  - pr-conventions 테스트는 예시 데이터를 검사하며 `FAIL:` 줄을 출력한다. 출력을 파일·파이프로 받으면 이 줄이 `OK` 뒤에 나온다. 성공 여부는 종료 코드로만 판단한다.
+  - pr-conventions 테스트는 예시 데이터를 검사하며 `FAIL:` 줄을 출력한다. 출력을 파일·파이프로 받으면 이 줄이 `OK` 뒤에 나온다. 성공 여부는 종료 코드로만 판단한다. 파이프(`| tee` 등)로 받으면 앞에 `set -o pipefail;`을 붙인다. 붙이지 않으면 종료 코드가 마지막 명령의 것이 된다.
 - build: `N/A: 배포는 파일 복사다`
 
 ## 길잡이

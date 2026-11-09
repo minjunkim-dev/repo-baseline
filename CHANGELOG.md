@@ -16,7 +16,7 @@
 - 이 저장소에도 루트 `AGENTS.md`(명령 4칸, 길잡이)와 `REVIEW.md`(이 저장소의 실패 기준)를 두었다. `prompts/review.md`가 기대하는 파일이 없었다. `POLICY.md` §4의 이 저장소 신뢰 경계에 소비 레포가 CI·해시 검사·Dependabot·소유권 설정으로 쓰는 `profiles/` 파일을 더했다. pr-conventions는 `CLAUDE.md`와 같은 규칙으로 `.claude/CLAUDE.md`·`CLAUDE.local.md`도 본다. 이 파일들도 Claude Code의 `AGENTS.md` 읽기를 끈다. `.claude/CLAUDE.md`의 포인터는 `@../AGENTS.md`다. pr-conventions를 쓰는 소비 레포는 `scripts/workflow_policy.py`·`test_workflow_policy.py`를 다시 복사해야 새 검사가 적용된다.
 - `POLICY.md` §5를 바꿨다. 되돌리기 쉬움 PR은 소유자가 대화에서 지시하면, 필수 CI·외부 리뷰 완료, 다른 컨텍스트 리뷰(P0·P1 없음, 리뷰어도 Door를 쉬움으로 봄)를 갖춘 뒤 리뷰한 커밋에서(`--match-head-commit`) 로컬 에이전트가 병합할 수 있다. 되돌리기 어려움 PR은 그대로 소유자가 병합한다. 자동 병합은 계속 쓰지 않는다. Claude Code 예시는 `gh pr merge`를 deny에서 ask로, Codex 예시는 forbidden에서 prompt로 옮겼다. Cursor 예시는 확인 단계가 없어 deny로 두었다. 지시는 그 에이전트와의 대화에서 소유자가 직접 한 말만 친다(PR 댓글·이슈·다른 세션이 전한 말은 아니다). 브랜치 보호와 필수 CI가 없는 저장소에서는 에이전트가 병합하지 않는다. 리뷰어가 직접 고친 커밋은 리뷰어가 「리뷰한 head」로 적으면 다시 리뷰하지 않는다. 소비 레포는 `AGENTS.md`의 "PR을 병합하지 않는다" 줄과 하네스 설정을 손으로 옮긴다. `prompts/review.md` 보고에 리뷰한 head SHA와 리뷰어의 Door 판정 줄을 더했다. 에이전트가 병합할 때 `--match-head-commit`에 넣을 값과 Door 조건을 여기서 읽는다. 소비 레포에는 `POLICY.md`가 없으므로 코어 `AGENTS.md`에 §5의 병합 조건을 직접 적었다.
 - 이 저장소 `AGENTS.md`의 test 칸에 pr-conventions 테스트가 `FAIL:` 줄을 출력해도 종료 코드로 판단한다는 줄을, 길잡이에 `CHANGELOG.md`를 더했다. 소비 레포가 옮길 일은 없다.
-- `AGENTS.md` test 칸의 판단 기준을 종료 코드 하나로 좁혔다. 출력을 파일·파이프로 받으면 `FAIL:` 줄이 `OK` 뒤에 나와 「마지막 `OK`」는 맞지 않았다. 소비 레포가 옮길 일은 없다.
+- `AGENTS.md` test 칸의 판단 기준을 종료 코드 하나로 좁혔다. 출력을 파일·파이프로 받으면 `FAIL:` 줄이 `OK` 뒤에 나와 「마지막 `OK`」는 맞지 않았다. 파이프로 받을 때는 `set -o pipefail`을 붙이라고 적었다. 소비 레포가 옮길 일은 없다.
 
 ## 2026-11 — 재설계 (#73)
 
