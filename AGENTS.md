@@ -9,6 +9,7 @@
 - setup: `N/A: 설치할 의존성이 없다(Python 3.9 이상과 시스템 IANA 시간대 데이터. 없으면 python3 -m pip install tzdata)`
 - check: `N/A: 별도 린터가 없다. 링크·코어 구성·POLICY 길이 같은 결정적 검사는 test의 tools/test_distribution.py가 한다`
 - test: `python3 -m unittest discover -s tools -p 'test_*.py' && for d in profiles/pr-conventions profiles/hash-copy; do python3 -m unittest discover -s "$d" -p 'test_*.py' || exit 1; done`
+  - pr-conventions 테스트는 예시 데이터를 검사하며 `FAIL:` 줄을 출력한다. 성공 여부는 종료 코드와 마지막 `OK`로 판단한다.
 - build: `N/A: 배포는 파일 복사다`
 
 ## 길잡이
@@ -24,6 +25,7 @@
 | `docs/start.md` | 사람이 따라 하는 코어 적용 절차 |
 | `docs/archive/` | 보관 문서. 현행 규칙이 아니다. 읽지 않는다 |
 | `REVIEW.md` | 이 저장소의 리뷰 기준. 리뷰할 때만 읽는다 |
+| `CHANGELOG.md` | PR마다 1~3줄. 소비 레포가 손으로 옮길 일을 적는다 |
 
 ## 작업 방식
 
