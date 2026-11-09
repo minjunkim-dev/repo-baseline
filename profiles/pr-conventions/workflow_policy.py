@@ -34,7 +34,8 @@ DEPRECATED_DOOR_VALUES = {"양쪽 문", "한쪽 문"}
 DOORS = DOOR_VALUES | DEPRECATED_DOOR_VALUES
 DEFAULT_BOT_PREFIXES = ("claude", "codex", "dependabot")
 CONFIG_NAME = ".github/workflow-policy.json"
-CLAUDE_FILES = ("CLAUDE.md", ".claude/CLAUDE.md", "CLAUDE.local.md")
+# Imports resolve relative to the importing file, so the nested file points one level up.
+CLAUDE_FILES = {"CLAUDE.md": b"@AGENTS.md", ".claude/CLAUDE.md": b"@../AGENTS.md", "CLAUDE.local.md": b"@AGENTS.md"}
 DEPENDABOT = "dependabot[bot]"
 
 
@@ -207,7 +208,7 @@ def main(argv=None):
         return 1
     errors = []
     # By default Claude Code skips AGENTS.md when any of these exists, so other content forks the instructions.
-    for name in CLAUDE_FILES:
+    for name, expected in CLAUDE_FILES.items():
         claude = tree / name
         if not (claude.exists() or claude.is_symlink()):
             continue
@@ -215,8 +216,8 @@ def main(argv=None):
             errors.append(f"Use AGENTS.md only; remove {name}")
         elif config["require_agents_md"]:
             pointer = readable_file(tree, name)
-            if pointer is None or pointer.stat().st_size > 64 or pointer.read_bytes().strip() != b"@AGENTS.md":
-                errors.append(f"{name} must be the single line @AGENTS.md; keep instructions in AGENTS.md")
+            if pointer is None or pointer.stat().st_size > 64 or pointer.read_bytes().strip() != expected:
+                errors.append(f"{name} must be the single line {expected.decode()}; keep instructions in AGENTS.md")
     if config["require_agents_md"] and readable_file(tree, "AGENTS.md") is None:
         errors.append("AGENTS.md is required")
     flags = config["feature_flags"]

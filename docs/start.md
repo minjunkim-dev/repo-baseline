@@ -17,7 +17,7 @@ mkdir -p .github && cp -n "$B/pull_request_template.md" .github/
 
 - `cp -n`은 있는 파일을 덮어쓰지 않는다. `AGENTS.md`·`REVIEW.md`가 이미 있으면 템플릿 내용을 손으로 합친다. macOS의 `cp -n`은 파일을 건너뛸 때도 종료 코드 1을 낸다. 진짜 복사 실패도 같은 코드이므로, 종료 코드로 판단하지 말고 오류 메시지와 4단계 확인 결과를 본다.
 - `.gitignore`는 덮어쓰지 않고 뒤에 붙인다.
-- `CLAUDE.md`는 만들지 않는다. Claude Code는 `CLAUDE.md`·`.claude/CLAUDE.md`·`CLAUDE.local.md`가 없으면 `AGENTS.md`를 읽는다([Memory](https://code.claude.com/docs/en/memory), 확인일 2026-11-09). 둘 다 있으면 기본 설정에서 `CLAUDE.md`만 읽으므로, 이미 있으면 내용을 `AGENTS.md`로 옮기고 `CLAUDE.md`를 지운다(또는 `@AGENTS.md` 한 줄만 남긴다).
+- `CLAUDE.md`는 만들지 않는다. Claude Code는 `CLAUDE.md`·`.claude/CLAUDE.md`·`CLAUDE.local.md`가 없으면 `AGENTS.md`를 읽는다([Memory](https://code.claude.com/docs/en/memory), 확인일 2026-11-09). 둘 다 있으면 기본 설정에서 `CLAUDE.md`만 읽으므로, 이미 있으면 내용을 `AGENTS.md`로 옮기고 `CLAUDE.md`를 지운다(또는 `@AGENTS.md` 한 줄만 남긴다). `CLAUDE.local.md`·`.claude/CLAUDE.md`나 상위 폴더의 `CLAUDE.md`가 있어도 `AGENTS.md`를 읽지 않으니, 4단계에서 함께 확인한다.
 
 ## 2. AGENTS.md 채우기
 
@@ -38,7 +38,8 @@ mkdir -p .github && cp -n "$B/pull_request_template.md" .github/
 
 ```bash
 grep -nE '<[^>]+>' AGENTS.md REVIEW.md   # N/A: <이유>와 배운 규칙 형식 예시만 남아야 한다
-git check-ignore -q .env && git check-ignore -q .env.local && echo ignored   # 예외 줄(`!.env`)이 있거나 이미 커밋돼 있으면 출력이 없다
+git check-ignore -q .env && git check-ignore -q .env.local && echo ignored
+ls CLAUDE.md CLAUDE.local.md .claude/CLAUDE.md 2>/dev/null   # 출력이 없어야 한다. 있으면 지우거나 @AGENTS.md(.claude/ 안은 @../AGENTS.md) 한 줄로 바꾼다   # 예외 줄(`!.env`)이 있거나 이미 커밋돼 있으면 출력이 없다
 ```
 
 ## 5. 첫 PR
