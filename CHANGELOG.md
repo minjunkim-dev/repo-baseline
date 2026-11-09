@@ -13,7 +13,7 @@
 - pr-conventions의 `reject_claude_md` 기본값을 `false`로 바꿨다. 코어가 `CLAUDE.md`(`@AGENTS.md` 한 줄)를 배포하므로 기본값이 코어와 충돌했다. 대신 `CLAUDE.md`가 있으면 `@AGENTS.md` 한 줄이어야 한다. 둘 다 있으면 Claude Code는 기본 설정에서 `CLAUDE.md`를 읽고, `AGENTS.md`는 그 안의 `@AGENTS.md`로 불러올 때만 함께 읽는다. `CLAUDE.md`를 계속 거부하려면 `.github/workflow-policy.json`에 `"reject_claude_md": true`를 둔다.
 - team 프로필 `CODEOWNERS`에서 쓰이지 않는 경로 `/.github/trust-boundary-paths`(보관한 review-gate)와 `/tools/apply_github_settings.py`(소비 레포에 복사하지 않음)를 지웠다.
 - 코어에서 `CLAUDE.md`를 뺐다(파일 5개 → 4개). Claude Code(v2.1.277 이상)가 `CLAUDE.md`가 없으면 `AGENTS.md`를 읽게 되어, `AGENTS.md` 하나로 Claude Code·Codex·Cursor가 같은 지침을 읽는다. 둘 다 있으면 Claude Code는 기본 설정에서 `CLAUDE.md`만 읽으므로, 소비 레포는 `CLAUDE.md`를 지운다(`@AGENTS.md` 한 줄이면 남겨도 pr-conventions를 통과한다). 개인용 `CLAUDE.local.md`도 `AGENTS.md` 읽기를 끈다는 점을 agents README에 적었다.
-- 이 저장소에도 루트 `AGENTS.md`(명령 4칸, 길잡이)와 `REVIEW.md`(이 저장소의 실패 기준)를 두었다. `prompts/review.md`가 기대하는 파일이 없었다. `POLICY.md` §4의 이 저장소 신뢰 경계에 소비 레포가 CI·소유권 설정으로 쓰는 `profiles/` 파일을 더했다.
+- 이 저장소에도 루트 `AGENTS.md`(명령 4칸, 길잡이)와 `REVIEW.md`(이 저장소의 실패 기준)를 두었다. `prompts/review.md`가 기대하는 파일이 없었다. `POLICY.md` §4의 이 저장소 신뢰 경계에 소비 레포가 CI·해시 검사·Dependabot·소유권 설정으로 쓰는 `profiles/` 파일을 더했다. pr-conventions는 `CLAUDE.md`와 같은 규칙으로 `.claude/CLAUDE.md`·`CLAUDE.local.md`도 본다. 이 파일들도 Claude Code의 `AGENTS.md` 읽기를 끈다.
 
 ## 2026-11 — 재설계 (#73)
 

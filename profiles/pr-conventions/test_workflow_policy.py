@@ -61,16 +61,22 @@ class SharedInstructionsTest(unittest.TestCase):
         self.assertEqual(0, self.run_policy()[0])
 
     def test_claude_file_other_than_the_pointer_is_rejected_by_default(self):
-        claude = self.root / "CLAUDE.md"
-        for kind in ("other text", "pointer plus rules", "symlink"):
-            with self.subTest(kind=kind):
-                if kind == "symlink":
-                    claude.symlink_to("AGENTS.md")
-                else:
-                    claude.write_text("Run tests first\n" if kind == "other text" else "@AGENTS.md\nRun tests first\n")
-                result, output = self.run_policy()
-                self.assertEqual(1, result)
-                self.assertIn("must be the single line @AGENTS.md", output)
+        (self.root / ".claude").mkdir()
+        for name in ("CLAUDE.md", ".claude/CLAUDE.md", "CLAUDE.local.md"):
+            claude = self.root / name
+            for kind in ("other text", "pointer plus rules", "symlink"):
+                with self.subTest(name=name, kind=kind):
+                    if kind == "symlink":
+                        claude.symlink_to(self.root / "AGENTS.md")
+                    else:
+                        claude.write_text("Run tests first\n" if kind == "other text" else "@AGENTS.md\nRun tests first\n")
+                    result, output = self.run_policy()
+                    self.assertEqual(1, result)
+                    self.assertIn(f"{name} must be the single line @AGENTS.md", output)
+                    claude.unlink()
+            with self.subTest(name=name, kind="pointer"):
+                claude.write_text("@AGENTS.md\n")
+                self.assertEqual(0, self.run_policy()[0])
                 claude.unlink()
 
     def test_claude_file_or_symlink_is_rejected_when_configured(self):

@@ -34,6 +34,7 @@ DEPRECATED_DOOR_VALUES = {"양쪽 문", "한쪽 문"}
 DOORS = DOOR_VALUES | DEPRECATED_DOOR_VALUES
 DEFAULT_BOT_PREFIXES = ("claude", "codex", "dependabot")
 CONFIG_NAME = ".github/workflow-policy.json"
+CLAUDE_FILES = ("CLAUDE.md", ".claude/CLAUDE.md", "CLAUDE.local.md")
 DEPENDABOT = "dependabot[bot]"
 
 
@@ -194,7 +195,7 @@ def _symlink_inside(tree, relative):
 def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("--pr", action="store_true", help="Read PR metadata from GITHUB_EVENT_PATH")
-    parser.add_argument("--root", help="Tree to read for AGENTS.md, CLAUDE.md, and feature flags. Config stays beside the checker.")
+    parser.add_argument("--root", help="Tree to read for AGENTS.md, Claude instruction files, and feature flags. Config stays beside the checker.")
     args = parser.parse_args(argv)
     try:
         config = load_config(ROOT)
@@ -205,15 +206,17 @@ def main(argv=None):
         print(f"FAIL: workflow policy config: {detail}")
         return 1
     errors = []
-    claude = tree / "CLAUDE.md"
-    if claude.exists() or claude.is_symlink():
+    # By default Claude Code skips AGENTS.md when any of these exists, so other content forks the instructions.
+    for name in CLAUDE_FILES:
+        claude = tree / name
+        if not (claude.exists() or claude.is_symlink()):
+            continue
         if config["reject_claude_md"]:
-            errors.append("Use AGENTS.md only; remove CLAUDE.md")
+            errors.append(f"Use AGENTS.md only; remove {name}")
         elif config["require_agents_md"]:
-            # By default Claude Code reads only CLAUDE.md when both exist, so any other content forks the instructions.
-            pointer = readable_file(tree, "CLAUDE.md")
+            pointer = readable_file(tree, name)
             if pointer is None or pointer.stat().st_size > 64 or pointer.read_bytes().strip() != b"@AGENTS.md":
-                errors.append("CLAUDE.md must be the single line @AGENTS.md; keep instructions in AGENTS.md")
+                errors.append(f"{name} must be the single line @AGENTS.md; keep instructions in AGENTS.md")
     if config["require_agents_md"] and readable_file(tree, "AGENTS.md") is None:
         errors.append("AGENTS.md is required")
     flags = config["feature_flags"]
