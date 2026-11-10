@@ -42,7 +42,7 @@ Matt 스킬의 기본 동작 중 [POLICY.md](../../../POLICY.md)와 어긋나는
 코어 기준에 없는 것을 이 스킬로 채울 수 있다. 둘 다 사람이 부를 때만 돈다(`disable-model-invocation`, [v1.3.2](https://github.com/mattpocock/skills/tree/v1.3.2/skills), 확인일 2026-11-10).
 
 - 깊은 모듈: `/improve-codebase-architecture`가 최근 자주 바뀐 영역에서 얕은 모듈을 찾아 HTML 보고서로 보여 주고, 고른 후보를 질문으로 다듬는다. 회고에서 테스트가 구현에 묶인다는 지적이 반복될 때 쓴다([prompts/retro.md](../../../prompts/retro.md) 7번). 용어는 `codebase-design`, 도메인 이름은 `GLOSSARY.md`를 따른다.
-- TypeScript 저장소는 `/setup-ts-deep-modules`로 패키지 경계(진입 파일만 import)를 dependency-cruiser 검사로 만들 수 있다. 리뷰가 아니라 check 층에 들어간다. 이 스킬은 v1.3.2 플러그인에 들어 있지 않다(`skills/in-progress/`). 쓰려면 그 폴더를 저장소 스킬로 커밋한다.
+- TypeScript 저장소는 `/setup-ts-deep-modules`로 패키지 경계(진입 파일만 import)를 dependency-cruiser 검사로 만들 수 있다. 리뷰가 아니라 check 층에 들어간다. 이 스킬은 v1.3.2 플러그인에 들어 있지 않다(`skills/in-progress/`).
 
 Claude Code에는 같은 이름의 내장 `/code-review`가 있다. Matt 플러그인으로 설치했으면 `/mattpocock-skills:code-review`처럼 플러그인 이름을 붙여 부른다.
 
