@@ -72,6 +72,16 @@ class CheckSkillsTest(unittest.TestCase):
         code, out = self.check()
         self.assertEqual(code, 0, out)
 
+    def test_newest_cached_plugin_version_is_reported(self):
+        cache = ".claude/plugins/cache"
+        for root in ["claude-plugins-official/mattpocock-skills/1.3.1", "mattpocock/mattpocock-skills/1.3.2",
+                     "mattpocock/mattpocock-skills/1.3.10"]:
+            self.install(root=f"{cache}/{root}/skills/engineering")
+        self.commit("src/app.py")
+        code, out = self.check()
+        self.assertEqual(code, 0, out)
+        self.assertIn(f"code-review: {self.home / cache}/mattpocock/mattpocock-skills/1.3.10/skills/engineering/", out)
+
     def test_different_personal_skill_hides_matts_copy(self):
         self.install()
         self.install({"code-review": "Review for bugs."}, root=".claude/skills")
