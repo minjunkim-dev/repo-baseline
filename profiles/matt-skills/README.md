@@ -13,14 +13,17 @@
    이 저장소는 repo-baseline matt-skills 프로필을 쓴다. 리뷰어는 repo-baseline 클론의 `profiles/matt-skills/README.md` 「리뷰」 절차를 따른다.
    ```
 
-3. 리뷰하는 기기에서 `python3 -I <repo-baseline 클론>/profiles/matt-skills/check_skills.py`가 종료 코드 0인지 본다. 스킬마다 찾은 경로와 sha256 앞 12자리를 출력한다. 같은 이름이라도 다른 스킬이면 찾은 것으로 보지 않는다. 리뷰할 저장소에 들어 있는 파일 중, 깊이와 관계없이 `.claude`·`.agents`·`.codex`·`.cursor` 폴더 안의 `skills` 아래 `SKILL.md`가 같은 이름으로 등록되면 실패한다. 이름은 폴더 이름과 frontmatter의 `name:` 값을 대소문자 없이 본다. 확실하지 않으면 실패로 본다: frontmatter 끝이 없거나, `name:`이 하나가 아니거나 평범한 값이 아닌 경우, 하네스 폴더 안의 symlink, git 저장소 루트를 찾지 못한 경우. 하네스가 그 사본을 먼저 읽는데, 리뷰 대상 PR이 그 사본을 바꿀 수 있기 때문이다. 그래서 이 프로필의 스킬은 저장소에 커밋하지 않고 홈 폴더나 플러그인으로 설치한다.
+3. 리뷰하는 기기에 세 스킬이 있는지 본다: `python3 -I <repo-baseline 클론>/profiles/matt-skills/check_skills.py main`을 아무 저장소에서 돌려 종료 코드가 1이 아니면 된다. 스킬마다 찾은 경로와 sha256 앞 12자리를 출력한다. 홈 폴더와 플러그인 캐시에서만 찾고, 같은 이름이라도 다른 스킬이면 찾은 것으로 보지 않는다. 이 프로필의 스킬은 저장소에 커밋하지 않는다. 하네스가 저장소 사본을 먼저 읽기 때문이다.
 
 ## 리뷰
 
 [prompts/review.md](../../prompts/review.md) 할 일 1번(두 축)을 아래처럼 한다. 나머지 순서는 그대로다.
 
-1. `check_skills.py`를 돌린다. 종료 코드가 1이면 리뷰를 멈추고 「남은 지적」에 "리뷰 미완(스킬 없음)"과 출력을 적는다.
-2. 하위 에이전트 리뷰어이거나 fork PR이면 스킬에 맡기지 않고 review.md 1번을 직접 한다. `code-review` 스킬은 축마다 하위 에이전트를 띄우고, `git diff <기준점>...HEAD`로 작업 트리의 HEAD를 보기 때문이다. 하위 에이전트 안에서는 하위 에이전트를 못 띄울 수 있고, fork PR은 checkout하지 않는다. 「확인한 것」에 그 이유를 적는다.
+1. 리뷰할 저장소의 작업 트리에서 `python3 -I <repo-baseline 클론>/profiles/matt-skills/check_skills.py <base ref>`를 돌린다. base ref는 리뷰 전 확인이 출력한 것이다.
+   - 0: 아래 2~6번대로 위임한다.
+   - 1: 스킬이 없다. 리뷰를 멈추고 「남은 지적」에 "리뷰 미완(스킬 없음)"과 출력을 적는다.
+   - 2: 위임하지 않는다. review.md 1번을 직접 하고, 「확인한 것」에 출력한 이유를 적는다. PR이 하네스가 읽는 파일(`.claude`·`.agents`·`.codex`·`.cursor` 폴더, `AGENTS.md`, `CLAUDE.md`, `.mcp.json`)이나 서브모듈을 바꿨거나, 하네스 폴더 안에 symlink나 같은 이름의 스킬이 있거나, git이 실패한 경우다. 하네스는 이 파일을 홈 사본보다 먼저 읽으므로, 리뷰 대상 PR이 위임한 스킬의 동작을 바꿀 수 있다. 이름은 NFKC로 정규화하고 대소문자 없이 본다.
+2. 하위 에이전트 리뷰어이거나 fork PR이면 위임하지 않고 review.md 1번을 직접 한다. `code-review` 스킬은 축마다 하위 에이전트를 띄우고, `git diff <기준점>...HEAD`로 작업 트리의 HEAD를 보기 때문이다. 하위 에이전트 안에서는 하위 에이전트를 못 띄울 수 있고, fork PR은 checkout하지 않는다. 「확인한 것」에 그 이유를 적는다.
 3. PR 본문의 `완료 기준:` 줄을 저장소 밖 임시 파일(예: `$TMPDIR/spec-<번호>.md`)에 쓴다.
 4. `code-review` 스킬을 부른다. 넘기는 것은 셋이다.
    - 기준점: 리뷰 전 확인이 출력한 base ref. 2라운드부터는 직전 리뷰의 마지막 커밋.

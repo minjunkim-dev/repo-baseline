@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
-"""Check that the Matt Pocock skills this profile delegates to are installed, before review uses them.
+"""Decide whether review may delegate to the Matt Pocock skills, before it uses them.
 
-Run it from the working tree of the repository under review:
-    python3 -I <repo-baseline>/profiles/matt-skills/check_skills.py
-Exit 0: every skill was found. 1: a skill is missing, the only skill with that name is a different one,
-or the repository under review has its own copy (the harness loads that first, and the PR can change it).
+Run it from the working tree of the repository under review, after the review preflight:
+    python3 -I <repo-baseline>/profiles/matt-skills/check_skills.py <base ref>
+Exit 0: delegate. 1: a skill is not installed (stop the review).
+2: do not delegate (review it directly): the PR touched files a harness loads, or the answer is unclear.
 """
 
 from pathlib import Path
 import hashlib
 import subprocess
 import sys
+import unicodedata
 
 # A phrase from each upstream SKILL.md tells Matt's skill apart from another skill with the same name.
 # shortcut: a marker is not a version pin; if upstream rewrites the phrase, update it here.
@@ -19,96 +20,85 @@ SKILLS = {
     "retro": "Implementation vs Review",
     "pr": "Merge Danger",
 }
-
-
-def roots(home):
-    yield from (home / ".claude/skills", home / ".agents/skills")
-    yield from sorted((home / ".claude/plugins/cache").glob("*/mattpocock-skills*/*/skills"))
-
-
 HARNESS_DIRS = {".claude", ".agents", ".codex", ".cursor"}
+HARNESS_FILES = {"agents.md", "claude.md", ".mcp.json"}
 
 
-def frontmatter_names(text):
-    """The `name:` values in the frontmatter, or None when they can't be read unambiguously."""
-    lines = text.splitlines()
-    if not lines or lines[0].strip() != "---":
-        return None
+def fold(name):
+    return unicodedata.normalize("NFKC", name).casefold()
+
+
+def git(*args):
+    return subprocess.run(["git", *args], check=True, capture_output=True).stdout.decode("utf-8", "surrogateescape")
+
+
+def harness_path(path):
+    parts = [fold(p) for p in path.split("/")]
+    return any(p in HARNESS_DIRS for p in parts) or parts[-1] in HARNESS_FILES
+
+
+def refusals(base):
+    """Reasons not to delegate. The PR controls what it changed, and a harness loads these files first."""
     try:
-        end = next(i for i, line in enumerate(lines[1:], 1) if line.strip() == "---")
-    except StopIteration:
-        return None
-    names = []
-    for line in lines[1:end]:
-        key, sep, value = line.partition(":")
-        if sep and key.strip().strip("'\"").lower() == "name":
-            value = value.strip().strip("'\"")
-            if not value or value[0] in "|>&*!{[" or line[:1].isspace():
-                return None
-            names.append(value.lower())
-    return names if len(names) == 1 else None
-
-
-def project_copies(name, cwd):
-    """Repository files a harness could load as this skill. Fails closed: unclear cases count as copies."""
-    out = subprocess.run(["git", "-C", str(cwd), "rev-parse", "--show-toplevel"], capture_output=True, text=True)
-    if out.returncode != 0:
-        return [f"{cwd} (git 저장소 루트를 찾지 못함)"]
-    root = Path(out.stdout.strip())
-    listed = subprocess.run(["git", "-C", str(root), "ls-files", "-s", "-z"], capture_output=True, check=True).stdout
-    copies = []
-    for entry in listed.decode("utf-8", "surrogateescape").split("\0"):
-        if not entry:
-            continue
+        # The three-dot diff and every commit (--cc for merges), as the review preflight reads them.
+        changed = git("diff", "-z", "--raw", "--no-renames", f"{base}...HEAD")
+        changed += git("log", "-z", "--raw", "--no-renames", "--format=", "--cc", f"{base}..HEAD")
+        tracked = git("ls-files", "-s", "-z")
+    except (subprocess.CalledProcessError, OSError) as error:
+        return [f"git 실행 실패: {getattr(error, 'stderr', b'') or error}"]
+    reasons, fields = [], [f for f in changed.split("\0") if f.strip("\n")]
+    for i, field in enumerate(fields):
+        if field.lstrip("\n").startswith(":"):  # --raw header ":<modes> <shas> <status>"; the path follows
+            path = fields[i + 1] if i + 1 < len(fields) else ""
+            if "160000" in field:
+                reasons.append(f"{path}: PR이 서브모듈을 바꿨다")
+            elif harness_path(path):
+                reasons.append(f"{path}: PR이 하네스가 읽는 파일을 바꿨다")
+    for entry in tracked.split("\0"):
         mode, _, path = entry.partition("\t")
-        parts = path.split("/")
-        lowered = [x.lower() for x in parts]
-        harness = [i for i, x in enumerate(lowered) if x in HARNESS_DIRS]
-        if not harness:
+        if not path or not harness_path(path):
             continue
-        if mode.startswith("120000"):  # a symlink inside a harness folder can point anywhere
-            copies.append(f"{path} (symlink)")
-            continue
-        if lowered[-1] != "skill.md" or "skills" not in lowered[harness[0] + 1:]:
-            continue
-        names = frontmatter_names((root / path).read_text(encoding="utf-8", errors="replace"))
-        if names is None:
-            copies.append(f"{path} (name을 하나로 읽을 수 없음)")
-        elif name in names or lowered[-2] == name:
-            copies.append(path)
-    return copies
+        if mode.startswith("120000"):
+            reasons.append(f"{path}: 하네스 폴더 안 symlink")
+        if any(fold(p) in SKILLS for p in path.split("/")):
+            reasons.append(f"{path}: 저장소 안에 같은 이름의 스킬이 있다")
+    return sorted(set(reasons))
 
 
 def find(name, marker, home):
     """Return (path of Matt's SKILL.md or None, paths of same-name skills that are not Matt's)."""
     others = []
-    for root in roots(home):
+    roots = [home / ".claude/skills", home / ".agents/skills"]
+    roots += sorted((home / ".claude/plugins/cache").glob("*/mattpocock-skills*/*/skills"))
+    for root in roots:
         skill = root / name / "SKILL.md"
         if not skill.is_file():
             continue
-        if marker in skill.read_text(encoding="utf-8", errors="replace")[:20000]:
+        if marker in skill.read_text(encoding="utf-8", errors="replace"):
             return skill, others
         others.append(skill)
     return None, others
 
 
-def main(cwd=None, home=None):
-    cwd, home = Path(cwd or Path.cwd()), Path(home or Path.home())
-    missing = 0
+def main(argv=None, home=None):
+    args = sys.argv[1:] if argv is None else argv
+    if len(args) != 1:
+        print(__doc__.strip())
+        return 2
+    home, missing = Path(home or Path.home()), 0
     for name, marker in SKILLS.items():
-        copies = project_copies(name, cwd)
-        if copies:
-            missing += 1
-            print(f"{name}: 저장소 안 사본이 있어 쓰지 않는다 ({', '.join(map(str, copies))}). PR이 바꿀 수 있다")
-            continue
         skill, others = find(name, marker, home)
         if skill:
-            digest = hashlib.sha256(skill.read_bytes()).hexdigest()[:12]
-            print(f"{name}: {skill} (sha256 {digest})")
+            print(f"{name}: {skill} (sha256 {hashlib.sha256(skill.read_bytes()).hexdigest()[:12]})")
         else:
             missing += 1
             print(f"{name}: 없음" + (f" (다른 스킬만 있음: {', '.join(map(str, others))})" if others else ""))
-    return 1 if missing else 0
+    if missing:
+        return 1
+    reasons = refusals(args[0])
+    for reason in reasons:
+        print(f"위임하지 않음: {reason}")
+    return 2 if reasons else 0
 
 
 if __name__ == "__main__":
