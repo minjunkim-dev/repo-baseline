@@ -5,6 +5,10 @@ Run it from the working tree of the repository under review, after the review pr
     python3 -I <repo-baseline>/profiles/matt-skills/check_skills.py <base ref>
 Exit 0: delegate. 1: a skill is not installed (stop the review).
 2: do not delegate (review it directly): the PR touched files a harness loads, or the answer is unclear.
+
+Scope: this decides delegation only. Instruction files the PR changed (AGENTS.md, rule files, what they import)
+reach the reviewer's harness with or without delegation, so the lists below are a best effort, not a guard.
+The guard is the repository's trust boundary (POLICY §4): a person reads those diffs.
 """
 
 from pathlib import Path
