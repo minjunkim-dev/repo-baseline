@@ -9,6 +9,8 @@ Exit 0: delegate. 1: a skill is not installed (stop the review).
 
 from pathlib import Path
 import hashlib
+import os
+import re
 import subprocess
 import sys
 import unicodedata
@@ -20,8 +22,10 @@ SKILLS = {
     "retro": "Implementation vs Review",
     "pr": "Merge Danger",
 }
-HARNESS_DIRS = {".claude", ".agents", ".codex", ".cursor"}
-HARNESS_FILES = {"agents.md", "claude.md", ".mcp.json"}
+HARNESS_DIRS = {".claude", ".agents", ".codex", ".cursor", ".gemini", ".windsurf"}
+HARNESS_FILES = {"agents.md", "agents.override.md", "claude.md", "claude.local.md", "gemini.md", ".mcp.json",
+                 ".cursorrules", ".windsurfrules", "copilot-instructions.md"}
+IMPORT = re.compile(r"(?<![^\s(])@([^\s)`]+)")
 
 
 def fold(name):
@@ -40,6 +44,7 @@ def harness_path(path):
 def refusals(base):
     """Reasons not to delegate. The PR controls what it changed, and a harness loads these files first."""
     try:
+        os.chdir(git("rev-parse", "--show-toplevel").strip())  # ls-files and @imports are root-relative
         # The three-dot diff and every commit (--cc for merges), as the review preflight reads them.
         changed = git("diff", "-z", "--raw", "--no-renames", f"{base}...HEAD")
         changed += git("log", "-z", "--raw", "--no-renames", "--format=", "--cc", f"{base}..HEAD")
@@ -47,6 +52,8 @@ def refusals(base):
     except (subprocess.CalledProcessError, OSError) as error:
         return [f"git 실행 실패: {getattr(error, 'stderr', b'') or error}"]
     reasons, fields = [], [f for f in changed.split("\0") if f.strip("\n")]
+    changed_paths = {fields[i + 1] for i, f in enumerate(fields[:-1]) if f.lstrip("\n").startswith(":")}
+    reasons += imported_changes(tracked, changed_paths)
     for i, field in enumerate(fields):
         if field.lstrip("\n").startswith(":"):  # --raw header ":<modes> <shas> <status>"; the path follows
             path = fields[i + 1] if i + 1 < len(fields) else ""
@@ -63,6 +70,29 @@ def refusals(base):
         if any(fold(p) in SKILLS for p in path.split("/")):
             reasons.append(f"{path}: 저장소 안에 같은 이름의 스킬이 있다")
     return sorted(set(reasons))
+
+
+def imported_changes(tracked, changed_paths):
+    """Files the tracked harness instruction files pull in with `@path`, followed transitively, that the PR changed."""
+    files = {e.partition("\t")[2] for e in tracked.split("\0") if e.partition("\t")[2]}
+    queue = [f for f in files if harness_path(f) and not f.endswith(".json")]
+    seen, reasons = set(queue), []
+    while queue:
+        current = queue.pop()
+        try:
+            text = Path(current).read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        # Check the token with and without trailing punctuation: unclear endings count both ways.
+        targets = {v for t in IMPORT.findall(text) for v in (t, t.rstrip(".,;:!?'\""))}
+        for target in targets:
+            path = os.path.normpath(os.path.join(os.path.dirname(current), target))
+            if path in changed_paths:
+                reasons.append(f"{path}: PR이 바꾼 파일을 {current}가 @로 불러온다")
+            if path in files and path not in seen:
+                seen.add(path)
+                queue.append(path)
+    return reasons
 
 
 def find(name, marker, home):
