@@ -66,6 +66,14 @@ class ApplyBaselineTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     apply_baseline.apply(self.project, check=True)
 
+    def test_target_through_symlinked_folder_into_git_fails(self):
+        (self.project / ".git" / "hooks").mkdir(parents=True)
+        (self.project / "hooks").symlink_to(".git/hooks")
+        self.write_manifest({"files": {"hooks/pre-commit": {"source": SOURCE}}})
+        with self.assertRaisesRegex(ValueError, "inside .git"):
+            apply_baseline.apply(self.project, check=True)
+        self.assertFalse((self.project / ".git" / "hooks" / "pre-commit").exists())
+
     def test_dependabot_config_is_generated_per_ecosystem(self):
         target = ".github/dependabot.yml"
         ecosystems = [{"package-ecosystem": "cargo", "directory": "/services/api"}]
