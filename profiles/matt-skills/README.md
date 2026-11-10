@@ -13,7 +13,7 @@
    이 저장소는 repo-baseline matt-skills 프로필을 쓴다. 리뷰어는 repo-baseline 클론의 `profiles/matt-skills/README.md` 「리뷰」 절차를 따른다.
    ```
 
-3. 리뷰하는 기기에서 `python3 -I <repo-baseline 클론>/profiles/matt-skills/check_skills.py`가 종료 코드 0인지 본다. 스킬마다 찾은 경로와 sha256 앞 12자리를 출력한다. 같은 이름이라도 다른 스킬이면 찾은 것으로 보지 않는다. 리뷰할 저장소 안(`.claude/skills/`, `.agents/skills/`)에 같은 이름의 스킬이 있으면 실패한다. 하네스가 그 사본을 먼저 읽는데, 리뷰 대상 PR이 그 사본을 바꿀 수 있기 때문이다. 그래서 이 프로필의 스킬은 저장소에 커밋하지 않고 홈 폴더나 플러그인으로 설치한다.
+3. 리뷰하는 기기에서 `python3 -I <repo-baseline 클론>/profiles/matt-skills/check_skills.py`가 종료 코드 0인지 본다. 스킬마다 찾은 경로와 sha256 앞 12자리를 출력한다. 같은 이름이라도 다른 스킬이면 찾은 것으로 보지 않는다. 리뷰할 저장소 안(`.claude/skills/`, `.agents/skills/`, `.codex/skills/`, `.cursor/skills/`의 하위 폴더 전체)에 같은 이름으로 등록되는 스킬이 있으면 실패한다. 이름은 폴더 이름과 `SKILL.md`의 `name:` 값을 대소문자 없이 본다. 하네스가 그 사본을 먼저 읽는데, 리뷰 대상 PR이 그 사본을 바꿀 수 있기 때문이다. 그래서 이 프로필의 스킬은 저장소에 커밋하지 않고 홈 폴더나 플러그인으로 설치한다.
 
 ## 리뷰
 

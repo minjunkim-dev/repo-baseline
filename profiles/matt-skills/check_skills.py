@@ -9,6 +9,7 @@ or the repository under review has its own copy (the harness loads that first, a
 
 from pathlib import Path
 import hashlib
+import subprocess
 import sys
 
 # A phrase from each upstream SKILL.md tells Matt's skill apart from another skill with the same name.
@@ -25,8 +26,31 @@ def roots(home):
     yield from sorted((home / ".claude/plugins/cache").glob("*/mattpocock-skills*/*/skills"))
 
 
+PROJECT_SKILL_ROOTS = (".claude/skills", ".agents/skills", ".codex/skills", ".cursor/skills")
+
+
+def repo_root(cwd):
+    out = subprocess.run(["git", "-C", str(cwd), "rev-parse", "--show-toplevel"], capture_output=True, text=True)
+    return Path(out.stdout.strip()) if out.returncode == 0 else cwd
+
+
+def skill_names(skill):
+    """The folder name and the frontmatter name: a harness may register a skill under either."""
+    names = {skill.parent.name.lower()}
+    for line in skill.read_text(encoding="utf-8", errors="replace")[:4000].splitlines()[1:]:
+        if line.strip() == "---":
+            break
+        key, _, value = line.partition(":")
+        if key.strip() == "name":
+            names.add(value.strip().strip("'\"").lower())
+    return names
+
+
 def project_copies(name, cwd):
-    return [p for p in (cwd / ".claude/skills" / name / "SKILL.md", cwd / ".agents/skills" / name / "SKILL.md") if p.is_file()]
+    """Every SKILL.md anywhere under the repository's skill folders that registers this name."""
+    root = repo_root(cwd)
+    found = (s for r in PROJECT_SKILL_ROOTS for s in sorted((root / r).rglob("SKILL.md")))
+    return [s for s in found if name in skill_names(s)]
 
 
 def find(name, marker, home):

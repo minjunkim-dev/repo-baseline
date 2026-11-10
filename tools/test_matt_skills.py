@@ -2,6 +2,7 @@
 
 from contextlib import redirect_stdout
 import io
+import subprocess
 from pathlib import Path
 import sys
 import tempfile
@@ -54,6 +55,18 @@ class CheckSkillsTest(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("code-review: 저장소 안 사본이 있어 쓰지 않는다", out)
 
+
+    def test_copy_registered_by_frontmatter_name_in_a_nested_folder_also_fails(self):
+        self.skill(self.cwd / ".agents/skills/team/reviewer", "x", "---\nname: Code-Review\n---\nTwo-axis review")
+        (self.cwd / "src").mkdir()
+        subprocess.run(["git", "init", "-q", str(self.cwd)], check=True)
+        for name, marker in (("code-review", "Two-axis review"), ("retro", "Implementation vs Review"), ("pr", "Merge Danger")):
+            self.skill(self.home / ".agents/skills", name, marker)
+        out = io.StringIO()
+        with redirect_stdout(out):
+            code = check_skills.main(self.cwd / "src", self.home)
+        self.assertEqual(code, 1)
+        self.assertIn("code-review: 저장소 안 사본이 있어 쓰지 않는다", out.getvalue())
 
 if __name__ == "__main__":
     unittest.main()
