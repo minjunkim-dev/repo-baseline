@@ -41,6 +41,8 @@ Matt 스킬의 기본 동작 중 [POLICY.md](../../../POLICY.md)와 어긋나는
 - `/retro`는 기본으로 지금 세션 하나를 보고, 규칙을 `CODING_STANDARDS.md`에 넣자고 제안한다. 이 저장소의 회고는 같은 지적이 반복되거나 사람이 원할 때 [prompts/retro.md](../../../prompts/retro.md)로 한다. 제안 중 사람이 고른 것만 반영한다(POLICY §6).
 - `/pr`이 만든 본문은 `.github/pull_request_template.md`의 칸에 맞춘다.
 
+pstack 스킬을 쓰면 [pstack 프로필](../../../profiles/pstack/README.md)의 절을 `AGENTS.md`에 붙인다.
+
 코어 기준에 없는 것을 이 스킬로 채울 수 있다. 둘 다 사람이 부를 때만 돈다(`disable-model-invocation`).
 
 - 깊은 모듈: `/improve-codebase-architecture`가 최근 자주 바뀐 영역에서 얕은 모듈을 찾아 HTML 보고서로 보여 주고, 고른 후보를 질문으로 다듬는다. 회고에서 테스트가 구현에 묶인다는 지적이 반복될 때 쓴다([prompts/retro.md](../../../prompts/retro.md) 7번). 용어는 `codebase-design`, 도메인 이름은 `GLOSSARY.md`를 따른다.

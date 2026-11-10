@@ -4,6 +4,7 @@
 
 ## 2026-11 — 재설계 이후
 
+- pstack 프로필을 더했다. pstack 기본 동작 중 POLICY와 어긋나는 것(Shipping playbook·auto-merge, `correct`의 바로 반영, 판단 규칙 위치)과 단계별로 겹치는 스킬을 적는다. pstack을 쓰는 소비 레포는 프로필의 「pstack」 절을 `AGENTS.md` 「작업 방식」 끝에 붙인다.
 - matt-skills 프로필을 더했다. 리뷰의 두 축 판단은 Matt Pocock `code-review` 스킬에(새 세션 리뷰어, fork가 아닌 PR만), 회고는 `/retro`에, PR 본문 내용은 `/pr`에 맡긴다. 안전장치·고치기·라운드·외부 리뷰 판정·Review 칸은 그대로 `prompts/review.md`가 맡는다. `check_skills.py`가 스킬 설치를 확인한다. `tools/review_preflight.py`와 `profiles/matt-skills/*.py`를 이 저장소의 신뢰 경계에 넣었다. 프로필을 켜는 소비 레포는 `REVIEW.md`에 「스킬 위임」 절을 붙인다.
 - 강연과의 작은 차이를 맞췄다. 코어 `REVIEW.md`에 「코딩 기준」 칸을 더했다(판단이 필요한 작성 규칙만, diff가 건드린 줄에만, P2). 리뷰의 Standards 축이 이 칸도 본다. PR 템플릿 Summary에 선택 줄 「그림」(Mermaid·의사 코드·파일 트리)을 더했다. 회고가 프롬프트·스킬 파일도 지울 대상으로 보고, 선택으로 세션 기록에서 길잡이·도구·정보 접근을 제안하며, 테스트가 구현에 묶이는 지적이 반복되면 구조 개선을 제안한다. 에이전트 안내에 깊은 모듈 스킬(`/improve-codebase-architecture`, `/setup-ts-deep-modules`)을 적었다. 이 저장소 `REVIEW.md`에서 테스트가 이미 막는 행(1만 자, 60줄)을 지웠다. 소비 레포는 `REVIEW.md`에 「코딩 기준」 절을, PR 템플릿에 「그림」 줄을 옮긴다.
 - 리뷰를 Spec(완료 기준)과 Standards(`REVIEW.md`) 두 축으로 따로 보게 했다(`POLICY.md` §3, `prompts/review.md` 할 일 1번). 한 축의 지적이 다른 축을 가리지 않게 보고도 축마다 나눈다. 완료 기준이 없거나 모호하면 "Spec 미확인"으로 남긴다. scope creep은 Spec 축에서 본다. 코어 `AGENTS.md`에 PR 본문·리뷰·회고는 이 저장소의 템플릿과 프롬프트가 다른 스킬보다 먼저라는 줄을 더했다. 같은 일을 하는 스킬(예: PR 본문 작성 스킬)이 저절로 불려 `완료 기준:`·Review 칸이 빠지는 것을 막는다. 소비 레포는 이 한 줄을 「작업 방식」에 옮긴다.
