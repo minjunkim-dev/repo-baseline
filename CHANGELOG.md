@@ -4,7 +4,7 @@
 
 ## 2026-11 — 재설계 이후
 
-- 되돌리기 쉬움 PR은 구현 세션이 띄운 하위 에이전트가 리뷰해도 되게 했다(`POLICY.md` §3). 하위 에이전트에게는 로컬 repo-baseline 클론의 `prompts/review.md` 경로와 PR 링크만 주고, 구현 세션은 리뷰가 끝날 때까지 push하지 않으며 리뷰 결과를 고치지 않는다. 되돌리기 어려움이거나 신뢰 경계를 건드리면 지금처럼 새 세션이 리뷰한다. 소비 레포는 코어 `AGENTS.md` 「작업 방식」의 리뷰 줄을 새 문장으로 바꾼다.
+- 되돌리기 쉬움 PR은 구현 세션이 띄운 하위 에이전트가 리뷰해도 되게 했다(`POLICY.md` §3). 하위 에이전트에게는 로컬 repo-baseline 클론의 `prompts/review.md` 경로와 PR 링크만 주고, 구현 세션은 리뷰가 끝날 때까지 push하지 않으며 리뷰 결과를 고치지 않는다. 되돌리기 어려움이거나 신뢰 경계를 건드리면 지금처럼 새 세션이 리뷰한다. 소비 레포는 코어 `AGENTS.md` 「작업 방식」의 리뷰 줄을 새 문장으로 바꾼다. `templates/github/agents/README.md`를 복사해 뒀으면 `/code-review` 항목도 바꾼다.
 - 리뷰 프롬프트의 `.env*` 이름 확인·base와 head 받기·head SHA 확인을 `tools/review_preflight.py`로 옮겼다. 프롬프트는 이 스크립트를 돌리고 종료 코드로 멈출지 정한다. 소비 레포는 손으로 옮길 것이 없다. 리뷰하는 기기에 repo-baseline 클론과 Python 3.9 이상이 있어야 한다.
 - pr-conventions의 `protected_paths` 설정 키를 지웠다. 이 키는 검사만 하고 막는 데 쓰이지 않았다(읽던 review-gate 테스트는 재설계 때 없어졌다). `workflow_policy.py`를 새로 복사하는 소비 레포는 같은 PR에서 `.github/workflow-policy.json`의 `protected_paths`를 지운다. 남겨 두면 알 수 없는 키로 실패한다.
 - hash-copy의 `apply_baseline.py`가 `.git/` 안을 가리키는 대상 경로를 거부한다. 실행 권한이 있는 hook을 덮어쓰면 권한이 남아 복사한 파일이 실행될 수 있었다. 소비 레포는 손으로 옮길 것이 없다.
