@@ -46,7 +46,7 @@ Door는 "망가지면 누가 무엇을 잃나"로 정한다. 작성자가 아니
 | `.github/workflows/**` | CI workflow |
 | 저장소·CI 설정 | 예: `.github/repository-settings.json`, `.github/dependabot.yml`, `CODEOWNERS` |
 | 의존성 manifest·lockfile | 예: `package.json`, `go.mod`, `Cargo.toml`, `pyproject.toml`과 각 lockfile |
-| 에이전트 권한 설정 | 하네스의 권한·거부 규칙 파일 |
+| 하네스 설정 | `.claude/`·`.agents/`·`.codex/`·`.cursor/` 같은 하네스 폴더(하위 폴더에 있어도, 안의 지침 파일까지)와 `.mcp.json`. 권한·hook·MCP·스킬이 리뷰어 기기에서 돈다. 폴더 밖의 지침 파일(`AGENTS.md` 등)은 넣지 않는다 |
 | 프로젝트가 정한 경로 | 인증, 결제, 권한, migration 등. `REVIEW.md`의 신뢰 경계 절에 적는다 |
 
 이 저장소에서는 다음도 신뢰 경계다: `templates/github/**`, `tools/apply_github_settings.py`, `profiles/pr-conventions/*.py`, `profiles/pr-conventions/pr-policy.yml`, `profiles/hash-copy/*.py`, `profiles/hash-copy/*.json`, `profiles/hash-copy/dependabot-ecosystem.yml`, `profiles/team/CODEOWNERS`. 소비 저장소가 복사해 CI나 서버·소유권 설정으로 쓰기 때문이다. `tools/review_preflight.py`, `profiles/matt-skills/*.py`도 신뢰 경계다. 리뷰어 기기에서 돌며, 비밀값 파일과 리뷰 절차를 막는 장치이기 때문이다.

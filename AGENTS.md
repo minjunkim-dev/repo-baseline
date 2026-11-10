@@ -19,7 +19,7 @@
 | `POLICY.md` | 모든 소비 레포의 규칙. 한 쪽(1만 자) 안에 둔다 |
 | `templates/core/` | 코어. 소비 레포가 그대로 복사하는 4개 파일 |
 | `templates/github/` | GitHub 프로필. CI 골격, 저장소 설정 기준선, 하네스별 권한 예시 |
-| `profiles/` | 선택 프로필(pr-conventions, hash-copy, team) |
+| `profiles/` | 선택 프로필(pr-conventions, hash-copy, team, matt-skills, pstack) |
 | `tools/` | GitHub 설정 적용·감사 도구와 배포 검사 |
 | `prompts/` | 에이전트에게 첨부하는 셋업·리뷰·회고 프롬프트 |
 | `docs/start.md` | 사람이 따라 하는 코어 적용 절차 |

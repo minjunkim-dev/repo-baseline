@@ -36,7 +36,7 @@
 
 ## 신뢰 경계
 
-Door가 되돌리기 어려움이거나 이 경로를 건드리면 보안 관점의 리뷰를 더한다: `.github/workflows/**`, `.github/repository-settings.json`, `.github/dependabot.yml`, `templates/github/**`, `tools/apply_github_settings.py`, `profiles/pr-conventions/*.py`, `profiles/pr-conventions/pr-policy.yml`, `profiles/hash-copy/*.py`, `profiles/hash-copy/*.json`, `profiles/hash-copy/dependabot-ecosystem.yml`, `profiles/team/CODEOWNERS`, `tools/review_preflight.py`, `profiles/matt-skills/*.py`. 마지막 둘은 리뷰어 기기에서 도는 리뷰 안전장치다. `profiles/`의 여섯은 소비 레포가 복사해 CI, 해시 검사 대상, Dependabot, 소유권 설정으로 쓴다.
+Door가 되돌리기 어려움이거나 이 경로를 건드리면 보안 관점의 리뷰를 더한다: `.github/workflows/**`, `.github/repository-settings.json`, `.github/dependabot.yml`, 하네스 설정(`.claude/`·`.agents/`·`.codex/`·`.cursor/` 같은 하네스 폴더와 그 안의 모든 파일, 하위 폴더에 있는 것 포함, `.mcp.json`), `templates/github/**`, `tools/apply_github_settings.py`, `profiles/pr-conventions/*.py`, `profiles/pr-conventions/pr-policy.yml`, `profiles/hash-copy/*.py`, `profiles/hash-copy/*.json`, `profiles/hash-copy/dependabot-ecosystem.yml`, `profiles/team/CODEOWNERS`, `tools/review_preflight.py`, `profiles/matt-skills/*.py`. 마지막 둘은 리뷰어 기기에서 도는 리뷰 안전장치다. `profiles/`의 여섯은 소비 레포가 복사해 CI, 해시 검사 대상, Dependabot, 소유권 설정으로 쓴다.
 
 ## 보고와 수정
 

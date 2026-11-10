@@ -1,5 +1,5 @@
 # Team profile only (profiles/team/README.md). Copy to .github/CODEOWNERS.
-# Owners are the POLICY.md §4 trust-boundary paths. Replace @REPLACE-OWNERS with two or more
+# Owners are the POLICY.md §4 trust-boundary paths, plus AGENTS.md, which people should still see. Replace @REPLACE-OWNERS with two or more
 # people with write access, or a GitHub team (@org/team) in an organization-owned repository.
 # Add the project's dependency manifests, lockfiles and trust-boundary paths below.
 /.github/workflows/ @REPLACE-OWNERS
@@ -13,15 +13,12 @@
 /scripts/check_*.py @REPLACE-OWNERS
 /scripts/workflow_policy.py @REPLACE-OWNERS
 /scripts/pr_author.py @REPLACE-OWNERS
-/.claude/settings.json @REPLACE-OWNERS
-/.claude/hooks/ @REPLACE-OWNERS
-/.claude/agents/ @REPLACE-OWNERS
-/.claude/commands/ @REPLACE-OWNERS
-/.agents/skills/ @REPLACE-OWNERS
-/.claude/skills/ @REPLACE-OWNERS
+# Harness folders match at any depth (POLICY §4), so these have no leading slash.
+.claude/ @REPLACE-OWNERS
+.agents/ @REPLACE-OWNERS
+.codex/ @REPLACE-OWNERS
+.cursor/ @REPLACE-OWNERS
 /.mcp.json @REPLACE-OWNERS
-/.codex/ @REPLACE-OWNERS
-/.cursor/ @REPLACE-OWNERS
 /AGENTS.md @REPLACE-OWNERS
 /REVIEW.md @REPLACE-OWNERS
 Dockerfile @REPLACE-OWNERS

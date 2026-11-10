@@ -35,7 +35,7 @@
 
 ## 신뢰 경계
 
-Door가 되돌리기 어려움이거나 이 경로를 건드리면 보안 관점의 리뷰를 더한다: `.github/workflows/**`, 저장소·CI 설정, 의존성 manifest·lockfile, `<인증·결제·권한·마이그레이션 경로>`.
+Door가 되돌리기 어려움이거나 이 경로를 건드리면 보안 관점의 리뷰를 더한다: `.github/workflows/**`, 저장소·CI 설정, 의존성 manifest·lockfile, 하네스 설정(`.claude/`·`.agents/`·`.codex/`·`.cursor/` 같은 하네스 폴더와 그 안의 모든 파일, 하위 폴더에 있는 것 포함, `.mcp.json`), `<인증·결제·권한·마이그레이션 경로>`.
 
 ## 보고와 수정
 
