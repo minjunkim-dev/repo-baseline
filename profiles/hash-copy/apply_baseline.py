@@ -53,6 +53,11 @@ def load(project):
                 raise ValueError(f"Source is not tracked in repo-baseline: {path!r}") from None
         if not inside(project, project / name):
             raise ValueError(f"Target escapes the project: {name!r}")
+        resolved = (project / name).resolve().relative_to(project.resolve())
+        if any(part.lower() == ".git" for part in Path(name).parts + resolved.parts):
+            # An overwritten hook keeps its exec bit, so a copy there would run.
+            # The resolved parts catch a symlinked folder that points into .git.
+            raise ValueError(f"Target is inside .git: {name!r}")
         if "ecosystems" in entry:
             ecosystems = entry["ecosystems"]
             if not isinstance(ecosystems, list) or any(
