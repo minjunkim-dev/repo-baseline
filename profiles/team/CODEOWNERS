@@ -13,11 +13,12 @@
 /scripts/check_*.py @REPLACE-OWNERS
 /scripts/workflow_policy.py @REPLACE-OWNERS
 /scripts/pr_author.py @REPLACE-OWNERS
-/.claude/ @REPLACE-OWNERS
-/.agents/ @REPLACE-OWNERS
+# Harness folders match at any depth (POLICY §4), so these have no leading slash.
+.claude/ @REPLACE-OWNERS
+.agents/ @REPLACE-OWNERS
+.codex/ @REPLACE-OWNERS
+.cursor/ @REPLACE-OWNERS
 /.mcp.json @REPLACE-OWNERS
-/.codex/ @REPLACE-OWNERS
-/.cursor/ @REPLACE-OWNERS
 /AGENTS.md @REPLACE-OWNERS
 /REVIEW.md @REPLACE-OWNERS
 Dockerfile @REPLACE-OWNERS
