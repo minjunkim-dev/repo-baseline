@@ -9,6 +9,7 @@ It never reads file contents or the diff body. Exit 0: no .env* name. 1: a .env*
 
 import argparse
 import json
+import shlex
 import subprocess
 import sys
 
@@ -58,6 +59,7 @@ def main(argv=None):
             print(f"head가 실행 중에 바뀌었다({pr['headRefOid']} → {head}). 다시 실행한다.")
             return 2
         hits, examples = classify(changed_paths(base, head))
+        top = run("git", "rev-parse", "--show-toplevel").strip()
         clean = run("git", "status", "--porcelain") == "" and run("git", "rev-parse", "HEAD").strip() == head
     except (subprocess.CalledProcessError, OSError, KeyError, ValueError) as error:
         print(f"실행 실패: {getattr(error, 'stderr', '') or error}", file=sys.stderr)
@@ -71,7 +73,8 @@ def main(argv=None):
     if hits:
         print("리뷰 미완(비밀값 파일): " + ", ".join(hits))
         return 1
-    print(f"diff: git diff {base}...{head} -- . ':!.env*' ':!**/.env*'")
+    # -C <top>: the pathspec `.` is relative to the current folder, so a subfolder would hide the rest.
+    print(f"diff: git -C {shlex.quote(top)} diff {base}...{head} -- . ':!.env*' ':!**/.env*'")
     return 0
 
 

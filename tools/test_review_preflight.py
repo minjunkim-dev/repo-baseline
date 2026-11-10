@@ -122,9 +122,21 @@ class MainTest(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("작업 트리: head와 같음", out)
         self.assertIn("미검토(.env.example): web/.env.example", out)
-        self.assertIn(f"diff: git diff refs/remotes/origin/main...{head} -- . ':!.env*' ':!**/.env*'", out)
+        self.assertIn(f"refs/remotes/origin/main...{head} -- . ':!.env*' ':!**/.env*'", out)
         # The PR head lives outside refs/remotes, so a remote branch named pr/7 cannot collide with it.
         self.assertEqual(self.git("rev-parse", "refs/review-preflight/origin/pr/7"), head)
+
+    def test_diff_command_from_a_subfolder_still_shows_the_whole_pr(self):
+        self.commit("docs/a.md")
+        self.commit("web/b.md")
+        head = self.publish()
+        os.chdir("web")
+        code, out = self.main(head)
+        self.assertEqual(code, 0)
+        command = next(line for line in out.splitlines() if line.startswith("diff: "))[len("diff: "):]
+        shown = subprocess.run(command, shell=True, check=True, capture_output=True, text=True).stdout
+        self.assertIn("docs/a.md", shown)
+        self.assertIn("web/b.md", shown)
 
     def test_work_tree_on_another_commit_is_reported(self):
         self.commit("docs/a.md")
