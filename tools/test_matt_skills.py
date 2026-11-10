@@ -40,9 +40,9 @@ class CheckSkillsTest(unittest.TestCase):
         self.git("add", "-A")
         self.git("commit", "-qm", f"add {path}")
 
-    def install(self, skills=MATT):
+    def install(self, skills=MATT, root=".agents/skills"):
         for name, marker in skills.items():
-            path = self.home / ".agents/skills" / name / "SKILL.md"
+            path = self.home / root / name / "SKILL.md"
             path.parent.mkdir(parents=True)
             path.write_text(marker, encoding="utf-8")
 
@@ -65,6 +65,19 @@ class CheckSkillsTest(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("code-review: 없음 (다른 스킬만 있음: ", out)
         self.assertIn("pr: 없음\n", out)
+
+    def test_plugin_install_with_category_folders_is_found(self):
+        self.install(root=".claude/plugins/cache/mattpocock/mattpocock-skills/1.3.2/skills/engineering")
+        self.commit("src/app.py")
+        code, out = self.check()
+        self.assertEqual(code, 0, out)
+
+    def test_different_personal_skill_hides_matts_copy(self):
+        self.install()
+        self.install({"code-review": "Review for bugs."}, root=".claude/skills")
+        code, out = self.check()
+        self.assertEqual(code, 1, out)
+        self.assertIn("code-review: 없음 (다른 스킬만 있음: " + str(self.home / ".claude/skills"), out)
 
     def test_pr_that_touches_harness_files_is_not_delegated(self):
         cases = {
@@ -98,6 +111,35 @@ class CheckSkillsTest(unittest.TestCase):
         code, out = self.check(base)
         self.assertEqual(code, 2, out)
         self.assertIn("docs/rules.md: PR이 바꾼 파일을 AGENTS.md가 @로 불러온다", out)
+
+    def test_imported_symlink_is_not_followed(self):
+        outside = self.home / "outside.md"
+        self.home.mkdir()
+        outside.write_text("@src/app.py\n", encoding="utf-8")
+        self.git("checkout", "-q", "main")
+        self.commit("AGENTS.md", "@docs/rules.md\n")
+        self.git("checkout", "-q", "pr")
+        self.git("merge", "-q", "main")
+        base = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+        self.install()
+        Path("docs").mkdir()
+        os.symlink(outside, "docs/rules.md")
+        self.commit("src/app.py")
+        code, out = self.check(base)
+        self.assertEqual(code, 2, out)
+        self.assertIn("docs/rules.md: 지침 파일이나 @로 불러오는 파일이 일반 파일이 아니다", out)
+        self.assertNotIn("src/app.py", out)
+
+    def test_oversized_instruction_file_is_not_delegated(self):
+        self.git("checkout", "-q", "main")
+        self.commit("AGENTS.md", "x" * (5 << 20))
+        self.git("checkout", "-q", "pr")
+        self.git("merge", "-q", "main")
+        self.install()
+        self.commit("src/app.py")
+        code, out = self.check("pr~1")
+        self.assertEqual(code, 2, out)
+        self.assertIn("AGENTS.md: 지침 파일이", out)
 
     def test_other_harness_instruction_files_are_watched(self):
         for path in ("GEMINI.md", ".github/copilot-instructions.md", "AGENTS.override.md", ".cursorrules"):

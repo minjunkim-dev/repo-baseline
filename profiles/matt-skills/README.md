@@ -4,7 +4,7 @@
 
 ## 켜기
 
-1. 스킬을 설치한다. Claude Code 플러그인이면 [에이전트 안내](../../templates/github/agents/README.md)의 설정을 쓴다. 다른 하네스는 `~/.agents/skills/`나 저장소의 `.agents/skills/`에 둔다.
+1. 스킬을 설치한다. Claude Code 플러그인이면 [에이전트 안내](../../templates/github/agents/README.md)의 설정을 쓴다. 다른 하네스는 `~/.agents/skills/`에 둔다.
 2. 소비 레포 `REVIEW.md` 끝에 아래 절을 붙인다. 리뷰어는 `REVIEW.md`를 늘 읽으므로 이 절이 프로필을 켰다는 표시다.
 
    ```markdown
@@ -22,7 +22,7 @@
 1. 리뷰할 저장소의 작업 트리에서 `python3 -I <repo-baseline 클론>/profiles/matt-skills/check_skills.py <base ref>`를 돌린다. base ref는 리뷰 전 확인이 출력한 것이다.
    - 0: 아래 2~6번대로 위임한다.
    - 1: 스킬이 없다. 리뷰를 멈추고 「남은 지적」에 "리뷰 미완(스킬 없음)"과 출력을 적는다.
-   - 2: 위임하지 않는다. review.md 1번을 직접 하고, 「확인한 것」에 출력한 이유를 적는다. PR이 하네스가 읽는 파일(`.claude`·`.agents`·`.codex`·`.cursor`·`.gemini`·`.windsurf` 폴더, `AGENTS.md`·`CLAUDE.md`·`GEMINI.md` 같은 지침 파일, `.mcp.json`)이나 그 지침 파일이 `@`로 불러오는 파일(이어서 불러오는 것까지), 서브모듈을 바꿨거나, 하네스 폴더 안에 symlink나 같은 이름의 스킬이 있거나, git이 실패한 경우다. 하네스는 이 파일을 홈 사본보다 먼저 읽으므로, 리뷰 대상 PR이 위임한 스킬의 동작을 바꿀 수 있다. 이름은 NFKC로 정규화하고 대소문자 없이 본다.
+   - 2: 위임하지 않는다. review.md 1번을 직접 하고, 「확인한 것」에 출력한 이유를 적는다. PR이 하네스가 읽는 파일(`.claude`·`.agents`·`.codex`·`.cursor`·`.gemini`·`.windsurf` 폴더, `AGENTS.md`·`CLAUDE.md`·`GEMINI.md` 같은 지침 파일, `.mcp.json`)이나 그 지침 파일이 `@`로 불러오는 파일(이어서 불러오는 것까지), 서브모듈을 바꿨거나, 하네스 폴더 안에 symlink나 같은 이름의 스킬이 있거나, 지침 파일과 그 파일이 불러오는 파일 중 symlink·서브모듈이나 1MiB보다 큰 파일이 있거나, git이 실패한 경우다. 하네스는 이 파일을 홈 사본보다 먼저 읽으므로, 리뷰 대상 PR이 위임한 스킬의 동작을 바꿀 수 있다. 이름은 NFKC로 정규화하고 대소문자 없이 본다.
    - 이 스크립트는 위임할지만 정한다. PR이 바꾼 지침 파일(`AGENTS.md`, 규칙 파일, 그 파일이 불러오는 것)은 위임과 관계없이 리뷰어 하네스가 읽는다. 그래서 위 목록은 최선의 노력이지 보안 장치가 아니다. 그런 PR은 사람이 diff를 읽는 신뢰 경계(POLICY §4)로 막는다.
 2. 하위 에이전트 리뷰어이거나 fork PR이면 위임하지 않고 review.md 1번을 직접 한다. `code-review` 스킬은 축마다 하위 에이전트를 띄우고, `git diff <기준점>...HEAD`로 작업 트리의 HEAD를 보기 때문이다. 하위 에이전트 안에서는 하위 에이전트를 못 띄울 수 있고, fork PR은 checkout하지 않는다. 「확인한 것」에 그 이유를 적는다.
 3. PR 본문의 `완료 기준:` 줄을 저장소 밖 임시 파일(예: `$TMPDIR/spec-<번호>.md`)에 쓴다.
