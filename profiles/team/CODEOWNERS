@@ -1,5 +1,5 @@
 # Team profile only (profiles/team/README.md). Copy to .github/CODEOWNERS.
-# Owners are the POLICY.md §4 trust-boundary paths. Replace @REPLACE-OWNERS with two or more
+# Owners are the POLICY.md §4 trust-boundary paths, plus AGENTS.md, which people should still see. Replace @REPLACE-OWNERS with two or more
 # people with write access, or a GitHub team (@org/team) in an organization-owned repository.
 # Add the project's dependency manifests, lockfiles and trust-boundary paths below.
 /.github/workflows/ @REPLACE-OWNERS

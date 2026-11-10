@@ -19,6 +19,8 @@ pstack 스킬은 사람이 요청할 때만 쓴다. 이 저장소의 규칙이 p
 - 서로 다른 모델로 검토하지 않았으면 그 사실을 보고에 적는다.
 ```
 
+Cursor도 `.agents/skills/`와 `.claude/skills/`를 읽고, 하위 폴더의 `.cursor/skills/`·`.agents/skills/`도 찾는다([Agent Skills](https://cursor.com/docs/skills), 확인일 2026-11-10). 그래서 하네스 폴더는 저장소 어디에 있어도 신뢰 경계다.
+
 ## 단계별로 겹치는 스킬
 
 | 단계 | pstack 스킬 | 쓰는 법 |
@@ -30,7 +32,7 @@ pstack 스킬은 사람이 요청할 때만 쓴다. 이 저장소의 규칙이 p
 
 ## 다른 프로필과 함께 쓸 때
 
-- [matt-skills](../matt-skills/README.md)도 `tdd` 스킬이 있다. 둘 다 설치했으면 플러그인 이름을 붙여 부른다(예: `pstack:tdd`). 이름만 쓰면 어느 쪽이 불릴지 정해지지 않는다.
+- [matt-skills](../matt-skills/README.md)도 `tdd` 스킬이 있다. 둘 다 설치했으면 플러그인 이름을 붙여 부른다(예: `pstack:tdd`). Claude Code는 플러그인 스킬을 `/플러그인 이름:스킬 이름`으로 구분한다([Skills](https://code.claude.com/docs/en/skills), 확인일 2026-11-10).
 - `create-verification-skill`이 저장소 스킬 경로를 바꾼 PR에서는 matt-skills의 리뷰 위임이 꺼진다(`check_skills.py` 종료 코드 2). 의도한 동작이다.
 
 ## 맞춘 판
