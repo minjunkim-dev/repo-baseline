@@ -31,6 +31,7 @@ HARNESS_DIRS = {".claude", ".agents", ".codex", ".cursor", ".gemini", ".windsurf
 HARNESS_FILES = {"agents.md", "agents.override.md", "claude.md", "claude.local.md", "gemini.md", ".mcp.json",
                  ".cursorrules", ".windsurfrules", "copilot-instructions.md"}
 IMPORT = re.compile(r"(?<![^\s(])@([^\s)`]+)")
+LIMIT = 1 << 20  # bytes read from one instruction file; a larger file refuses delegation instead
 
 
 def fold(name):
@@ -62,7 +63,7 @@ def refusals(base):
     for i, field in enumerate(fields):
         if field.lstrip("\n").startswith(":"):  # --raw header ":<modes> <shas> <status>"; the path follows
             path = fields[i + 1] if i + 1 < len(fields) else ""
-            if "160000" in field:
+            if "160000" in field.lstrip("\n:").split():  # a mode token; abbreviated shas are longer
                 reasons.append(f"{path}: PR이 서브모듈을 바꿨다")
             elif harness_path(path):
                 reasons.append(f"{path}: PR이 하네스가 읽는 파일을 바꿨다")
@@ -79,15 +80,23 @@ def refusals(base):
 
 def imported_changes(tracked, changed_paths):
     """Files the tracked harness instruction files pull in with `@path`, followed transitively, that the PR changed."""
-    files = {e.partition("\t")[2] for e in tracked.split("\0") if e.partition("\t")[2]}
+    files = {e.partition("\t")[2]: e.split(" ", 1)[0] for e in tracked.split("\0") if e.partition("\t")[2]}
     queue = [f for f in files if harness_path(f) and not f.endswith(".json")]
     seen, reasons = set(queue), []
     while queue:
         current = queue.pop()
+        if not files[current].startswith("100"):  # symlink or submodule: do not follow the PR tree out of itself
+            reasons.append(f"{current}: 지침 파일이나 @로 불러오는 파일이 일반 파일이 아니다")
+            continue
         try:
-            text = Path(current).read_text(encoding="utf-8", errors="replace")
+            with open(current, "rb") as f:
+                data = f.read(LIMIT + 1)
         except OSError:
             continue
+        if len(data) > LIMIT:
+            reasons.append(f"{current}: 지침 파일이 {LIMIT}바이트보다 커서 다 읽지 않았다")
+            continue
+        text = data.decode("utf-8", "replace")
         # Check the token with and without trailing punctuation: unclear endings count both ways.
         targets = {v for t in IMPORT.findall(text) for v in (t, t.rstrip(".,;:!?'\""))}
         for target in targets:
@@ -101,18 +110,26 @@ def imported_changes(tracked, changed_paths):
 
 
 def find(name, marker, home):
-    """Return (path of Matt's SKILL.md or None, paths of same-name skills that are not Matt's)."""
-    others = []
-    roots = [home / ".claude/skills", home / ".agents/skills"]
-    roots += sorted((home / ".claude/plugins/cache").glob("*/mattpocock-skills*/*/skills"))
-    for root in roots:
+    """Return (path of Matt's SKILL.md or None, paths of same-name skills that are not Matt's).
+
+    A personal skill answers to the bare name, so a different one there hides Matt's copy everywhere.
+    Plugin skills are namespaced; a plugin copy without the marker (an old cached version) is only reported.
+    """
+    personal = [home / ".claude/skills", home / ".agents/skills"]
+    cache = home / ".claude/plugins/cache"
+    plugins = sorted(cache.glob("*/mattpocock-skills*/*/skills")) + sorted(cache.glob("*/mattpocock-skills*/*/skills/*"))
+    found, others = None, []
+    for root in personal + plugins:
         skill = root / name / "SKILL.md"
         if not skill.is_file():
             continue
         if marker in skill.read_text(encoding="utf-8", errors="replace"):
-            return skill, others
-        others.append(skill)
-    return None, others
+            found = found or skill
+        elif root in personal:
+            return None, [skill]
+        else:
+            others.append(skill)
+    return found, others
 
 
 def main(argv=None, home=None):
