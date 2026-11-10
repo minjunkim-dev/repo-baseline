@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
 
+from contextlib import redirect_stderr, redirect_stdout
+import io
+import json
 import os
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import review_preflight
 from review_preflight import changed_paths, classify
 
 
@@ -55,6 +60,101 @@ class ChangedPathsTest(unittest.TestCase):
         self.git("add", ".")
         self.git("commit", "-qm", "add")
         self.assertEqual(changed_paths("main", "pr"), {"한글 파일.txt"})
+
+
+class MainTest(unittest.TestCase):
+    """Runs main() against a local bare remote that has refs/pull/7/head. Only `gh pr view` is faked."""
+
+    def git(self, *args, cwd=None):
+        return subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@example.com", *args],
+                              check=True, capture_output=True, text=True, cwd=cwd).stdout.strip()
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        root = Path(self.tmp.name)
+        self.git("init", "-q", "--bare", "-b", "main", str(root / "origin.git"))
+        self.work = root / "work"
+        self.git("clone", "-q", str(root / "origin.git"), str(self.work))
+        cwd = os.getcwd()
+        self.addCleanup(os.chdir, cwd)
+        os.chdir(self.work)
+        self.git("checkout", "-qb", "main")
+        Path("README.md").write_text("x\n")
+        self.git("add", ".")
+        self.git("commit", "-qm", "base")
+        self.git("push", "-q", "origin", "main")
+        self.git("checkout", "-qb", "pr")
+
+    def publish(self):
+        self.git("push", "-q", "-f", "origin", "HEAD:refs/pull/7/head")
+        return self.git("rev-parse", "HEAD")
+
+    def commit(self, path, text="x\n"):
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
+        Path(path).write_text(text)
+        self.git("add", ".")
+        self.git("commit", "-qm", f"add {path}")
+
+    def main(self, head, fork=False):
+        real = review_preflight.run
+        view = json.dumps({"number": 7, "headRefOid": head, "baseRefName": "main", "isCrossRepository": fork})
+        out = io.StringIO()
+        with patch.object(review_preflight, "run", lambda *a: view if a[0] == "gh" else real(*a)), \
+                redirect_stdout(out), redirect_stderr(io.StringIO()):
+            code = review_preflight.main(["https://example.invalid/pull/7"])
+        return code, out.getvalue()
+
+    def test_env_name_stops_the_review_without_a_diff_command(self):
+        self.commit("sub/.env", "SECRET=1\n")
+        code, out = self.main(self.publish(), fork=True)
+        self.assertEqual(code, 1)
+        self.assertIn("fork: 예", out)
+        self.assertIn("작업 트리: 보지 않음(fork PR)", out)
+        self.assertIn("리뷰 미완(비밀값 파일): sub/.env", out)
+        self.assertNotIn("diff:", out)
+
+    def test_clean_pr_prints_the_diff_command_and_matching_work_tree(self):
+        self.commit("docs/a.md")
+        self.commit("web/.env.example")
+        head = self.publish()
+        code, out = self.main(head)
+        self.assertEqual(code, 0)
+        self.assertIn("작업 트리: head와 같음", out)
+        self.assertIn("미검토(.env.example): web/.env.example", out)
+        self.assertIn(f"diff: git diff refs/remotes/origin/main...{head} -- . ':!.env*' ':!**/.env*'", out)
+
+    def test_work_tree_on_another_commit_is_reported(self):
+        self.commit("docs/a.md")
+        head = self.publish()
+        self.git("checkout", "-q", "main")
+        code, out = self.main(head)
+        self.assertEqual(code, 0)
+        self.assertIn("작업 트리: 다름", out)
+
+    def test_head_that_moved_during_the_run_asks_to_run_again(self):
+        self.commit("docs/a.md")
+        old = self.publish()
+        self.commit("docs/b.md")
+        self.publish()
+        self.assertEqual(self.main(old)[0], 2)
+
+    def merge(self, branch, change):
+        self.git("checkout", "-qb", branch, "main")
+        self.commit(f"{branch}.txt")
+        self.git("checkout", "-q", "pr")
+        self.git("merge", "-q", "--no-ff", "--no-commit", branch)
+        change()
+        self.git("commit", "-qm", f"merge {branch}")
+
+    def test_env_added_in_one_merge_and_removed_in_another_is_found(self):
+        # Neither the three-dot diff nor a plain log shows it; only --cc on the merge commits does.
+        self.commit("docs/a.md")
+        self.merge("side1", lambda: (Path(".env").write_text("SECRET=1\n"), self.git("add", ".env")))
+        self.merge("side2", lambda: self.git("rm", "-q", ".env"))
+        code, out = self.main(self.publish())
+        self.assertEqual(code, 1)
+        self.assertIn("리뷰 미완(비밀값 파일): .env", out)
 
 
 if __name__ == "__main__":
