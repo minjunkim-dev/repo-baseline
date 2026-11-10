@@ -48,7 +48,8 @@ def main(argv=None):
         pr = json.loads(run("gh", "pr", "view", args.pr, "--json",
                             "number,headRefOid,baseRefName,isCrossRepository"))
         base = f"refs/remotes/{args.remote}/{pr['baseRefName']}"
-        pr_ref = f"refs/remotes/{args.remote}/pr/{pr['number']}"
+        # Own namespace, so it never collides with a remote branch named pr/<n>.
+        pr_ref = f"refs/review-preflight/{args.remote}/pr/{pr['number']}"
         # refs/pull/<n>/head works for fork and same-repo PRs, so both take the same path.
         run("git", "fetch", "--no-tags", args.remote, f"+refs/heads/{pr['baseRefName']}:{base}",
             f"+refs/pull/{pr['number']}/head:{pr_ref}")
