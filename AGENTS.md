@@ -34,7 +34,7 @@
 - PR마다 `CHANGELOG.md`에 1~3줄을 더한다. 소비 레포가 손으로 옮겨야 하는 변경이면 그 일을 적는다.
 - 같은 사실을 여러 문서에 적었으면(README, `docs/start.md`, `prompts/setup.md`) 함께 고친다.
 - 하네스 문서를 근거로 쓰면 공식 문서 링크와 확인일을 적는다.
-- 리뷰는 새 세션에 `prompts/review.md`를 첨부해 받는다.
+- 리뷰는 `prompts/review.md`로 받는다. 되돌리기 쉬움이면 이 세션의 하위 에이전트에게 맡겨도 되고, 어려움이거나 신뢰 경계를 건드리면 새 세션에 첨부한다(`POLICY.md` §3). 이 저장소의 PR은 `origin/main` 판의 `prompts/review.md`·`tools/review_preflight.py`·`REVIEW.md`로 리뷰한다.
 
 ## 하지 않는 것
 
