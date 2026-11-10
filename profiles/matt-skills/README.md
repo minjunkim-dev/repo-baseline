@@ -4,7 +4,7 @@
 
 ## 켜기
 
-1. 스킬을 설치한다. Claude Code 플러그인이면 [에이전트 안내](../../templates/github/agents/README.md)의 설정을 쓴다. 다른 하네스는 `~/.agents/skills/`에 둔다.
+1. 스킬을 설치한다. Claude Code 플러그인이면 [에이전트 안내](../../templates/github/agents/README.md)의 설정을 쓴다. Codex는 `~/.agents/skills/`에 두거나 플러그인으로 설치한다. Cursor는 플러그인으로 설치하거나 개인 스킬 폴더에 둔다.
 2. 소비 레포 `REVIEW.md` 끝에 아래 절을 붙인다. 리뷰어는 `REVIEW.md`를 늘 읽으므로 이 절이 프로필을 켰다는 표시다.
 
    ```markdown
@@ -13,13 +13,13 @@
    이 저장소는 repo-baseline matt-skills 프로필을 쓴다. 리뷰어는 repo-baseline 클론의 `profiles/matt-skills/README.md` 「리뷰」 절차를 따른다.
    ```
 
-3. 리뷰하는 기기에 세 스킬이 있는지 본다: `python3 -I <repo-baseline 클론>/profiles/matt-skills/check_skills.py main`을 아무 저장소에서 돌려 종료 코드가 1이 아니면 된다. 스킬마다 찾은 경로와 sha256 앞 12자리를 출력한다. 홈 폴더와 플러그인 캐시에서만 찾고, 같은 이름이라도 다른 스킬이면 찾은 것으로 보지 않는다. 이 프로필의 스킬은 저장소에 커밋하지 않는다. 하네스가 저장소 사본을 먼저 읽기 때문이다.
+3. 리뷰하는 기기에 세 스킬이 있는지 본다: `python3 -I <repo-baseline 클론>/profiles/matt-skills/check_skills.py main --harness <claude|codex|cursor>`를 아무 저장소에서 돌려 종료 코드가 1이 아니면 된다. `--harness`는 리뷰어가 쓰는 하네스다. 스킬마다 찾은 경로와 sha256 앞 12자리를 출력한다. 그 하네스가 읽는 개인 스킬 폴더와 그 하네스의 플러그인 캐시에서만 찾는다(Claude Code: `~/.claude/skills`, Codex: `~/.agents/skills`, Cursor: `~/.cursor/skills`·`~/.agents/skills`·`~/.claude/skills`·`~/.codex/skills`). 다른 하네스에만 있는 사본은 그 리뷰어가 부를 수 없으므로 세지 않는다. 같은 이름이라도 다른 스킬이면 찾은 것으로 보지 않는다. 이 프로필의 스킬은 저장소에 커밋하지 않는다. 하네스가 저장소 사본을 먼저 읽기 때문이다.
 
 ## 리뷰
 
 [prompts/review.md](../../prompts/review.md) 할 일 1번(두 축)을 아래처럼 한다. 나머지 순서는 그대로다.
 
-1. 리뷰할 저장소의 작업 트리에서 `python3 -I <repo-baseline 클론>/profiles/matt-skills/check_skills.py <base ref>`를 돌린다. base ref는 리뷰 전 확인이 출력한 것이다.
+1. 리뷰할 저장소의 작업 트리에서 `python3 -I <repo-baseline 클론>/profiles/matt-skills/check_skills.py <base ref> --harness <리뷰어의 하네스>`를 돌린다. base ref는 리뷰 전 확인이 출력한 것이다.
    - 0: 아래 2~6번대로 위임한다.
    - 1: 스킬이 없다. 리뷰를 멈추고 「남은 지적」에 "리뷰 미완(스킬 없음)"과 출력을 적는다.
    - 2: 위임하지 않는다. review.md 1번을 직접 하고, 「확인한 것」에 출력한 이유를 적는다. PR이 하네스가 읽는 파일(`.claude`·`.agents`·`.codex`·`.cursor`·`.gemini`·`.windsurf` 폴더, `AGENTS.md`·`CLAUDE.md`·`GEMINI.md` 같은 지침 파일, `.mcp.json`)이나 그 지침 파일이 `@`로 불러오는 파일(이어서 불러오는 것까지), 서브모듈을 바꿨거나, 하네스 폴더 안에 symlink나 같은 이름의 스킬이 있거나, 지침 파일과 그 파일이 불러오는 파일 중 symlink·서브모듈이나 1MiB보다 큰 파일이 있거나, git이 실패한 경우다. 하네스는 이 파일을 홈 사본보다 먼저 읽으므로, 리뷰 대상 PR이 위임한 스킬의 동작을 바꿀 수 있다. 이름은 NFKC로 정규화하고 대소문자 없이 본다.
