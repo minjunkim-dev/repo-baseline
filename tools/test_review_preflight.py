@@ -55,6 +55,14 @@ class ChangedPathsTest(unittest.TestCase):
         self.assertIn("sub/.env", paths)
         self.assertEqual(classify(paths)[0], ["sub/.env"])
 
+    def test_example_name_with_a_trailing_newline_is_a_hit(self):
+        Path(".env.example\n").write_text("SECRET=1\n")
+        self.git("add", ".")
+        self.git("commit", "-qm", "add")
+        self.git("mv", ".env.example\n", "config.txt")
+        self.git("commit", "-qm", "rename")
+        self.assertEqual(classify(changed_paths("main", "pr"))[0], [".env.example\n"])
+
     def test_names_with_spaces_and_non_ascii_are_not_quoted(self):
         Path("한글 파일.txt").write_text("x\n")
         self.git("add", ".")

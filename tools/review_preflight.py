@@ -37,7 +37,8 @@ def changed_paths(base, head):
     # finds a .env added and then renamed inside the PR, which the three-dot diff hides.
     diff = run("git", "diff", "-z", "--name-only", "--no-renames", f"{base}...{head}")
     log = run("git", "log", "-z", "--no-renames", "--name-only", "--format=", "--cc", f"{base}..{head}")
-    return {p.strip("\n") for p in (diff + "\0" + log).split("\0") if p.strip("\n")}
+    # -z output has no separators besides NUL; keep names exact so ".env.example\n" stays a hit.
+    return {p for p in (diff + "\0" + log).split("\0") if p}
 
 
 def main(argv=None):
