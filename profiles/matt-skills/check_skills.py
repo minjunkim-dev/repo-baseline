@@ -2,7 +2,8 @@
 """Decide whether review may delegate to the Matt Pocock skills, before it uses them.
 
 Run it from the working tree of the repository under review, after the review preflight:
-    python3 -I <repo-baseline>/profiles/matt-skills/check_skills.py <base ref>
+    python3 -I <repo-baseline>/profiles/matt-skills/check_skills.py <base ref> --harness <claude|codex|cursor>
+The harness is the one the reviewer runs in; only the folders it reads count.
 Exit 0: delegate. 1: a skill is not installed (stop the review).
 2: do not delegate (review it directly): the PR touched files a harness loads, or the answer is unclear.
 
@@ -31,11 +32,15 @@ HARNESS_DIRS = {".claude", ".agents", ".codex", ".cursor", ".gemini", ".windsurf
 HARNESS_FILES = {"agents.md", "agents.override.md", "claude.md", "claude.local.md", "gemini.md", ".mcp.json",
                  ".cursorrules", ".windsurfrules", "copilot-instructions.md"}
 IMPORT = re.compile(r"(?<![^\s(])@([^\s)`]+)")
-# Personal skill folders that Claude Code, Codex and Cursor read (Cursor reads all four:
-# https://cursor.com/docs/skills, checked 2026-11-10). Plugin caches: the folders each harness
-# was seen to use on 2026-11-10 (<marketplace>/<plugin>/<version>/skills); no official doc names them.
-PERSONAL = (".claude/skills", ".agents/skills", ".cursor/skills", ".codex/skills")
-CACHES = (".claude/plugins/cache", ".codex/plugins/cache", ".cursor/plugins/cache")
+# Per harness: (personal skill folders it reads, its plugin cache), relative to home. Personal folders:
+# https://code.claude.com/docs/en/skills, https://learn.chatgpt.com/docs/build-skills,
+# https://cursor.com/docs/skills (checked 2026-11-10). Plugin caches: the folder each harness was seen
+# to use on 2026-11-10 (<marketplace>/<plugin>/<version>/skills); no official doc names them.
+HARNESSES = {
+    "claude": ((".claude/skills",), ".claude/plugins/cache"),
+    "codex": ((".agents/skills",), ".codex/plugins/cache"),
+    "cursor": ((".cursor/skills", ".agents/skills", ".claude/skills", ".codex/skills"), ".cursor/plugins/cache"),
+}
 LIMIT = 1 << 20  # bytes read from one instruction file; a larger file refuses delegation instead
 
 
@@ -123,19 +128,18 @@ def plugin_version(root, cache):
     return tuple(int(n) for n in re.findall(r"\d+", version)) if numbered else (), str(root)
 
 
-def find(name, marker, home):
+def find(name, marker, home, harness):
     """Return (path of Matt's SKILL.md or None, paths of same-name skills that are not Matt's).
 
-    A personal skill answers to the bare name, so a different one there hides Matt's copy everywhere.
+    A personal skill answers to the bare name, so a different one there hides Matt's copy in that harness.
     Plugin skills are namespaced; a plugin copy without the marker (an old cached version) is only reported.
     Several cached versions: the highest version is reported (the reviewer calls the skill by plugin name).
     """
-    personal = [home / p for p in PERSONAL]
-    roots = []
-    for cache in (home / c for c in CACHES):
-        for pattern in ("*/mattpocock-skills*/*/skills", "*/mattpocock-skills*/*/skills/*"):
-            roots += [(root, cache) for root in cache.glob(pattern)]
-    plugins = [root for root, _ in sorted(roots, key=lambda rc: plugin_version(*rc), reverse=True)]
+    folders, cache = HARNESSES[harness]
+    personal = [home / p for p in folders]
+    cache = home / cache
+    roots = list(cache.glob("*/mattpocock-skills*/*/skills")) + list(cache.glob("*/mattpocock-skills*/*/skills/*"))
+    plugins = sorted(roots, key=lambda root: plugin_version(root, cache), reverse=True)
     found, others = None, []
     for root in personal + plugins:
         skill = root / name / "SKILL.md"
@@ -152,12 +156,12 @@ def find(name, marker, home):
 
 def main(argv=None, home=None):
     args = sys.argv[1:] if argv is None else argv
-    if len(args) != 1:
+    if len(args) != 3 or args[1] != "--harness" or args[2] not in HARNESSES:
         print(__doc__.strip())
         return 2
     home, missing = Path(home or Path.home()), 0
     for name, marker in SKILLS.items():
-        skill, others = find(name, marker, home)
+        skill, others = find(name, marker, home, args[2])
         if skill:
             print(f"{name}: {skill} (sha256 {hashlib.sha256(skill.read_bytes()).hexdigest()[:12]})")
         else:
