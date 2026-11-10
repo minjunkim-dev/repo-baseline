@@ -26,31 +26,57 @@ def roots(home):
     yield from sorted((home / ".claude/plugins/cache").glob("*/mattpocock-skills*/*/skills"))
 
 
-PROJECT_SKILL_ROOTS = (".claude/skills", ".agents/skills", ".codex/skills", ".cursor/skills")
+HARNESS_DIRS = {".claude", ".agents", ".codex", ".cursor"}
 
 
-def repo_root(cwd):
-    out = subprocess.run(["git", "-C", str(cwd), "rev-parse", "--show-toplevel"], capture_output=True, text=True)
-    return Path(out.stdout.strip()) if out.returncode == 0 else cwd
-
-
-def skill_names(skill):
-    """The folder name and the frontmatter name: a harness may register a skill under either."""
-    names = {skill.parent.name.lower()}
-    for line in skill.read_text(encoding="utf-8", errors="replace")[:4000].splitlines()[1:]:
-        if line.strip() == "---":
-            break
-        key, _, value = line.partition(":")
-        if key.strip() == "name":
-            names.add(value.strip().strip("'\"").lower())
-    return names
+def frontmatter_names(text):
+    """The `name:` values in the frontmatter, or None when they can't be read unambiguously."""
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != "---":
+        return None
+    try:
+        end = next(i for i, line in enumerate(lines[1:], 1) if line.strip() == "---")
+    except StopIteration:
+        return None
+    names = []
+    for line in lines[1:end]:
+        key, sep, value = line.partition(":")
+        if sep and key.strip().strip("'\"").lower() == "name":
+            value = value.strip().strip("'\"")
+            if not value or value[0] in "|>&*!{[" or line[:1].isspace():
+                return None
+            names.append(value.lower())
+    return names if len(names) == 1 else None
 
 
 def project_copies(name, cwd):
-    """Every SKILL.md anywhere under the repository's skill folders that registers this name."""
-    root = repo_root(cwd)
-    found = (s for r in PROJECT_SKILL_ROOTS for s in sorted((root / r).rglob("SKILL.md")))
-    return [s for s in found if name in skill_names(s)]
+    """Repository files a harness could load as this skill. Fails closed: unclear cases count as copies."""
+    out = subprocess.run(["git", "-C", str(cwd), "rev-parse", "--show-toplevel"], capture_output=True, text=True)
+    if out.returncode != 0:
+        return [f"{cwd} (git 저장소 루트를 찾지 못함)"]
+    root = Path(out.stdout.strip())
+    listed = subprocess.run(["git", "-C", str(root), "ls-files", "-s", "-z"], capture_output=True, check=True).stdout
+    copies = []
+    for entry in listed.decode("utf-8", "surrogateescape").split("\0"):
+        if not entry:
+            continue
+        mode, _, path = entry.partition("\t")
+        parts = path.split("/")
+        lowered = [x.lower() for x in parts]
+        harness = [i for i, x in enumerate(lowered) if x in HARNESS_DIRS]
+        if not harness:
+            continue
+        if mode.startswith("120000"):  # a symlink inside a harness folder can point anywhere
+            copies.append(f"{path} (symlink)")
+            continue
+        if lowered[-1] != "skill.md" or "skills" not in lowered[harness[0] + 1:]:
+            continue
+        names = frontmatter_names((root / path).read_text(encoding="utf-8", errors="replace"))
+        if names is None:
+            copies.append(f"{path} (name을 하나로 읽을 수 없음)")
+        elif name in names or lowered[-2] == name:
+            copies.append(path)
+    return copies
 
 
 def find(name, marker, home):
