@@ -13,7 +13,7 @@
    이 저장소는 repo-baseline matt-skills 프로필을 쓴다. 리뷰어는 repo-baseline 클론의 `profiles/matt-skills/README.md` 「리뷰」 절차를 따른다.
    ```
 
-3. 리뷰하는 기기에 세 스킬이 있는지 본다: `python3 -I <repo-baseline 클론>/profiles/matt-skills/check_skills.py main --harness <claude|codex|cursor>`를 아무 저장소에서 돌려 종료 코드가 1이 아니면 된다. `--harness`는 리뷰어가 쓰는 하네스다. 스킬마다 찾은 경로와 sha256 앞 12자리를 출력한다. 그 하네스가 읽는 개인 스킬 폴더와 그 하네스의 플러그인 캐시에서만 찾는다(Claude Code: `~/.claude/skills`, Codex: `~/.agents/skills`, Cursor: `~/.cursor/skills`·`~/.agents/skills`·`~/.claude/skills`·`~/.codex/skills`). 다른 하네스에만 있는 사본은 그 리뷰어가 부를 수 없으므로 세지 않는다. 플러그인 캐시 경로는 공식 문서가 없어 한 기기에서 본 경로를 쓴다. `CODEX_HOME`으로 Codex 홈을 옮긴 기기는 지원하지 않는다. 그 기기에서는 개인 스킬 폴더에 두면 찾는다. 같은 이름이라도 다른 스킬이면 찾은 것으로 보지 않는다. 이 프로필의 스킬은 저장소에 커밋하지 않는다. 하네스가 저장소 사본을 먼저 읽기 때문이다.
+3. 리뷰하는 기기에 세 스킬이 있는지 본다: `python3 -I <repo-baseline 클론>/profiles/matt-skills/check_skills.py main --harness <claude|codex|cursor>`를 아무 저장소에서 돌려 종료 코드가 1이 아니면 된다. `--harness`는 리뷰어가 쓰는 하네스다. 스킬마다 찾은 경로와 sha256 앞 12자리를 출력한다. 그 하네스가 읽는 개인 스킬 폴더와 그 하네스의 플러그인 캐시에서만 찾는다(Claude Code: `~/.claude/skills`, Codex: `~/.agents/skills`, Cursor: `~/.cursor/skills`·`~/.agents/skills`·`~/.claude/skills`·`~/.codex/skills`). 다른 하네스에만 있는 사본은 그 리뷰어가 부를 수 없으므로 세지 않는다. 플러그인 캐시 경로는 공식 문서가 없어 한 기기에서 본 경로를 쓴다. Claude Code에서 끈 플러그인(`~/.claude/settings.json`의 `enabledPlugins`가 `false`)은 부를 수 없으므로 세지 않는다. `CODEX_HOME`으로 Codex 홈을 옮긴 기기는 지원하지 않는다. 그 기기에서는 개인 스킬 폴더에 두면 찾는다. 같은 이름이라도 다른 스킬이면 찾은 것으로 보지 않는다. 이 프로필의 스킬은 저장소에 커밋하지 않는다. 하네스가 저장소 사본을 먼저 읽기 때문이다.
 
 ## 리뷰
 
