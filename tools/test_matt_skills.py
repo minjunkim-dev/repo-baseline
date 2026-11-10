@@ -82,6 +82,22 @@ class CheckSkillsTest(unittest.TestCase):
         self.assertEqual(code, 0, out)
         self.assertIn(f"code-review: {self.home / cache}/mattpocock/mattpocock-skills/1.3.10/skills/engineering/", out)
 
+    def test_disabled_plugin_copy_is_not_found(self):
+        cache = ".claude/plugins/cache"
+        self.install(root=f"{cache}/mattpocock/mattpocock-skills/1.3.2/skills/engineering")
+        self.install(root=f"{cache}/claude-plugins-official/mattpocock-skills/1.3.1/skills/engineering")
+        settings = self.home / ".claude/settings.json"
+        settings.write_text('{"enabledPlugins": {"mattpocock-skills@mattpocock": false}}', encoding="utf-8")
+        self.commit("src/app.py")
+        code, out = self.check()
+        self.assertEqual(code, 0, out)
+        self.assertIn(f"code-review: {self.home / cache}/claude-plugins-official/", out)
+        settings.write_text('{"enabledPlugins": {"mattpocock-skills@mattpocock": false, '
+                            '"mattpocock-skills@claude-plugins-official": false}}', encoding="utf-8")
+        self.assertEqual(self.check()[0], 1)  # the reviewer cannot call a plugin that is off
+        settings.write_text("not json", encoding="utf-8")
+        self.assertEqual(self.check()[0], 0)
+
     def test_only_the_reviewers_harness_counts(self):
         self.install(root=".cursor/plugins/cache/mattpocock/mattpocock-skills/49dd158/skills/engineering")
         self.commit("src/app.py")

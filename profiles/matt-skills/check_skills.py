@@ -15,6 +15,7 @@ files are read as data, not instructions (prompts/review.md step 2).
 
 from pathlib import Path
 import hashlib
+import json
 import os
 import re
 import subprocess
@@ -128,17 +129,34 @@ def plugin_version(root, cache):
     return tuple(int(n) for n in re.findall(r"\d+", version)) if numbered else (), str(root)
 
 
+def disabled(home, harness):
+    """Plugins ("<plugin>@<marketplace>") the user turned off; their cached copies cannot be called.
+    Claude Code keeps the switch in enabledPlugins (https://code.claude.com/docs/en/settings, checked 2026-11-10).
+    shortcut: user settings only; project or local settings that turn a plugin on or off are not read.
+    """
+    if harness != "claude":
+        return set()
+    try:
+        plugins = json.loads((home / ".claude/settings.json").read_text(encoding="utf-8")).get("enabledPlugins", {})
+    except (OSError, ValueError, AttributeError):
+        return set()
+    return {key for key, on in plugins.items() if on is False} if isinstance(plugins, dict) else set()
+
+
 def find(name, marker, home, harness):
     """Return (path of Matt's SKILL.md or None, paths of same-name skills that are not Matt's).
 
     A personal skill answers to the bare name, so a different one there hides Matt's copy in that harness.
     Plugin skills are namespaced; a plugin copy without the marker (an old cached version) is only reported.
     Several cached versions: the highest version is reported (the reviewer calls the skill by plugin name).
+    A plugin the user turned off is skipped.
     """
     folders, cache = HARNESSES[harness]
     personal = [home / p for p in folders]
     cache = home / cache
     roots = list(cache.glob("*/mattpocock-skills*/*/skills")) + list(cache.glob("*/mattpocock-skills*/*/skills/*"))
+    off = disabled(home, harness)
+    roots = [r for r in roots if "{1}@{0}".format(*r.relative_to(cache).parts) not in off]
     plugins = sorted(roots, key=lambda root: plugin_version(root, cache), reverse=True)
     found, others = None, []
     for root in personal + plugins:

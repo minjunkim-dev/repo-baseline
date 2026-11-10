@@ -4,6 +4,7 @@
 
 ## 2026-11 — 재설계 이후
 
+- matt-skills의 `check_skills.py --harness claude`가 `~/.claude/settings.json`에서 끈 플러그인의 캐시 사본을 세지 않는다. 전에는 리뷰어가 부를 수 없는 사본을 찾았다고 출력할 수 있었다. 소비 레포가 옮길 일은 없다.
 - 「어디에 두는가」에 5번 기준을 더했다: 공식 문서에 없는 하네스 동작에는 기대지 않고 없다고 본다. 이에 따라 에이전트 권한 예시·pstack·matt-skills 문서의 "미확인"을 "문서에 없다. 없다고 본다"와 대신할 장치로 바꿨다. 리뷰 봇은 기본으로 쓰지 않는다고 적었다. Claude 프로젝트 스레드용 `@AGENTS.md` 우회 안내를 뺐다. 소비 레포가 옮길 일은 없다.
 - 에이전트 권한 예시(`templates/github/agents/README.md`)에 「어디에 두는가」 절을 더했다. 규칙·검사·GitHub 설정·리뷰 봇·스킬·플러그인·훅·MCP·비밀값을 저장소, 각자의 기기, GitHub 서버, 클라우드 설정 중 어디에 둘지 기준과 하네스별 근거를 적었다. Claude 프로젝트의 클라우드 스레드는 `AGENTS.md`를 읽지 않으므로 구현·리뷰는 Claude Code 세션에서 한다고 적었다. 소비 레포가 옮길 일은 없다.
 - pstack 프로필에 「설치」 절을 더했다(Cursor·Claude Code 설치 명령, Codex는 미확인). matt-skills의 `check_skills.py`가 `--harness <claude|codex|cursor>`를 필수로 받고, 그 하네스가 읽는 개인 스킬 폴더와 플러그인 캐시에서만 스킬을 찾는다(Codex·Cursor 지원). 리뷰어는 실행 명령에 `--harness`를 붙인다.
