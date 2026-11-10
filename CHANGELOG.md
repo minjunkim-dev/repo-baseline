@@ -4,6 +4,8 @@
 
 ## 2026-11 — 재설계 이후
 
+- pr-conventions의 `protected_paths` 설정 키를 지웠다. 이 키는 검사만 하고 막는 데 쓰이지 않았다(읽던 review-gate 테스트는 재설계 때 없어졌다). `workflow_policy.py`를 새로 복사하는 소비 레포는 같은 PR에서 `.github/workflow-policy.json`의 `protected_paths`를 지운다. 남겨 두면 알 수 없는 키로 실패한다.
+- hash-copy의 `apply_baseline.py`가 `.git/` 안을 가리키는 대상 경로를 거부한다. 실행 권한이 있는 hook을 덮어쓰면 권한이 남아 복사한 파일이 실행될 수 있었다. 소비 레포는 손으로 옮길 것이 없다.
 - 리뷰 프롬프트가 fork PR은 `gh pr checkout`하지 않고 check·test도 로컬에서 돌리지 않게 했다. 전에는 fork PR을 연 사람이 정한 테스트 코드와 `AGENTS.md` 명령이 소유자 `gh` 로그인이 있는 기기에서 돌았다. fork PR은 `refs/pull/<번호>/head`를 받아 git으로만 읽고, 검사는 승인된 CI 결과로 본다. PR이 workflow·테스트·검사 명령을 바꿨거나 체크가 끝나지 않았거나 SHA가 다르면 "검사 미확인"으로 적는다. 소비 레포는 손으로 옮길 것이 없다.
 - 코어 `AGENTS.md`에 `POLICY.md` §8 작업 추적 규칙(원본은 한 곳, 공개 이슈와 트래커를 함께 쓰면 트래커가 원본, PR에 작업 ID)과 §7의 공개 이슈 금지 줄을 옮겼다. 소비 레포에는 `POLICY.md`가 없어 셋업 뒤 에이전트가 이 규칙을 볼 수 없었다. GitHub 프로필에 `SECURITY.md` 템플릿을 더했다. 소비 레포는 이 세 줄(「작업 방식」 한 줄, 「하지 않는 것」 두 줄)을 `AGENTS.md`에 옮기고, GitHub이면 `SECURITY.md`를 복사해 `OWNER/REPO`를 채운다(이미 `.github/`·`docs/`에 있으면 그 파일에 합친다). 비공개 저장소는 보고 링크 대신 소유자에게 비공개로 연락할 경로를 적는다.
 - `.github/workflows/check.yml`과 `templates/github/ci.yml`에 `concurrency`를 더했다. PR에 새로 push하면 같은 PR의 이전 실행을 취소한다. PR이 아닌 실행은 `github.run_id`로 group을 따로 둔다. `cancel-in-progress`만 끄면 main에서 대기 중인 실행이 새 실행에 밀려 취소되기 때문이다. CI 템플릿에 의존성 캐시는 setup 액션의 `cache:` 옵션(lockfile 해시가 키)을 쓰라는 주석을 더했다. 소비 레포는 원하면 `concurrency` 블록을 자기 `ci.yml`에 손으로 옮긴다.

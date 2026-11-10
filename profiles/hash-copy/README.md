@@ -11,7 +11,7 @@
 
 ## 켜는 법
 
-1. 소비 레포에 `.github/repo-baseline.json`을 둔다. `repo-baseline.core.json`(PR 양식만) 또는 `repo-baseline.json`(검사기 묶음)을 복사해 시작한다. 키는 소비 레포의 경로, `source`는 이 저장소의 경로다.
+1. 소비 레포에 `.github/repo-baseline.json`을 둔다. `repo-baseline.core.json`(PR 양식만) 또는 `repo-baseline.json`(검사기 묶음)을 복사해 시작한다. 키는 소비 레포의 경로, `source`는 이 저장소의 경로다. 키가 프로젝트 밖이나 `.git/` 안을 가리키면 멈춘다.
 2. 이 저장소의 깨끗한 checkout에서 실행한다. 커밋하지 않은 변경이 있으면 멈춘다.
 
 ```bash

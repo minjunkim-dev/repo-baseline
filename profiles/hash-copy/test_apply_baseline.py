@@ -59,7 +59,8 @@ class ApplyBaselineTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "Commit repo-baseline"):
                 apply_baseline.apply(self.project)
         for files in [{"x.py": {"source": "missing.py"}}, {"x.py": {"source": "/etc/hosts"}},
-                      {"x.py": {"source": "../outside.py"}}, {"../x.py": {"source": SOURCE}}, {}]:
+                      {"x.py": {"source": "../outside.py"}}, {"../x.py": {"source": SOURCE}},
+                      {".git/hooks/pre-commit": {"source": SOURCE}}, {"sub/.GIT/x.py": {"source": SOURCE}}, {}]:
             with self.subTest(files=files):
                 self.write_manifest({"files": files})
                 with self.assertRaises(ValueError):
