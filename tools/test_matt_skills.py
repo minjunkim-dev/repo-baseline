@@ -82,6 +82,22 @@ class CheckSkillsTest(unittest.TestCase):
         self.assertEqual(code, 0, out)
         self.assertIn(f"code-review: {self.home / cache}/mattpocock/mattpocock-skills/1.3.10/skills/engineering/", out)
 
+    def test_codex_and_cursor_plugin_caches_are_found(self):
+        self.install(root=".cursor/plugins/cache/mattpocock/mattpocock-skills/49dd158/skills/engineering")
+        self.commit("src/app.py")
+        code, out = self.check()
+        self.assertEqual(code, 0, out)
+        self.install(root=".codex/plugins/cache/mattpocock/mattpocock-skills/1.3.2/skills/engineering")
+        code, out = self.check()
+        self.assertEqual(code, 0, out)
+        self.assertIn(f"code-review: {self.home}/.codex/plugins/cache/", out)  # a numbered version wins
+
+    def test_different_cursor_personal_skill_hides_matts_copy(self):
+        self.install()
+        self.install({"code-review": "Review for bugs."}, root=".cursor/skills")
+        code, out = self.check()
+        self.assertEqual(code, 1, out)
+
     def test_different_personal_skill_hides_matts_copy(self):
         self.install()
         self.install({"code-review": "Review for bugs."}, root=".claude/skills")

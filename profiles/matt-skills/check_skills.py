@@ -31,6 +31,11 @@ HARNESS_DIRS = {".claude", ".agents", ".codex", ".cursor", ".gemini", ".windsurf
 HARNESS_FILES = {"agents.md", "agents.override.md", "claude.md", "claude.local.md", "gemini.md", ".mcp.json",
                  ".cursorrules", ".windsurfrules", "copilot-instructions.md"}
 IMPORT = re.compile(r"(?<![^\s(])@([^\s)`]+)")
+# Personal skill folders that Claude Code, Codex and Cursor read (Cursor reads all four:
+# https://cursor.com/docs/skills, checked 2026-11-10). Plugin caches: the folders each harness
+# was seen to use on 2026-11-10 (<marketplace>/<plugin>/<version>/skills); no official doc names them.
+PERSONAL = (".claude/skills", ".agents/skills", ".cursor/skills", ".codex/skills")
+CACHES = (".claude/plugins/cache", ".codex/plugins/cache", ".cursor/plugins/cache")
 LIMIT = 1 << 20  # bytes read from one instruction file; a larger file refuses delegation instead
 
 
@@ -110,9 +115,12 @@ def imported_changes(tracked, changed_paths):
 
 
 def plugin_version(root, cache):
-    """Sort key: the cached version folder as numbers, so the newest copy wins over an old cache."""
+    """Sort key: a numbered version folder as numbers, so the newest copy wins over an old cache.
+    shortcut: Cursor names the folder by commit; those sort after numbered ones, in no real order.
+    """
     version = root.relative_to(cache).parts[2]
-    return tuple(int(n) for n in re.findall(r"\d+", version)), str(root)
+    numbered = re.fullmatch(r"v?\d+(\.\d+)*", version)
+    return tuple(int(n) for n in re.findall(r"\d+", version)) if numbered else (), str(root)
 
 
 def find(name, marker, home):
@@ -122,10 +130,12 @@ def find(name, marker, home):
     Plugin skills are namespaced; a plugin copy without the marker (an old cached version) is only reported.
     Several cached versions: the highest version is reported (the reviewer calls the skill by plugin name).
     """
-    personal = [home / ".claude/skills", home / ".agents/skills"]
-    cache = home / ".claude/plugins/cache"
-    roots = list(cache.glob("*/mattpocock-skills*/*/skills")) + list(cache.glob("*/mattpocock-skills*/*/skills/*"))
-    plugins = sorted(roots, key=lambda root: plugin_version(root, cache), reverse=True)
+    personal = [home / p for p in PERSONAL]
+    roots = []
+    for cache in (home / c for c in CACHES):
+        for pattern in ("*/mattpocock-skills*/*/skills", "*/mattpocock-skills*/*/skills/*"):
+            roots += [(root, cache) for root in cache.glob(pattern)]
+    plugins = [root for root, _ in sorted(roots, key=lambda rc: plugin_version(*rc), reverse=True)]
     found, others = None, []
     for root in personal + plugins:
         skill = root / name / "SKILL.md"
