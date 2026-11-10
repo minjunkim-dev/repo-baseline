@@ -8,7 +8,8 @@ Exit 0: delegate. 1: a skill is not installed (stop the review).
 
 Scope: this decides delegation only. Instruction files the PR changed (AGENTS.md, rule files, what they import)
 reach the reviewer's harness with or without delegation, so the lists below are a best effort, not a guard.
-The guard is the repository's trust boundary (POLICY §4): a person reads those diffs.
+Harness folders are a trust boundary (POLICY §4), so a person reads those diffs; changed instruction
+files are read as data, not instructions (prompts/review.md step 2).
 """
 
 from pathlib import Path
