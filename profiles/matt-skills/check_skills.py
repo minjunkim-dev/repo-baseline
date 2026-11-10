@@ -109,15 +109,23 @@ def imported_changes(tracked, changed_paths):
     return reasons
 
 
+def plugin_version(root, cache):
+    """Sort key: the cached version folder as numbers, so the newest copy wins over an old cache."""
+    version = root.relative_to(cache).parts[2]
+    return tuple(int(n) for n in re.findall(r"\d+", version)), str(root)
+
+
 def find(name, marker, home):
     """Return (path of Matt's SKILL.md or None, paths of same-name skills that are not Matt's).
 
     A personal skill answers to the bare name, so a different one there hides Matt's copy everywhere.
     Plugin skills are namespaced; a plugin copy without the marker (an old cached version) is only reported.
+    Several cached versions: the highest version is reported (the reviewer calls the skill by plugin name).
     """
     personal = [home / ".claude/skills", home / ".agents/skills"]
     cache = home / ".claude/plugins/cache"
-    plugins = sorted(cache.glob("*/mattpocock-skills*/*/skills")) + sorted(cache.glob("*/mattpocock-skills*/*/skills/*"))
+    roots = list(cache.glob("*/mattpocock-skills*/*/skills")) + list(cache.glob("*/mattpocock-skills*/*/skills/*"))
+    plugins = sorted(roots, key=lambda root: plugin_version(root, cache), reverse=True)
     found, others = None, []
     for root in personal + plugins:
         skill = root / name / "SKILL.md"
