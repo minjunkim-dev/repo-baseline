@@ -18,27 +18,28 @@
 2. 사람마다 다르거나 사람이 부를 때만 쓰는 것은 각자의 기기에 둔다. 저장소는 그것 없이 돈다.
 3. 비밀값은 저장소에 두지 않는다. 클라우드에는 하네스의 비밀값 설정으로 주고, 병합 권한이 없는 것만 준다(POLICY §5·§7).
 4. 기계로 막아야 하는 것은 CI와 브랜치 보호에 둔다. 훅과 권한 설정은 실수를 줄이는 장치다. 훅이 막는 것은 CI가 다시 검사한다.
+5. 공식 문서에 없는 하네스 동작에는 기대지 않는다. 그 동작은 없다고 보고 위 1~4번으로 대신한다. 아래에서 "문서에 없다"고 적은 칸이 그렇다. 시험이나 문서로 확인되면 링크와 확인일을 적고 그 칸을 넓힌다.
 
 | 무엇 | 둘 곳 | 클라우드 세션에서 |
 | --- | --- | --- |
 | 규칙(`AGENTS.md`, `REVIEW.md`, PR 템플릿) | 저장소 | 클론에 들어 있다 |
 | check·test 명령 | 저장소의 명령, GitHub Actions 필수 체크 | 같은 명령을 돌린다 |
 | 브랜치 보호, CodeQL, Dependabot, 저장소 설정 | GitHub 서버. 소유자가 `tools/apply_github_settings.py`로 적용한다 | 해당 없음 |
-| 리뷰 봇 | 소유자가 GitHub App으로 연결한다. 설정 파일을 커밋하면 저장소 설정과 같이 신뢰 경계다 | 해당 없음. 지적은 리뷰어가 판정한다(POLICY §3) |
+| 리뷰 봇 | 기본으로 쓰지 않는다. 리뷰는 POLICY §3대로 다른 컨텍스트의 리뷰어가 한다. 쓰려면 소유자가 GitHub App으로 연결한다. 설정 파일을 커밋하면 저장소 설정과 같이 신뢰 경계다. 봇이 공개 저장소의 자동 리뷰를 건너뛰면(예: CodeRabbit은 별이 적은 저장소에서 건너뛰고 PR 댓글의 체크박스로 손으로 시작하게 한다) 그 PR에는 외부 리뷰가 없는 것이다 | 해당 없음. 지적은 리뷰어가 판정한다(POLICY §3) |
 | 리뷰 안전장치(`prompts/review.md`, `tools/review_preflight.py`) | repo-baseline 클론 | 클론이 없으면 그 세션에서 공개 저장소를 클론한다(`prompts/review.md`) |
 | 하네스 권한 설정 | 저장소 하네스 폴더(이 문서 아래 절) | 하네스마다 다르다(아래) |
 | 모든 세션이 쓰는 프로젝트 스킬 | 저장소 `.claude/skills/`, `.agents/skills/` | Claude Code·Codex는 읽는다. Cursor는 자동화에 쓸 스킬을 저장소 `.cursor/skills/`에 두라고 안내한다 |
 | 개인 스킬·플러그인(Matt 스킬, pstack) | 각자의 기기 | 기본으로는 없다. 필요하면 하네스의 동기화 기능을 쓴다(아래) |
-| 프로젝트 훅(포매터, 정책 검사) | 저장소 하네스 폴더 | Claude Code(저장소 하나인 세션)·Cursor(명령 훅)는 저장소 훅을 돌린다. 개인 훅은 돌지 않는다. Codex: 미확인 |
-| 프로젝트 MCP | 저장소 `.mcp.json`. 비밀값은 `${VAR}` 참조로만 둔다(hash-copy 검사) | Claude Code는 저장소 하나인 세션에서 읽는다. Cursor는 팀 MCP 설정을 쓴다. Codex: 미확인 |
+| 프로젝트 훅(포매터, 정책 검사) | 저장소 하네스 폴더 | Claude Code(저장소 하나인 세션)·Cursor(명령 훅)는 저장소 훅을 돌린다. 개인 훅은 돌지 않는다. Codex: 문서에 없다. 돌지 않는다고 본다 |
+| 프로젝트 MCP | 저장소 `.mcp.json`. 비밀값은 `${VAR}` 참조로만 둔다(hash-copy 검사) | Claude Code는 저장소 하나인 세션에서 읽는다. Cursor는 팀·개인 MCP 설정만 쓴다고 본다(저장소 파일은 문서에 없다). Codex: 문서에 없다. 읽지 않는다고 본다. 저장소는 MCP 없이 돈다 |
 | 개인 MCP, 개인 도구(전역 지침에만 적은 것) | 각자의 기기와 개인 설정 | 없다. 저장소는 그것 없이 돈다 |
 | 비밀값, 장기 키, `gh` 로그인 | 소유자 기기 | 하네스의 비밀값 설정. 병합 권한 없는 토큰만 |
 
 하네스별 근거(확인일 2026-11-10):
 
-- Claude Code: 클라우드 세션은 저장소를 새로 클론한다. 저장소의 `.claude/skills/`는 클론에 들어 있어 쓴다. `.claude/settings.json` 훅·권한 규칙과 `.mcp.json`은 저장소 하나인 세션에서만 쓴다. 저장소 설정에 적은 플러그인은 설치하지 않는다. 개인 `~/.claude/skills/`·개인 플러그인·개인 MCP는 없다. claude.ai에서 켠 스킬은 불러온다. 키는 환경의 network secrets로 준다([Cloud environments](https://code.claude.com/docs/en/cloud-environments#what-carries-over-from-your-setup)). Claude 프로젝트의 클라우드 스레드는 저장소 루트의 `CLAUDE.md`·`.claude/CLAUDE.md`와 경로 조건 없는 `.claude/rules/`만 읽는다. 이 목록에 `AGENTS.md`는 없다(같은 문서). 그래서 그 스레드에는 이 기준의 규칙(`AGENTS.md`)도 권한 설정도 들어가지 않는다. 이 기준의 구현과 리뷰는 Claude Code 세션(로컬·클라우드)에서 한다. 그 스레드를 꼭 써야 하면 저장소 루트에 `@AGENTS.md` 한 줄만 담은 `CLAUDE.md`를 둔다. Claude Code는 `AGENTS.md`를 못 읽는 세션에서는 `CLAUDE.md`에서 불러오라고 안내한다([Memory](https://code.claude.com/docs/en/memory#agents-md), 확인일 2026-11-10). 그 스레드가 `@` 불러오기를 따라가는지는 문서에 없어 미확인이다.
-- Cursor: Cloud Agent는 저장소 `.cursor/hooks.json`의 명령 훅을 돌리고, 개인 `~/.cursor/hooks.json`은 돌리지 않는다. MCP는 cursor.com/agents의 팀 설정을 쓴다([Cloud Agents](https://cursor.com/docs/cloud-agent)). 개인 스킬은 `~/.cursor/skills/`만 Sync Skills로 동기화된다. `~/.agents/skills/`는 동기화되지 않는다. Cloud Agent가 저장소 스킬을 읽는다는 직접 문장은 없고, 자동화에 스킬을 주려면 저장소 `.cursor/skills/`에 두라고 안내한다([Agent Skills](https://cursor.com/docs/skills)).
-- Codex: Codex Cloud는 환경에 저장소, 설치 스크립트, 시작 스킬, 환경 변수와 HTTP secrets를 둔다. HTTP secret을 저장하면 그 도메인 접근도 열린다([Codex Cloud](https://learn.chatgpt.com/docs/cloud)). 저장소에 둔 스킬은 클라우드 작업에서 쓰고, 개인 기기의 스킬은 동기화되지 않는다([Cloud environments](https://learn.chatgpt.com/codex/environments/cloud-environments)). 저장소 훅·`.mcp.json`을 읽는지는 문서에서 확인하지 못했다.
+- Claude Code: 클라우드 세션은 저장소를 새로 클론한다. 저장소의 `.claude/skills/`는 클론에 들어 있어 쓴다. `.claude/settings.json` 훅·권한 규칙과 `.mcp.json`은 저장소 하나인 세션에서만 쓴다. 저장소 설정에 적은 플러그인은 설치하지 않는다. 개인 `~/.claude/skills/`·개인 플러그인·개인 MCP는 없다. claude.ai에서 켠 스킬은 불러온다. 키는 환경의 network secrets로 준다([Cloud environments](https://code.claude.com/docs/en/cloud-environments#what-carries-over-from-your-setup)). Claude 프로젝트의 클라우드 스레드는 저장소 루트의 `CLAUDE.md`·`.claude/CLAUDE.md`와 경로 조건 없는 `.claude/rules/`만 읽는다. 이 목록에 `AGENTS.md`는 없다(같은 문서). 그래서 그 스레드에는 이 기준의 규칙(`AGENTS.md`)도 권한 설정도 들어가지 않는다. 그 스레드가 `CLAUDE.md`의 `@AGENTS.md` 불러오기를 따라가는지도 문서에 없다. 따라가지 않는다고 본다. 그래서 이 기준의 구현과 리뷰는 그 스레드에서 하지 않고 Claude Code 세션(로컬·클라우드)에서 한다.
+- Cursor: Cloud Agent는 저장소 `.cursor/hooks.json`의 명령 훅을 돌리고, 개인 `~/.cursor/hooks.json`은 돌리지 않는다. MCP는 대시보드의 팀 설정과 cursor.com/agents의 개인 설정을 쓴다([Cloud Agents](https://cursor.com/docs/cloud-agent), [Capabilities](https://cursor.com/docs/cloud-agent/capabilities)). 저장소 `.cursor/mcp.json`은 문서에 없다. 개인 스킬은 `~/.cursor/skills/`만 Sync Skills로 동기화된다. `~/.agents/skills/`는 동기화되지 않는다. Cloud Agent가 저장소 스킬을 읽는다는 직접 문장은 없고, 자동화에 스킬을 주려면 저장소 `.cursor/skills/`에 두라고 안내한다([Agent Skills](https://cursor.com/docs/skills)).
+- Codex: Codex Cloud는 환경에 저장소, 설치 스크립트, 시작 스킬, 환경 변수와 HTTP secrets를 둔다. HTTP secret을 저장하면 그 도메인 접근도 열린다([Codex Cloud](https://learn.chatgpt.com/docs/cloud)). 저장소에 둔 스킬은 클라우드 작업에서 쓰고, 개인 기기의 스킬은 동기화되지 않는다([Cloud environments](https://learn.chatgpt.com/codex/environments/cloud-environments)). 저장소 훅·MCP 설정·`AGENTS.md`를 읽는지는 두 문서에 없다(확인일 2026-11-10). 훅과 MCP는 없다고 본다. 규칙은 클론에 들어 있으니 작업을 맡길 때 `AGENTS.md`를 읽으라고 적는다.
 
 ## Claude Code
 
@@ -85,8 +86,8 @@ prefix_rule(pattern = ["gh", "api"], decision = "prompt", justification = "보�
 ```
 
 - 규칙은 정확한 접두사로만 맞춘다. 대상 브랜치(`main`)나 `gh api`의 경로는 가려낼 수 없어서 `git push`와 `gh api`는 `prompt`로 둔다.
-- 문서는 규칙이 "샌드박스 밖에서 실행할 명령"을 다룬다고 적는다. 샌드박스 안의 명령에도 적용되는지: 미확인.
-- `.env` 같은 파일 읽기를 막는 설정: 미확인.
+- 문서는 규칙이 "샌드박스 밖에서 실행할 명령"을 다룬다고 적는다([Rules](https://learn.chatgpt.com/docs/agent-configuration/rules), 확인일 2026-11-10). 샌드박스 안의 명령에는 걸리지 않는다고 본다. 위 명령은 네트워크를 쓴다. 샌드박스가 네트워크를 막으면 밖으로 나가야 하므로 그때 규칙이 걸린다.
+- `.env` 같은 파일 읽기를 막는 설정은 문서에 없다. Codex에는 이 막기가 없다고 본다. 저장소에 비밀값을 두지 않는 규칙(POLICY §7)과 `.gitignore`로 대신한다.
 
 ## Cursor
 
@@ -101,6 +102,6 @@ CLI는 [Permissions](https://cursor.com/docs/cli/reference/permissions)대로 �
 ```
 
 - `Read(.env*)`는 문서 예시 그대로다.
-- 문서의 규칙 종류는 allow와 deny뿐이라 병합에 확인을 받는 설정이 없다. 그래서 `gh pr merge`를 deny로 둔다. Cursor로 POLICY §5의 에이전트 병합을 쓰려면 이 항목을 빼고, 병합 명령마다 PR 번호와 `--match-head-commit`을 사람이 본다. 승인하지 않은 명령을 Cursor가 실행 전에 묻는지는 미확인이다.
-- `Shell(명령:인자)`의 인자 글롭은 문서 예시가 `curl:*`뿐이다. `gh:pr merge*`처럼 공백이 든 인자가 맞는지: 미확인. 적용 뒤 한 번 시험한다.
-- IDE(에디터 안 에이전트)에서 같은 파일을 읽는지, 같은 의미의 설정이 무엇인지: 미확인.
+- 문서의 규칙 종류는 allow와 deny뿐이라 병합에 확인을 받는 설정이 없다. 그래서 `gh pr merge`를 deny로 둔다. Cursor로 POLICY §5의 에이전트 병합을 쓰려면 이 항목을 빼고, 병합 명령마다 PR 번호와 `--match-head-commit`을 사람이 본다. 승인하지 않은 셸 명령을 실행 전에 묻는다는 직접 문장은 문서에 없다. 묻지 않는다고 본다.
+- `Shell(명령:인자)`의 인자 글롭은 문서 예시가 `curl:*`뿐이다. `gh:pr merge*`처럼 공백이 든 인자가 맞는지는 문서에 없다. 맞지 않을 수 있다고 본다. 맞지 않으면 이 deny는 병합을 막지 못하고, 맨 위에 적은 대로 브랜치 보호와 필수 CI만 남는다. 그래서 Cursor에 병합을 지시하지 않는다.
+- IDE(에디터 안 에이전트)가 이 파일을 읽는지는 문서에 없다. 읽지 않는다고 본다. IDE에서는 확인 창을 사람이 본다.

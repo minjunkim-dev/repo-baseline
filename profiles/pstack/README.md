@@ -8,7 +8,7 @@ pstack은 각자의 기기에 설치한다. 저장소에는 커밋하지 않는�
 
 - Cursor: `/add-plugin pstack`
 - Claude Code: `/plugin marketplace add cursor/plugins` 다음에 `/plugin install pstack@cursor-plugins`. 서드파티 마켓플레이스는 자동 업데이트가 꺼져 있어서 설치한 판에 머문다. 올릴 때는 `claude plugin update pstack@cursor-plugins`를 실행한다. 스킬은 `/pstack:poteto-mode`처럼 플러그인 이름을 붙여 부른다.
-- Codex: 공식 설치 방법이 README에 없다. 미확인.
+- Codex: 공식 설치 방법이 README에 없다. Codex에서는 이 프로필을 쓰지 않는다.
 
 설치한 뒤 `/setup-pstack`(Claude Code는 `/pstack:setup-pstack`)으로 모델을 고른다. 이 명령은 개인 설정에 쓰고 저장소는 바꾸지 않는다. 판을 올리면 아래 「맞춘 판」을 다시 본다.
 
