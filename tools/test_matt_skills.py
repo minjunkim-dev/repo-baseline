@@ -40,16 +40,16 @@ class CheckSkillsTest(unittest.TestCase):
         self.git("add", "-A")
         self.git("commit", "-qm", f"add {path}")
 
-    def install(self, skills=MATT, root=".agents/skills"):
+    def install(self, skills=MATT, root=".claude/skills"):
         for name, marker in skills.items():
             path = self.home / root / name / "SKILL.md"
             path.parent.mkdir(parents=True)
             path.write_text(marker, encoding="utf-8")
 
-    def check(self, base="main"):
+    def check(self, base="main", harness="claude"):
         out = io.StringIO()
         with redirect_stdout(out):
-            code = check_skills.main([base], self.home)
+            code = check_skills.main([base, "--harness", harness], self.home)
         return code, out.getvalue()
 
     def test_plain_pr_with_skills_installed_delegates(self):
@@ -57,7 +57,7 @@ class CheckSkillsTest(unittest.TestCase):
         self.commit("src/app.py")
         code, out = self.check()
         self.assertEqual(code, 0, out)
-        self.assertIn("code-review: " + str(self.home / ".agents/skills/code-review/SKILL.md"), out)
+        self.assertIn("code-review: " + str(self.home / ".claude/skills/code-review/SKILL.md"), out)
 
     def test_missing_or_different_skill_stops_the_review(self):
         self.install({"code-review": "Review for bugs.", "retro": "Implementation vs Review"})
@@ -82,8 +82,30 @@ class CheckSkillsTest(unittest.TestCase):
         self.assertEqual(code, 0, out)
         self.assertIn(f"code-review: {self.home / cache}/mattpocock/mattpocock-skills/1.3.10/skills/engineering/", out)
 
-    def test_different_personal_skill_hides_matts_copy(self):
+    def test_only_the_reviewers_harness_counts(self):
+        self.install(root=".cursor/plugins/cache/mattpocock/mattpocock-skills/49dd158/skills/engineering")
+        self.commit("src/app.py")
+        self.assertEqual(self.check(harness="cursor")[0], 0)
+        self.assertEqual(self.check(harness="claude")[0], 1)  # Claude Code cannot call Cursor's copy
+        self.install(root=".codex/plugins/cache/mattpocock/mattpocock-skills/1.3.2/skills/engineering")
+        code, out = self.check(harness="codex")
+        self.assertEqual(code, 0, out)
+        self.assertIn(f"code-review: {self.home}/.codex/plugins/cache/", out)
+
+    def test_other_harness_personal_skill_does_not_hide_matts_copy(self):
         self.install()
+        self.install({"pr": "Open a pull request."}, root=".codex/skills")
+        self.assertEqual(self.check(harness="claude")[0], 0)
+        self.assertEqual(self.check(harness="cursor")[0], 1)  # Cursor reads ~/.codex/skills
+
+    def test_missing_harness_argument_is_refused(self):
+        self.install()
+        out = io.StringIO()
+        with redirect_stdout(out):
+            self.assertEqual(check_skills.main(["main"], self.home), 2)
+
+    def test_different_personal_skill_hides_matts_copy(self):
+        self.install(root=".claude/plugins/cache/mattpocock/mattpocock-skills/1.3.2/skills/engineering")
         self.install({"code-review": "Review for bugs."}, root=".claude/skills")
         code, out = self.check()
         self.assertEqual(code, 1, out)
