@@ -4,7 +4,7 @@
 
 ## 2026-11 — 재설계 이후
 
-- 하네스 설정을 신뢰 경계에 넣었다(`POLICY.md` §4). 대상은 `.claude/`·`.agents/`·`.codex/`·`.cursor/` 같은 하네스 폴더와 `.mcp.json`이다. 그 안의 hook·MCP·스킬은 PR 작업 트리에서 연 리뷰어 세션에서 돌 수 있다. 지침 파일(`AGENTS.md` 등)은 넣지 않고, 리뷰어가 PR이 바꾼 지침을 데이터로 읽게 했다(`prompts/review.md` 2번). 소비 레포는 `REVIEW.md` 「신뢰 경계」 줄에 하네스 설정을 더한다. 셋업 프롬프트도 에이전트 권한 예시를 복사한 PR을 되돌리기 어려움으로 본다.
+- 하네스 설정을 신뢰 경계에 넣었다(`POLICY.md` §4). 대상은 `.claude/`·`.agents/`·`.codex/`·`.cursor/` 같은 하네스 폴더와 `.mcp.json`이다. 그 안의 hook·MCP·스킬은 PR 작업 트리에서 연 리뷰어 세션에서 돌 수 있다. 지침 파일(`AGENTS.md` 등)은 넣지 않고, 리뷰어가 PR이 바꾼 지침을 데이터로 읽게 했다(`prompts/review.md` 2번). 소비 레포는 `REVIEW.md` 「신뢰 경계」 줄에 하네스 설정을 더한다. 셋업 프롬프트도 에이전트 권한 예시를 복사한 PR을 되돌리기 어려움으로 본다. team 프로필을 켠 소비 레포는 `CODEOWNERS`의 `.claude/`·`.agents/` 하위 경로 줄을 `/.claude/`·`/.agents/` 폴더 줄로 바꾼다.
 - pstack 프로필을 더했다. pstack 기본 동작 중 POLICY와 어긋나는 것(Shipping playbook·auto-merge, `correct`의 바로 반영, 판단 규칙 위치)과 단계별로 겹치는 스킬을 적는다. pstack을 쓰는 소비 레포는 프로필의 「pstack」 절을 `AGENTS.md` 「작업 방식」 끝에 붙인다.
 - matt-skills 프로필을 더했다. 리뷰의 두 축 판단은 Matt Pocock `code-review` 스킬에(새 세션 리뷰어, fork가 아닌 PR만), 회고는 `/retro`에, PR 본문 내용은 `/pr`에 맡긴다. 안전장치·고치기·라운드·외부 리뷰 판정·Review 칸은 그대로 `prompts/review.md`가 맡는다. `check_skills.py`가 스킬 설치를 확인한다. `tools/review_preflight.py`와 `profiles/matt-skills/*.py`를 이 저장소의 신뢰 경계에 넣었다. 프로필을 켜는 소비 레포는 `REVIEW.md`에 「스킬 위임」 절을 붙인다.
 - 강연과의 작은 차이를 맞췄다. 코어 `REVIEW.md`에 「코딩 기준」 칸을 더했다(판단이 필요한 작성 규칙만, diff가 건드린 줄에만, P2). 리뷰의 Standards 축이 이 칸도 본다. PR 템플릿 Summary에 선택 줄 「그림」(Mermaid·의사 코드·파일 트리)을 더했다. 회고가 프롬프트·스킬 파일도 지울 대상으로 보고, 선택으로 세션 기록에서 길잡이·도구·정보 접근을 제안하며, 테스트가 구현에 묶이는 지적이 반복되면 구조 개선을 제안한다. 에이전트 안내에 깊은 모듈 스킬(`/improve-codebase-architecture`, `/setup-ts-deep-modules`)을 적었다. 이 저장소 `REVIEW.md`에서 테스트가 이미 막는 행(1만 자, 60줄)을 지웠다. 소비 레포는 `REVIEW.md`에 「코딩 기준」 절을, PR 템플릿에 「그림」 줄을 옮긴다.

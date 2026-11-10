@@ -13,12 +13,8 @@
 /scripts/check_*.py @REPLACE-OWNERS
 /scripts/workflow_policy.py @REPLACE-OWNERS
 /scripts/pr_author.py @REPLACE-OWNERS
-/.claude/settings.json @REPLACE-OWNERS
-/.claude/hooks/ @REPLACE-OWNERS
-/.claude/agents/ @REPLACE-OWNERS
-/.claude/commands/ @REPLACE-OWNERS
-/.agents/skills/ @REPLACE-OWNERS
-/.claude/skills/ @REPLACE-OWNERS
+/.claude/ @REPLACE-OWNERS
+/.agents/ @REPLACE-OWNERS
 /.mcp.json @REPLACE-OWNERS
 /.codex/ @REPLACE-OWNERS
 /.cursor/ @REPLACE-OWNERS
