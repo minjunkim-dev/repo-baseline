@@ -10,6 +10,36 @@
 
 확인일: 2026-11-08. 하네스가 바뀌면 링크한 공식 문서를 다시 본다.
 
+## 어디에 두는가
+
+워크플로우에 쓰는 것을 둘 곳은 아래 기준으로 고른다.
+
+1. 모든 세션(사람, 로컬 에이전트, 클라우드 에이전트)이 같게 써야 하면 저장소에 커밋한다. 하네스 폴더와 `.mcp.json`은 신뢰 경계라서 그 PR은 되돌리기 어려움이고 소유자가 병합한다(POLICY §4).
+2. 사람마다 다르거나 사람이 부를 때만 쓰는 것은 각자의 기기에 둔다. 저장소는 그것 없이 돈다.
+3. 비밀값은 저장소에 두지 않는다. 클라우드에는 하네스의 비밀값 설정으로 주고, 병합 권한이 없는 것만 준다(POLICY §5·§7).
+4. 기계로 막아야 하는 것은 CI와 브랜치 보호에 둔다. 훅과 권한 설정은 실수를 줄이는 장치다. 훅이 막는 것은 CI가 다시 검사한다.
+
+| 무엇 | 둘 곳 | 클라우드 세션에서 |
+| --- | --- | --- |
+| 규칙(`AGENTS.md`, `REVIEW.md`, PR 템플릿) | 저장소 | 클론에 들어 있다 |
+| check·test 명령 | 저장소의 명령, GitHub Actions 필수 체크 | 같은 명령을 돌린다 |
+| 브랜치 보호, CodeQL, Dependabot, 저장소 설정 | GitHub 서버. 소유자가 `tools/apply_github_settings.py`로 적용한다 | 해당 없음 |
+| 리뷰 봇 | 소유자가 GitHub App으로 연결한다. 설정 파일을 커밋하면 저장소 설정과 같이 신뢰 경계다 | 해당 없음. 지적은 리뷰어가 판정한다(POLICY §3) |
+| 리뷰 안전장치(`prompts/review.md`, `tools/review_preflight.py`) | repo-baseline 클론 | 클론이 없으면 그 세션에서 공개 저장소를 클론한다(`prompts/review.md`) |
+| 하네스 권한 설정 | 저장소 하네스 폴더(이 문서 아래 절) | 하네스마다 다르다(아래) |
+| 모든 세션이 쓰는 프로젝트 스킬 | 저장소 `.claude/skills/`, `.agents/skills/` | Claude Code·Cursor는 읽는다. Codex: 미확인 |
+| 개인 스킬·플러그인(Matt 스킬, pstack) | 각자의 기기 | 기본으로는 없다. 필요하면 하네스의 동기화 기능을 쓴다(아래) |
+| 프로젝트 훅(포매터, 정책 검사) | 저장소 하네스 폴더 | Claude Code·Cursor는 저장소 훅을 돌린다. 개인 훅은 돌지 않는다. Codex: 미확인 |
+| 프로젝트 MCP | 저장소 `.mcp.json`. 비밀값은 `${VAR}` 참조로만 둔다(hash-copy 검사) | Claude Code는 읽는다. Cursor는 팀 MCP 설정을 쓴다. Codex: 미확인 |
+| 개인 MCP, 개인 도구(전역 지침에만 적은 것) | 각자의 기기와 개인 설정 | 없다. 저장소는 그것 없이 돈다 |
+| 비밀값, 장기 키, `gh` 로그인 | 소유자 기기 | 하네스의 비밀값 설정. 병합 권한 없는 토큰만 |
+
+하네스별 근거(확인일 2026-11-10):
+
+- Claude Code: 클라우드 세션은 저장소를 새로 클론한다. 저장소의 `.claude/settings.json` 훅·권한 규칙, `.mcp.json`, `.claude/skills/`는 저장소 하나인 세션에서 쓴다. 저장소 설정에 적은 플러그인은 설치하지 않는다. 개인 `~/.claude/skills/`·개인 플러그인·개인 MCP는 없다. claude.ai에서 켠 스킬은 불러온다. 키는 환경의 network secrets로 준다([Cloud environments](https://code.claude.com/docs/en/cloud-environments#what-carries-over-from-your-setup)). Claude 프로젝트의 클라우드 스레드는 지침 파일만 읽는다(같은 문서).
+- Cursor: Cloud Agent는 저장소 `.cursor/hooks.json`의 명령 훅을 돌리고, 개인 `~/.cursor/hooks.json`은 돌리지 않는다. MCP는 cursor.com/agents의 팀 설정을 쓴다([Cloud Agents](https://cursor.com/docs/cloud-agent)). 개인 스킬은 `~/.cursor/skills/`만 Sync Skills로 동기화된다. `~/.agents/skills/`는 동기화되지 않는다([Agent Skills](https://cursor.com/docs/skills)).
+- Codex: Codex Cloud는 환경에 저장소, 설치 스크립트, 시작 스킬, 환경 변수와 HTTP secrets를 둔다. HTTP secret을 저장하면 그 도메인 접근도 열린다([Codex Cloud](https://learn.chatgpt.com/docs/cloud)). 저장소 스킬·훅·`.mcp.json`을 읽는지는 문서에서 확인하지 못했다.
+
 ## Claude Code
 
 `claude-settings.json`을 프로젝트의 `.claude/settings.json`으로 복사한다. 이미 있으면 `permissions.deny`와 `permissions.ask`를 합친다. 예전 예시에서 가져온 `gh pr merge` deny 항목은 지운다. deny가 ask보다 먼저 걸려서 남아 있으면 병합이 계속 막힌다.
