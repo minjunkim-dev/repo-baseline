@@ -7,7 +7,7 @@ PR을 연 뒤 이 파일을 리뷰어에게 준다. 리뷰어는 Door에 따라 
 
 하위 에이전트인 리뷰어가 Door를 되돌리기 어려움으로 보면, 그 리뷰는 끝나지 않은 것이다. 「남은 지적」에 "새 세션 리뷰 필요"로 적는다.
 
-repo-baseline 자신의 PR이면 이 파일, `tools/review_preflight.py`, `REVIEW.md`는 PR 쪽 판이 아니라 `origin/main` 판을 쓴다. PR이 리뷰 절차와 그 검사 자체를 바꿀 수 있기 때문이다. 이 파일과 `REVIEW.md`는 `git show origin/main:<경로>`로 읽고, 리뷰 전 확인은 `git show origin/main:tools/review_preflight.py | python3 - <PR URL>`로 돌린다.
+repo-baseline 자신의 PR이면 이 파일, `tools/review_preflight.py`, `REVIEW.md`는 PR 쪽 판이 아니라 `origin/main` 판을 쓴다. PR이 리뷰 절차와 그 검사 자체를 바꿀 수 있기 때문이다. 먼저 `git fetch origin main`으로 main을 새로 받는다. 이 파일과 `REVIEW.md`는 `git show origin/main:<경로>`로 읽고, 리뷰 전 확인은 `git show origin/main:tools/review_preflight.py | python3 -I - <PR URL>`로 돌린다. `-I`가 있어야 작업 트리의 PR 쪽 `.py` 파일(예: 루트의 `json.py`)이 표준 모듈 대신 실행되지 않는다.
 
 ---
 
