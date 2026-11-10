@@ -37,7 +37,7 @@
 
 하네스별 근거(확인일 2026-11-10):
 
-- Claude Code: 클라우드 세션은 저장소를 새로 클론한다. 저장소의 `.claude/skills/`는 클론에 들어 있어 쓴다. `.claude/settings.json` 훅·권한 규칙과 `.mcp.json`은 저장소 하나인 세션에서만 쓴다. 저장소 설정에 적은 플러그인은 설치하지 않는다. 개인 `~/.claude/skills/`·개인 플러그인·개인 MCP는 없다. claude.ai에서 켠 스킬은 불러온다. 키는 환경의 network secrets로 준다([Cloud environments](https://code.claude.com/docs/en/cloud-environments#what-carries-over-from-your-setup)). Claude 프로젝트의 클라우드 스레드는 저장소 루트의 `CLAUDE.md`·`.claude/CLAUDE.md`와 경로 조건 없는 `.claude/rules/`만 읽는다. 이 목록에 `AGENTS.md`는 없다(같은 문서). 그래서 그 스레드에는 이 기준의 규칙(`AGENTS.md`)도 권한 설정도 들어가지 않는다. 그 스레드가 `CLAUDE.md`의 `@AGENTS.md` 불러오기를 따라가는지도 문서에 없다. 따라가지 않는다고 본다. 그래서 이 기준의 구현과 리뷰는 그 스레드에서 하지 않고 Claude Code 세션(로컬·클라우드)에서 한다.
+- Claude Code: 클라우드 세션은 저장소를 새로 클론한다. 저장소의 `.claude/skills/`는 클론에 들어 있어 쓴다. `.claude/settings.json` 훅·권한 규칙과 `.mcp.json`은 저장소 하나인 세션에서만 쓴다. 저장소 설정에 적은 플러그인은 설치하지 않는다. 개인 `~/.claude/skills/`·개인 플러그인·개인 MCP는 없다. claude.ai에서 켠 스킬은 불러온다. 키는 환경의 network secrets로 준다([Cloud environments](https://code.claude.com/docs/en/cloud-environments#what-carries-over-from-your-setup)). Claude 프로젝트의 클라우드 스레드는 저장소 루트의 `CLAUDE.md`·`.claude/CLAUDE.md`와 경로 조건 없는 `.claude/rules/`만 읽는다. 이 목록에 `AGENTS.md`는 없다([Claude projects](https://code.claude.com/docs/en/claude-projects#what-threads-pick-up-from-your-repositories), 확인일 2026-11-10). 그래서 그 스레드에는 이 기준의 규칙(`AGENTS.md`)도 권한 설정도 들어가지 않는다. 그 스레드가 `CLAUDE.md`의 `@AGENTS.md` 불러오기를 따라가는지도 문서에 없다. 따라가지 않는다고 본다. 그래서 이 기준의 구현과 리뷰는 그 스레드에서 하지 않고 Claude Code 세션(로컬·클라우드)에서 한다.
 - Cursor: Cloud Agent는 저장소 `.cursor/hooks.json`의 명령 훅을 돌리고, 개인 `~/.cursor/hooks.json`은 돌리지 않는다. MCP는 대시보드의 팀 설정과 cursor.com/agents의 개인 설정을 쓴다([Cloud Agents](https://cursor.com/docs/cloud-agent), [Capabilities](https://cursor.com/docs/cloud-agent/capabilities)). 저장소 `.cursor/mcp.json`은 문서에 없다. 개인 스킬은 `~/.cursor/skills/`만 Sync Skills로 동기화된다. `~/.agents/skills/`는 동기화되지 않는다. Cloud Agent가 저장소 스킬을 읽는다는 직접 문장은 없고, 자동화에 스킬을 주려면 저장소 `.cursor/skills/`에 두라고 안내한다([Agent Skills](https://cursor.com/docs/skills)).
 - Codex: Codex Cloud는 환경에 저장소, 설치 스크립트, 시작 스킬, 환경 변수와 HTTP secrets를 둔다. HTTP secret을 저장하면 그 도메인 접근도 열린다([Codex Cloud](https://learn.chatgpt.com/docs/cloud)). 저장소에 둔 스킬은 클라우드 작업에서 쓰고, 개인 기기의 스킬은 동기화되지 않는다([Cloud environments](https://learn.chatgpt.com/codex/environments/cloud-environments)). 저장소 훅·MCP 설정·`AGENTS.md`를 읽는지는 두 문서에 없다(확인일 2026-11-10). 훅과 MCP는 없다고 본다. 규칙은 클론에 들어 있으니 작업을 맡길 때 `AGENTS.md`를 읽으라고 적는다.
 
@@ -102,6 +102,6 @@ CLI는 [Permissions](https://cursor.com/docs/cli/reference/permissions)대로 �
 ```
 
 - `Read(.env*)`는 문서 예시 그대로다.
-- 문서의 규칙 종류는 allow와 deny뿐이라 병합에 확인을 받는 설정이 없다. 그래서 `gh pr merge`를 deny로 둔다. Cursor로 POLICY §5의 에이전트 병합을 쓰려면 이 항목을 빼고, 병합 명령마다 PR 번호와 `--match-head-commit`을 사람이 본다. 승인하지 않은 셸 명령을 실행 전에 묻는다는 직접 문장은 문서에 없다. 묻지 않는다고 본다.
-- `Shell(명령:인자)`의 인자 글롭은 문서 예시가 `curl:*`뿐이다. `gh:pr merge*`처럼 공백이 든 인자가 맞는지는 문서에 없다. 맞지 않을 수 있다고 본다. 맞지 않으면 이 deny는 병합을 막지 못하고, 맨 위에 적은 대로 브랜치 보호와 필수 CI만 남는다. 그래서 Cursor에 병합을 지시하지 않는다.
+- 문서의 규칙 종류는 allow와 deny뿐이라 병합에 확인을 받는 설정이 없다. 승인하지 않은 셸 명령을 실행 전에 묻는다는 직접 문장도 문서에 없다. 묻지 않는다고 본다. 그러면 사람이 병합 명령을 실행 전에 볼 수 없다. 그래서 `gh pr merge`를 deny로 두고, Cursor로는 POLICY §5의 에이전트 병합을 쓰지 않는다.
+- `Shell(명령:인자)`의 인자 글롭은 문서 예시가 `curl:*`뿐이다. `gh:pr merge*`처럼 공백이 든 인자가 맞는지는 문서에 없다. 맞지 않을 수 있다고 본다. 맞지 않으면 이 deny는 병합을 막지 못한다. 브랜치 보호와 필수 CI도 맨 위에 적은 대로 소유자 `gh` 로그인으로 도는 병합을 막지 못한다. 그래서 Cursor에 병합을 지시하지 않는다.
 - IDE(에디터 안 에이전트)가 이 파일을 읽는지는 문서에 없다. 읽지 않는다고 본다. IDE에서는 확인 창을 사람이 본다.
