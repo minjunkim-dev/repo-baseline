@@ -1,9 +1,10 @@
 # 변경 기록
 
-항목당 1~3줄. 재설계 전 기록은 [docs/archive/CHANGELOG-2026.md](docs/archive/CHANGELOG-2026.md)에 있다.
+항목당 1~3줄. 재설계 전 기록은 [CHANGELOG-2026.md](https://github.com/minjunkim-dev/repo-baseline/blob/c3f6d569871f51b83c1405dee34db6850a0b30e3/docs/archive/CHANGELOG-2026.md)(지운 보관 문서의 마지막 판)에 있다.
 
 ## 2026-11 — 재설계 이후
 
+- `docs/archive/`를 지웠다. 현행 규칙이 아니고 읽지 않는 문서였다. 근거 링크는 지우기 직전 커밋(`c3f6d56`)의 고정 링크로 바꿨다. 소비 레포가 옮길 일은 없다.
 - `POLICY.md` §5: 확인 규칙이 없는 하네스는 병합을 막아 두고 그 하네스로는 에이전트 병합을 쓰지 않는다. 전에는 소유자가 막는 규칙을 빼고 쓸 수 있다고 적어, 같은 줄의 "병합에 확인을 받는다"와 어긋났다. 소비 레포는 POLICY를 링크로 따르므로 옮길 일은 없다. 그런 하네스에서 막는 규칙을 뺀 소비 레포는 다시 넣는다.
 - 에이전트 권한 예시의 Cursor 절: Cursor가 셸 명령을 묻지 않는다고 보므로 deny를 빼고 병합하는 길을 지웠다. Cursor로는 POLICY §5의 에이전트 병합을 쓰지 않는다. 브랜치 보호와 필수 CI가 소유자 `gh` 병합을 막지 못한다는 맨 위 문단과 맞췄다. 소비 레포가 옮길 일은 없다.
 - matt-skills의 `check_skills.py --harness claude`가 `~/.claude/settings.json`에서 끈 플러그인의 캐시 사본을 세지 않는다. 전에는 리뷰어가 부를 수 없는 사본을 찾았다고 출력할 수 있었다. 소비 레포가 옮길 일은 없다.
