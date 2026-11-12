@@ -22,7 +22,7 @@
 | [matt-skills](profiles/matt-skills/) | 리뷰의 두 축 판단·회고·PR 본문을 Matt Pocock 스킬에 맡기고 싶을 때. 켜면 스킬 설치가 규칙이다(설치 확인 스크립트) |
 | [pstack](profiles/pstack/) | pstack 스킬을 쓸 때. 기본 동작 중 이 기준과 어긋나는 것(병합, 바로 반영, 규칙 위치)을 `AGENTS.md`에 적는다 |
 
-PR을 열면 [prompts/review.md](prompts/review.md)로 리뷰한다. 되돌리기 쉬움이면 구현 세션의 하위 에이전트가 리뷰해도 되고, 어려움이면 새 세션이 리뷰한다. 리뷰하는 기기에는 이 저장소의 클론과 Python 3.9 이상이 있어야 한다(리뷰 전 확인 스크립트).
+PR을 열면 [prompts/review.md](prompts/review.md)로 리뷰한다. 되돌리기 쉬움이고 신뢰 경계를 건드리지 않으면 구현 세션의 하위 에이전트가 리뷰해도 되고, 어려움이거나 신뢰 경계를 건드리면 새 세션이 리뷰한다. 리뷰하는 기기에는 이 저장소의 클론과 Python 3.9 이상이 있어야 한다(리뷰 전 확인 스크립트).
 회고는 정기 실행하지 않는다. 같은 지적이 반복될 때 [prompts/retro.md](prompts/retro.md)를 실행한다.
 
 ## 적용 중인 프로젝트

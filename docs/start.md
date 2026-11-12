@@ -50,7 +50,7 @@ ls CLAUDE.md CLAUDE.local.md .claude/CLAUDE.md 2>/dev/null   # 나온 파일은 
 - Summary: 코어 적용. 완료 기준: `AGENTS.md`·`REVIEW.md`에 템플릿 빈칸이 없고 Git이 `.env`·`.env.*`를 무시한다. 전에 통과하던 프로젝트 명령은 그대로 통과한다.
 - Evidence: 4칸 명령을 돌린 결과. 돌리지 않은 칸과 이유.
 - Merge Danger: 문서만 더했으면 되돌리기 쉬움. 신뢰 경계: 없음.
-- Review: [prompts/review.md](../prompts/review.md)로 리뷰한 결과. 되돌리기 쉬움이면 구현 세션의 하위 에이전트가 리뷰해도 되고, 어려움이면 새 세션이 리뷰한다. 리뷰하는 기기에 repo-baseline 클론과 Python 3.9 이상이 필요하다.
+- Review: [prompts/review.md](../prompts/review.md)로 리뷰한 결과. 되돌리기 쉬움이고 신뢰 경계를 건드리지 않으면 구현 세션의 하위 에이전트가 리뷰해도 되고, 어려움이거나 신뢰 경계를 건드리면 새 세션이 리뷰한다. 리뷰하는 기기에 repo-baseline 클론과 Python 3.9 이상이 필요하다.
 
 이 PR은 문서만 더하면 되돌리기 쉬움이다. 병합은 소유자가 하거나, `POLICY.md` §5의 조건을 갖춘 뒤 에이전트에게 지시한다.
 
