@@ -15,7 +15,7 @@
 
 | 프로필 | 언제 켜는가 |
 | --- | --- |
-| [github](templates/github/) | GitHub에 올릴 때(권장). 브랜치 보호, 필수 CI, push protection, Dependabot, CI 골격, 에이전트 권한 예시 |
+| [github](templates/github/) | GitHub에 올릴 때(권장). 브랜치 보호, 필수 CI, push protection, Dependabot, CI 골격, SECURITY.md, 에이전트 권한 예시 |
 | [pr-conventions](profiles/pr-conventions/) | PR 제목·본문 형식을 CI로 검사하고 싶을 때 |
 | [hash-copy](profiles/hash-copy/) | 공통 검사기를 해시로 고정해 여러 저장소에 똑같이 두고 싶을 때(Python 필요) |
 | [team](profiles/team/) | 2명 이상. CODEOWNERS와 사람 승인 |
@@ -27,7 +27,7 @@ PR을 열면 [prompts/review.md](prompts/review.md)로 리뷰한다. 되돌리�
 
 ## 적용 중인 프로젝트
 
-세 곳 모두 코어(`AGENTS.md`·`REVIEW.md`)와 github 프로필로 옮겼다(#71).
+2026-11-08 기준으로 세 곳 모두 코어(`AGENTS.md`·`REVIEW.md`)와 github 프로필로 옮겼다(#71). 그 뒤의 상태는 확인하지 않았다.
 
 | 프로젝트 | 저장소 |
 | --- | --- |
