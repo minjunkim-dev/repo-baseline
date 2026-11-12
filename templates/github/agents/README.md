@@ -25,7 +25,7 @@
 | 규칙(`AGENTS.md`, `REVIEW.md`, PR 템플릿) | 저장소 | 클론에 들어 있다 |
 | check·test 명령 | 저장소의 명령, GitHub Actions 필수 체크 | 같은 명령을 돌린다 |
 | 브랜치 보호, CodeQL, Dependabot, 저장소 설정 | GitHub 서버. 소유자가 `tools/apply_github_settings.py`로 적용한다 | 해당 없음 |
-| 리뷰 봇 | 기본으로 쓰지 않는다. 리뷰는 POLICY §3대로 다른 컨텍스트의 리뷰어가 한다. 쓰려면 소유자가 GitHub App으로 연결한다. 설정 파일을 커밋하면 저장소 설정과 같이 신뢰 경계다. 봇이 공개 저장소의 자동 리뷰를 건너뛰면(예: CodeRabbit은 별이 적은 저장소에서 건너뛰고 PR 댓글의 체크박스로 손으로 시작하게 한다) 그 PR에는 외부 리뷰가 없는 것이다. 단, 되돌리기 어려움이거나 신뢰 경계를 건드린 PR이면 봇에 리뷰를 한 번 요청한다(POLICY §3) | 해당 없음. 지적은 리뷰어가 판정한다(POLICY §3) |
+| 리뷰 봇 | 기본으로 쓰지 않는다. 리뷰는 POLICY §3대로 다른 컨텍스트의 리뷰어가 한다. 쓰려면 소유자가 GitHub App으로 연결한다. 설정 파일을 커밋하면 저장소 설정과 같이 신뢰 경계다. 봇이 공개 저장소의 자동 리뷰를 건너뛰면(예: CodeRabbit은 별이 적은 저장소에서 건너뛰고 PR 댓글의 체크박스로 손으로 시작하게 한다) 그 PR에는 외부 리뷰가 없는 것이다(되돌리기 어려움이거나 신뢰 경계를 건드린 PR이면 먼저 봇에 리뷰를 한 번 요청한다. POLICY §3) | 해당 없음. 지적은 리뷰어가 판정한다(POLICY §3) |
 | 리뷰 안전장치(`prompts/review.md`, `tools/review_preflight.py`) | repo-baseline 클론 | 클론이 없으면 그 세션에서 공개 저장소를 클론한다(`prompts/review.md`) |
 | 하네스 권한 설정 | 저장소 하네스 폴더(이 문서 아래 절) | 하네스마다 다르다(아래) |
 | 모든 세션이 쓰는 프로젝트 스킬 | 저장소 `.claude/skills/`, `.agents/skills/` | Claude Code·Codex는 읽는다. Cursor는 자동화에 쓸 스킬을 저장소 `.cursor/skills/`에 두라고 안내한다 |
