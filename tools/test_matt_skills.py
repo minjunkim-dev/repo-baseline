@@ -142,7 +142,7 @@ class CheckSkillsTest(unittest.TestCase):
                 self.commit(path)
                 code, out = self.check()
                 self.assertEqual(code, 2, out)
-                self.assertIn("PR이 하네스가 읽는 파일을 바꿨다", out)
+                self.assertIn("PR이 에이전트 도구가 읽는 파일을 바꿨다", out)
 
     def test_file_pulled_in_by_an_at_import_is_watched(self):
         self.git("checkout", "-q", "main")
@@ -224,7 +224,7 @@ class CheckSkillsTest(unittest.TestCase):
         self.git("commit", "-qm", "link")
         code, out = self.check()
         self.assertEqual(code, 2, out)
-        self.assertIn(".claude/skills: 하네스 폴더 안 symlink", out)
+        self.assertIn(".claude/skills: 에이전트 설정 폴더 안 symlink", out)
 
     def test_submodule_change_is_not_delegated(self):
         self.install()
