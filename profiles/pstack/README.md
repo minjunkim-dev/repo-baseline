@@ -29,7 +29,7 @@ pstack 스킬은 사람이 요청할 때만 쓴다. 이 저장소의 규칙이 p
 - 서로 다른 모델로 검토하지 않았으면 그 사실을 보고에 적는다.
 ```
 
-Cursor도 `.agents/skills/`와 `.claude/skills/`를 읽고, 하위 폴더의 `.cursor/skills/`·`.agents/skills/`도 찾는다([Agent Skills](https://cursor.com/docs/skills), 확인일 2026-11-10). 그래서 하네스 폴더는 저장소 어디에 있어도 신뢰 경계다.
+Cursor도 `.agents/skills/`와 `.claude/skills/`를 읽고, 하위 폴더의 `.cursor/skills/`·`.agents/skills/`도 찾는다([Agent Skills](https://cursor.com/docs/skills), 확인일 2026-11-10). 그래서 하네스 폴더는 저장소 어디에 있어도 민감한 파일이다.
 
 ## 단계별로 겹치는 스킬
 

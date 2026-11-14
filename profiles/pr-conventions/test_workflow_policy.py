@@ -30,7 +30,7 @@ why
 ran
 
 ## Merge Danger
-Door: 되돌리기 쉬움
+되돌리기: 쉬움
 """
 
 
@@ -248,8 +248,8 @@ class ConventionsTest(unittest.TestCase):
         self.assertEqual([], validate_body(BODY.replace("Author: Cursor / grok-4.7", "작성 도구: Cursor 클라우드 에이전트\n작성 모델: grok-4.7")))
         self.assertEqual([], validate_body(BODY.replace("grok-4.7", "없음").replace("Cursor", "사람")))
         self.assertTrue(validate_body(BODY.replace("## Evidence\n", "")))
-        self.assertTrue(validate_body(BODY.replace("Door: 되돌리기 쉬움", "Door: 양쪽 문 또는 한쪽 문")))
-        self.assertTrue(validate_body(BODY + "Door: 한쪽 문\n"))
+        self.assertTrue(validate_body(BODY.replace("되돌리기: 쉬움", "되돌리기: 쉬움 또는 어려움")))
+        self.assertTrue(validate_body(BODY + "Door: 한쪽 문\n"))  # two lines, even in different names
         self.assertEqual([], validate_body(BODY.replace("Cursor", "Codex")))
         self.assertTrue(validate_body(BODY.replace("Author: Cursor / grok-4.7", "Author:  / grok-4.7")))
         self.assertTrue(validate_body(BODY.replace("Author: Cursor / grok-4.7", "Author: <도구> / <모델>   (사람이면 `사람 / 없음`)")))
@@ -257,17 +257,16 @@ class ConventionsTest(unittest.TestCase):
         self.assertTrue(any("disagree" in error for error in validate_body(BODY + "작성 도구: Claude Code\n작성 모델: opus-5.5\n")))
         self.assertEqual(parse_author("Author: Claude Code / Opus 5.5\n이전 작성 모델: grok-4.7, composer-2.5\n")[1], ["grok-4.7", "composer-2.5"])
 
-    def test_door_accepts_current_and_deprecated_values_only(self):
-        current = "Door: 되돌리기 쉬움"
-        for value in ("되돌리기 쉬움", "되돌리기 어려움", "양쪽 문", "한쪽 문"):
-            with self.subTest(value=value):
-                self.assertEqual([], validate_body(BODY.replace(current, f"Door: {value}")))
-        for value in ("one-way", "two-way", "한쪽문", "되돌리기 어려움 추가", "어려움", ""):
-            with self.subTest(value=value):
-                errors = validate_body(BODY.replace(current, f"Door: {value}"))
-                self.assertTrue(any("되돌리기 쉬움" in error and "되돌리기 어려움" in error for error in errors))
-        renamed = BODY.replace(current, "분류: 되돌리기 어려움")
-        self.assertTrue(any("Door must be" in error for error in validate_body(renamed)))
+    def test_revert_line_accepts_current_and_previous_names_only(self):
+        current = "되돌리기: 쉬움"
+        for line in ("되돌리기: 쉬움", "되돌리기: 어려움", "Door: 되돌리기 쉬움", "Door: 되돌리기 어려움",
+                     "Door: 양쪽 문", "Door: 한쪽 문"):
+            with self.subTest(line=line):
+                self.assertEqual([], validate_body(BODY.replace(current, line)))
+        for line in ("되돌리기: 되돌리기 쉬움", "되돌리기: 양쪽 문", "되돌리기:", "Door: 쉬움", "Door: one-way",
+                     "Door: 한쪽문", "되돌리는 법: 쉬움", "분류: 되돌리기 어려움"):
+            with self.subTest(line=line):
+                self.assertIn(workflow_policy.REVERT_ERROR, validate_body(BODY.replace(current, line)))
 
     def test_the_check_uses_the_shared_author_parser(self):
         import pr_author
@@ -352,7 +351,7 @@ class ConventionsTest(unittest.TestCase):
 
     def test_template_has_the_sections_and_review_fields(self):
         text = TEMPLATE.read_text(encoding="utf-8")
-        for header in ("## Summary", "## Evidence", "## Merge Danger", "## Review", "Author:", "Door:",
+        for header in ("## Summary", "## Evidence", "## Merge Danger", "## Review", "Author:", "되돌리기:", "민감한 파일:",
                        "리뷰어", "고친 것:", "남은 지적:"):
             self.assertIn(header, text)
 
