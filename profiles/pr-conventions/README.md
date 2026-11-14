@@ -14,7 +14,7 @@
 
 - 제목: Conventional Commits, 소문자 또는 한글 설명, 72자 이하, 끝에 마침표 없음.
 - 브랜치: `<type>/<issue>-<slug>`. `docs`·`build`·`ci`·`chore`는 이슈 번호를 생략할 수 있다. 에이전트 접두사(`claude/`, `codex/` 등)는 설정으로 허용한다.
-- 본문: `## Summary`, `## Evidence`, `## Merge Danger`, `Door:` 한 줄, `Author: <도구> / <모델>` 한 줄. 도구 이름은 아무것이나 된다.
+- 본문: `## Summary`, `## Evidence`, `## Merge Danger`, `되돌리기: 쉬움` 또는 `되돌리기: 어려움` 한 줄(옛 `Door:` 줄도 받는다), `Author: <도구> / <모델>` 한 줄. 도구 이름은 아무것이나 된다.
 - `feat`·`fix`·`refactor`·`perf`·`test`·`revert`는 `Refs #N`, `Closes #N`, 또는 트래커 ID(`Fixes ENG-123`)가 있어야 한다.
 - 기본값으로 `AGENTS.md`가 있어야 한다. `CLAUDE.md`·`CLAUDE.local.md`는 없거나 `@AGENTS.md` 한 줄, `.claude/CLAUDE.md`는 없거나 `@../AGENTS.md` 한 줄이어야 한다(import는 그 파일 기준 상대 경로다). 다른 내용이 있으면 실패한다. 이 중 하나라도 있으면 Claude Code는 기본 설정에서 `AGENTS.md`를 읽지 않아 지침이 갈라지기 때문이다. 이 파일들을 아예 두지 않으려면 아래 설정에서 `"reject_claude_md": true`를 둔다. `"require_agents_md": false`면 내용도 보지 않는다.
 - 피처 플래그 파일이 있으면 그 형식과 `remove_by` 날짜.

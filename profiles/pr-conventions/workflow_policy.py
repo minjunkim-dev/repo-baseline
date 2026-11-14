@@ -28,10 +28,12 @@ BRANCH = re.compile(rf"^(?:({TYPES})/[1-9][0-9]*-{SLUG}|(?:docs|build|ci|chore)/
 ISSUE_REF = re.compile(r"\b(?i:Closes|Fixes|Resolves|Refs)\s+(?:#[1-9][0-9]*|[A-Z][A-Z0-9]*-[1-9][0-9]*)\b")
 ISSUE_TYPES = {"feat", "fix", "refactor", "perf", "test", "revert"}
 HEADERS = ("Summary", "Evidence", "Merge Danger")
-# Current names. The deprecated pair is the previous name for the same decision.
+# The current field is 되돌리기: 쉬움|어려움. Door: is its previous name, with that name's values (old and older).
+REVERT_FIELD, REVERT_VALUES = "되돌리기:", {"쉬움", "어려움"}
 DOOR_VALUES = {"되돌리기 쉬움", "되돌리기 어려움"}
 DEPRECATED_DOOR_VALUES = {"양쪽 문", "한쪽 문"}
 DOORS = DOOR_VALUES | DEPRECATED_DOOR_VALUES
+REVERT_ERROR = "PR body: write exactly one line 되돌리기: 쉬움 or 되돌리기: 어려움"
 DEFAULT_BOT_PREFIXES = ("claude", "codex", "dependabot")
 CONFIG_NAME = ".github/workflow-policy.json"
 # Imports resolve relative to the importing file, so the nested file points one level up.
@@ -64,10 +66,12 @@ def validate_body(body, author=""):
     for name in HEADERS:
         if not any(line.strip() == f"## {name}" for line in text.split("\n")):
             errors.append(f"PR body: missing ## {name}")
-    # The field name stays Door:. A value must match exactly, including the deprecated names.
-    doors = [line[len("Door:"):].strip() for line in text.split("\n") if line.startswith("Door:")]
-    if len(doors) != 1 or doors[0] not in DOORS:
-        errors.append("PR body: Door must be 되돌리기 쉬움 or 되돌리기 어려움")
+    # One line in either name. A value must match exactly.
+    lines = text.split("\n")
+    reverts = [(line[len(REVERT_FIELD):].strip(), REVERT_VALUES) for line in lines if line.startswith(REVERT_FIELD)]
+    reverts += [(line[len("Door:"):].strip(), DOORS) for line in lines if line.startswith("Door:")]
+    if len(reverts) != 1 or reverts[0][0] not in reverts[0][1]:
+        errors.append(REVERT_ERROR)
     _, _, author_errors = parse_author(text)
     errors.extend(author_errors)
     return errors

@@ -32,7 +32,7 @@ mkdir -p .github && cp -n "$B/pull_request_template.md" .github/
 - 실패로 보는 것: 프로젝트 영역별 행.
 - 심각도의 P2 상한 `<N>`.
 - 건너뛸 것: 생성 파일, vendor 경로.
-- 신뢰 경계: 인증·결제·권한·migration 경로([POLICY.md](../POLICY.md) §4).
+- 민감한 파일: 인증·결제·권한·migration 경로([POLICY.md](../POLICY.md) §4).
 
 ## 4. 확인
 
@@ -49,10 +49,18 @@ ls CLAUDE.md CLAUDE.local.md .claude/CLAUDE.md 2>/dev/null   # 나온 파일은 
 - Author: 쓴 도구와 모델. 사람이면 `사람 / 없음`.
 - Summary: 코어 적용. 완료 기준: `AGENTS.md`·`REVIEW.md`에 템플릿 빈칸이 없고 Git이 `.env`·`.env.*`를 무시한다. 전에 통과하던 프로젝트 명령은 그대로 통과한다.
 - Evidence: 4칸 명령을 돌린 결과. 돌리지 않은 칸과 이유.
-- Merge Danger: 문서만 더했으면 되돌리기 쉬움. 신뢰 경계: 없음.
-- Review: [prompts/review.md](../prompts/review.md)로 리뷰한 결과. 되돌리기 쉬움이고 신뢰 경계를 건드리지 않으면 구현 세션의 하위 에이전트가 리뷰해도 되고, 어려움이거나 신뢰 경계를 건드리면 새 세션이 리뷰한다. 리뷰하는 기기에 repo-baseline 클론과 Python 3.9 이상이 필요하다.
+- Merge Danger: 문서만 더했으면 되돌리기 쉬움. 민감한 파일: 없음.
+- Review: [prompts/review.md](../prompts/review.md)로 리뷰한 결과. 되돌리기 쉬움이고 민감한 파일을 건드리지 않으면 구현 세션의 하위 에이전트가 리뷰해도 되고, 어려움이거나 민감한 파일을 건드리면 새 세션이 리뷰한다. 리뷰하는 기기에 repo-baseline 클론과 Python 3.9 이상이 필요하다.
 
 이 PR은 문서만 더하면 되돌리기 쉬움이다. 병합은 소유자가 하거나, `POLICY.md` §5의 조건을 갖춘 뒤 에이전트에게 지시한다.
+
+## 판 올리기
+
+이 저장소가 바뀐 뒤 이미 적용한 저장소를 맞추는 법이다. 무엇이 바뀌었는지는 [CHANGELOG.md](../CHANGELOG.md)에서 지난번에 맞춘 뒤의 항목을 본다. 소비 레포가 손으로 옮길 일은 거기에 적혀 있다.
+
+- hash-copy 프로필을 켰으면: 이 저장소의 깨끗한 `origin/main` checkout에서 `python3 profiles/hash-copy/apply_baseline.py <소비 레포 경로>`를 돌리고, 바뀐 파일로 소비 레포에 PR을 연다.
+- 손으로 `cp`했으면: 바뀐 코어 파일을 다시 복사한다. `AGENTS.md`·`REVIEW.md`는 덮어쓰지 말고 바뀐 줄만 손으로 합친다.
+- 판을 올리는 PR 자체는 소비 레포의 기존 검사기(base 브랜치의 것)로 검사된다. 검사기가 바뀌는 판이면 그 PR 본문은 옛 형식으로 쓴다. 예: 2026-11-14 판의 `되돌리기:` 줄은 옛 검사기가 모르므로, 그 PR 본문에는 `Door: 되돌리기 쉬움`처럼 옛 줄을 쓴다.
 
 ## 다음
 
