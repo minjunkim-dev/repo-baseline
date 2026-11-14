@@ -4,7 +4,7 @@
 
 ## 2026-11 — 재설계 이후
 
-- `POLICY.md` §5와 코어 `AGENTS.md` 병합 줄: 리뷰한 head 뒤의 새 커밋이 base 병합 커밋뿐이고 PR diff(merge-base 기준)가 글자까지 같으면 다시 리뷰하지 않고, 새 head의 필수 CI 통과 뒤 새 head SHA로 병합한다. strict 브랜치 보호에서 base가 자주 움직이면 다시 리뷰가 되풀이됐다. 소비 레포는 코어 `AGENTS.md`의 병합 줄을 새 문장으로 바꾼다.
+- `POLICY.md` §5와 코어 `AGENTS.md` 병합 줄: 리뷰한 head 뒤의 새 커밋이 base 병합 커밋뿐이고, 새 base에서도 되돌리기·민감한 파일 판정이 그대로이며, merge-base 기준 PR diff가 같으면(`git diff --no-ext-diff --no-textconv --full-index` 출력을 `cmp`로 비교) 다시 리뷰하지 않는다. 새 head의 필수 CI 통과 뒤 새 head SHA로 병합하고, 두 SHA와 두 diff의 sha256을 PR 댓글에 남긴다. strict 브랜치 보호에서 base가 자주 움직이면 다시 리뷰가 되풀이됐다. 소비 레포는 코어 `AGENTS.md`의 병합 줄을 새 문장으로 바꾼다.
 - 문서의 "하네스"를 쉬운 말로 바꿨다. 폴더(`.claude/`·`.agents/`·`.codex/`·`.cursor/`)는 "에이전트 설정 폴더", Claude Code·Codex·Cursor 같은 도구는 "에이전트 도구"다. POLICY §4 표의 칸 이름은 "에이전트 설정 폴더와 `.mcp.json`"이고 뜻은 같다. `check_skills.py`의 이유 문구도 바꿨다(`--harness` 옵션은 그대로). 소비 레포는 `REVIEW.md` 민감한 파일 절의 같은 말을 바꾼다.
 - PR 본문의 `Door: 되돌리기 쉬움|어려움` 줄을 `되돌리기: 쉬움|어려움`으로, `신뢰 경계:`를 `민감한 파일:`로 바꾸고 문서의 같은 말도 바꿨다. pr-conventions 검사기는 옛 `Door:` 줄도 받는다. 소비 레포는 PR 양식과 검사기를 함께 올린다(`docs/start.md` 「판 올리기」). Summary·Evidence·Merge Danger 제목은 Matt `/pr` 스킬과 같게 그대로 둔다.
 - `POLICY.md` §3과 코어 `AGENTS.md` 「작업 방식」의 리뷰 줄: PR을 연 세션은 소유자에게 묻지 않고 리뷰(하위 에이전트 또는 새 세션)를 시작한다. 병합은 그대로 소유자가 정한다(§5). 소비 레포는 코어 `AGENTS.md`의 리뷰 줄 끝에 이 두 문장을 더한다.
