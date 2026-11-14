@@ -4,7 +4,7 @@
 
 ## 2026-11 — 재설계 이후
 
-- 문서의 "하네스"를 쉬운 말로 바꿨다. 폴더(`.claude/`·`.agents/`·`.codex/`·`.cursor/`)는 "에이전트 설정 폴더", Claude Code·Codex·Cursor 같은 도구는 "에이전트 도구"다. POLICY §4 표의 칸 이름도 "에이전트 설정 폴더"로 바꿨고 뜻은 같다. `check_skills.py`의 이유 문구도 바꿨다(`--harness` 옵션은 그대로). 소비 레포는 `REVIEW.md` 민감한 파일 절의 같은 말을 바꾼다.
+- 문서의 "하네스"를 쉬운 말로 바꿨다. 폴더(`.claude/`·`.agents/`·`.codex/`·`.cursor/`)는 "에이전트 설정 폴더", Claude Code·Codex·Cursor 같은 도구는 "에이전트 도구"다. POLICY §4 표의 칸 이름은 "에이전트 설정 폴더와 `.mcp.json`"이고 뜻은 같다. `check_skills.py`의 이유 문구도 바꿨다(`--harness` 옵션은 그대로). 소비 레포는 `REVIEW.md` 민감한 파일 절의 같은 말을 바꾼다.
 - PR 본문의 `Door: 되돌리기 쉬움|어려움` 줄을 `되돌리기: 쉬움|어려움`으로, `신뢰 경계:`를 `민감한 파일:`로 바꾸고 문서의 같은 말도 바꿨다. pr-conventions 검사기는 옛 `Door:` 줄도 받는다. 소비 레포는 PR 양식과 검사기를 함께 올린다(`docs/start.md` 「판 올리기」). Summary·Evidence·Merge Danger 제목은 Matt `/pr` 스킬과 같게 그대로 둔다.
 - `POLICY.md` §3과 코어 `AGENTS.md` 「작업 방식」의 리뷰 줄: PR을 연 세션은 소유자에게 묻지 않고 리뷰(하위 에이전트 또는 새 세션)를 시작한다. 병합은 그대로 소유자가 정한다(§5). 소비 레포는 코어 `AGENTS.md`의 리뷰 줄 끝에 이 두 문장을 더한다.
 - 리뷰어 규칙의 짧은 요약(코어 `AGENTS.md`, README, `docs/start.md`, matt-skills README)에 신뢰 경계 조건을 더했다. 하위 에이전트 리뷰는 되돌리기 쉬움이고 신뢰 경계를 건드리지 않을 때만, 새 세션 리뷰는 되돌리기 어려움이거나 신뢰 경계를 건드릴 때다. POLICY §3과 같은 뜻이다. 소비 레포는 코어 `AGENTS.md` 「작업 방식」의 리뷰 줄을 새 문장으로 바꾼다.
