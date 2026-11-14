@@ -77,13 +77,13 @@ def refusals(base):
             if "160000" in field.lstrip("\n:").split():  # a mode token; abbreviated shas are longer
                 reasons.append(f"{path}: PR이 서브모듈을 바꿨다")
             elif harness_path(path):
-                reasons.append(f"{path}: PR이 하네스가 읽는 파일을 바꿨다")
+                reasons.append(f"{path}: PR이 에이전트 도구가 읽는 파일을 바꿨다")
     for entry in tracked.split("\0"):
         mode, _, path = entry.partition("\t")
         if not path or not harness_path(path):
             continue
         if mode.startswith("120000"):
-            reasons.append(f"{path}: 하네스 폴더 안 symlink")
+            reasons.append(f"{path}: 에이전트 설정 폴더 안 symlink")
         if any(fold(p) in SKILLS for p in path.split("/")):
             reasons.append(f"{path}: 저장소 안에 같은 이름의 스킬이 있다")
     return sorted(set(reasons))

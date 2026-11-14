@@ -10,7 +10,7 @@
 | 규칙(`POLICY.md`) | 규칙끼리 모순된다. 기준 없는 예외나 "나중에 완화" 같은 문장이 들어간다 |
 | 코어(`templates/core/`) | 소비 레포에 복사했을 때 빈칸 확인(`grep -nE '<[^>]+>'`)이 통과하지 못한다. 특정 도구·모델 이름이 들어간다 |
 | 안내 문서 | 사실과 다르다. 명령이 실제로 동작하지 않는다. `POLICY.md` 규칙을 다른 말로 옮겨 뜻이 바뀐다. 같은 절차를 적은 다른 문서(README, `docs/start.md`, `prompts/setup.md`)와 어긋난다 |
-| 하네스 안내 | 공식 문서 근거나 확인일이 없다. 확인하지 않은 동작을 확인한 것처럼 적는다 |
+| 에이전트 도구 안내 | 공식 문서 근거나 확인일이 없다. 확인하지 않은 동작을 확인한 것처럼 적는다 |
 | 검사기·도구 | 신뢰할 수 없는 PR 트리의 파일을 따라가거나(symlink) 크기 제한 없이 읽는다. 실패를 통과로 보고한다. 서버에 쓰기 전에 계획을 보여 주지 않는다 |
 | 테스트 | 구현 값을 되풀이하거나, 사용자에게 보이는 동작 대신 소스 모양을 검사한다. mock이 실제 의존성의 실패 조건을 가린다 |
 | 변경 기록 | 소비 레포가 손으로 옮겨야 하는 일을 `CHANGELOG.md`에 적지 않는다 |
@@ -35,7 +35,7 @@
 
 ## 민감한 파일
 
-되돌리기 어려움이거나 이 경로를 건드리면 보안 관점의 리뷰를 더한다: `.github/workflows/**`, `.github/repository-settings.json`, `.github/dependabot.yml`, 하네스 설정(`.claude/`·`.agents/`·`.codex/`·`.cursor/` 같은 하네스 폴더와 그 안의 모든 파일, 하위 폴더에 있는 것 포함, `.mcp.json`), `templates/github/**`, `tools/apply_github_settings.py`, `profiles/pr-conventions/*.py`, `profiles/pr-conventions/pr-policy.yml`, `profiles/hash-copy/*.py`, `profiles/hash-copy/*.json`, `profiles/hash-copy/dependabot-ecosystem.yml`, `profiles/team/CODEOWNERS`, `tools/review_preflight.py`, `profiles/matt-skills/*.py`. 마지막 둘은 리뷰어 기기에서 도는 리뷰 안전장치다. `profiles/`의 여섯은 소비 레포가 복사해 CI, 해시 검사 대상, Dependabot, 소유권 설정으로 쓴다.
+되돌리기 어려움이거나 이 경로를 건드리면 보안 관점의 리뷰를 더한다: `.github/workflows/**`, `.github/repository-settings.json`, `.github/dependabot.yml`, 에이전트 설정 폴더(`.claude/`·`.agents/`·`.codex/`·`.cursor/` 같은 폴더와 그 안의 모든 파일, 하위 폴더에 있는 것 포함)와 `.mcp.json`, `templates/github/**`, `tools/apply_github_settings.py`, `profiles/pr-conventions/*.py`, `profiles/pr-conventions/pr-policy.yml`, `profiles/hash-copy/*.py`, `profiles/hash-copy/*.json`, `profiles/hash-copy/dependabot-ecosystem.yml`, `profiles/team/CODEOWNERS`, `tools/review_preflight.py`, `profiles/matt-skills/*.py`. 마지막 둘은 리뷰어 기기에서 도는 리뷰 안전장치다. `profiles/`의 여섯은 소비 레포가 복사해 CI, 해시 검사 대상, Dependabot, 소유권 설정으로 쓴다.
 
 ## 보고와 수정
 

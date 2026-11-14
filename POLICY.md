@@ -48,7 +48,7 @@ repo-baseline을 쓰는 모든 저장소의 규칙이다. 도구·모델·스택
 | `.github/workflows/**` | CI workflow |
 | 저장소·CI 설정 | 예: `.github/repository-settings.json`, `.github/dependabot.yml`, `CODEOWNERS` |
 | 의존성 manifest·lockfile | 예: `package.json`, `go.mod`, `Cargo.toml`, `pyproject.toml`과 각 lockfile |
-| 하네스 설정 | `.claude/`·`.agents/`·`.codex/`·`.cursor/` 같은 하네스 폴더(하위 폴더에 있어도, 안의 지침 파일까지)와 `.mcp.json`. 권한·hook·MCP·스킬이 리뷰어 기기에서 돈다. 폴더 밖의 지침 파일(`AGENTS.md` 등)은 넣지 않는다 |
+| 에이전트 설정 폴더와 `.mcp.json` | `.claude/`·`.agents/`·`.codex/`·`.cursor/` 같은 폴더(하위 폴더에 있어도, 안의 지침 파일까지)와 `.mcp.json`. 권한·hook·MCP·스킬이 리뷰어 기기에서 돈다. 폴더 밖의 지침 파일(`AGENTS.md` 등)은 넣지 않는다 |
 | 프로젝트가 정한 경로 | 인증, 결제, 권한, migration 등. `REVIEW.md`의 민감한 파일 절에 적는다 |
 
 이 저장소에서는 다음도 민감한 파일이다: `templates/github/**`, `tools/apply_github_settings.py`, `profiles/pr-conventions/*.py`, `profiles/pr-conventions/pr-policy.yml`, `profiles/hash-copy/*.py`, `profiles/hash-copy/*.json`, `profiles/hash-copy/dependabot-ecosystem.yml`, `profiles/team/CODEOWNERS`. 소비 저장소가 복사해 CI나 서버·소유권 설정으로 쓰기 때문이다. `tools/review_preflight.py`, `profiles/matt-skills/*.py`도 민감한 파일이다. 리뷰어 기기에서 돌며, 비밀값 파일과 리뷰 절차를 막는 장치이기 때문이다.
@@ -71,7 +71,7 @@ PR 본문 Merge Danger에 되돌리기 판정, 영향 범위, 되돌리는 법, 
   - 리뷰한 커밋에서 병합한다(`gh pr merge <PR 번호> --squash --match-head-commit <SHA>`). 리뷰한 커밋은 리뷰 보고의 「리뷰한 head」다. 리뷰어가 직접 고친 커밋도 리뷰어가 그 head로 적으면 포함한다. 그 뒤 다른 push가 있으면 다시 리뷰한다.
 - 에이전트는 지시 없이 병합하지 않는다. 자동 병합은 쓰지 않는다(저장소 설정 `allow_auto_merge: false`).
 - 클라우드 에이전트에게 주는 토큰에는 병합 권한이 없다.
-- 로컬 에이전트는 하네스 규칙으로 병합에 확인을 받는다(확인 규칙이 없는 하네스는 병합을 막아 두고, 그 하네스로는 에이전트 병합을 쓰지 않는다). `main` push·보호 설정 변경은 막는다. 이것은 습관이지 보안 경계가 아니다. 같은 사용자 권한으로 도는 에이전트는 다른 명령으로 우회할 수 있다.
+- 로컬 에이전트는 에이전트 설정의 권한 규칙으로 병합에 확인을 받는다(확인 규칙이 없는 에이전트 도구는 병합을 막아 두고, 그 에이전트 도구로는 에이전트 병합을 쓰지 않는다). `main` push·보호 설정 변경은 막는다. 이것은 습관이지 보안 경계가 아니다. 같은 사용자 권한으로 도는 에이전트는 다른 명령으로 우회할 수 있다.
 - 로컬 에이전트의 병합을 기계적으로 막는 장치는 두지 않는다. 막아야 하는 프로젝트는 에이전트를 별도 OS 사용자와 GitHub 계정으로 돌린다.
 - GitHub에 올리면 [github 프로필](templates/github/)로 PR 필수, 필수 CI, force push·삭제 금지를 켠다.
 
@@ -86,7 +86,7 @@ PR 본문 Merge Danger에 되돌리기 판정, 영향 범위, 되돌리는 법, 
 ## 7. 비밀값
 
 - 비밀값(`.env*`, 키, 토큰, 인증서)은 커밋하지 않는다. 코어의 `.gitignore` 추가분이 1차 방어다. GitHub에서는 push protection이 2차 방어다.
-- 에이전트는 비밀값 파일을 읽지 않는다. 하네스 거부 규칙에 넣는다.
+- 에이전트는 비밀값 파일을 읽지 않는다. 에이전트 설정의 거부 규칙에 넣는다.
 - 장기 키(저장소 관리 토큰, 앱 비밀키 등)는 소유자 기기에만 둔다. 클라우드 에이전트 환경에 두지 않는다.
 - 비밀값이 커밋되면 지우는 것으로 끝내지 않는다. 먼저 키를 폐기하고 새로 발급한다.
 - 취약점 제보는 공개 이슈로 받지 않는다. 비공개 경로(예: GitHub 비공개 취약점 보고)로 받는다.

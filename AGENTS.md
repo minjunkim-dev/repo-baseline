@@ -1,6 +1,6 @@
 # repo-baseline
 
-1인·소규모 팀이 언어·스택·하네스와 관계없이 쓰는 개발 기준의 원본 저장소다. 규칙은 `POLICY.md`, 소비 레포에 복사하는 파일은 `templates/`와 `profiles/`에 있다.
+1인·소규모 팀이 언어·스택·에이전트 도구(Claude Code·Codex·Cursor 등)와 관계없이 쓰는 개발 기준의 원본 저장소다. 규칙은 `POLICY.md`, 소비 레포에 복사하는 파일은 `templates/`와 `profiles/`에 있다.
 
 ## 명령
 
@@ -18,7 +18,7 @@
 | --- | --- |
 | `POLICY.md` | 모든 소비 레포의 규칙. 한 쪽(1만 자) 안에 둔다 |
 | `templates/core/` | 코어. 소비 레포가 그대로 복사하는 4개 파일 |
-| `templates/github/` | GitHub 프로필. CI 골격, 저장소 설정 기준선, 하네스별 권한 예시 |
+| `templates/github/` | GitHub 프로필. CI 골격, 저장소 설정 기준선, 에이전트 도구별 권한 예시 |
 | `profiles/` | 선택 프로필(pr-conventions, hash-copy, team, matt-skills, pstack) |
 | `tools/` | GitHub 설정 적용·감사 도구와 배포 검사 |
 | `prompts/` | 에이전트에게 첨부하는 셋업·리뷰·회고 프롬프트 |
@@ -33,7 +33,7 @@
 - PR 본문은 `.github/pull_request_template.md`를, 리뷰와 회고는 `prompts/review.md`·`prompts/retro.md`를 따른다. PR 본문 작성·코드 리뷰·회고를 하는 다른 스킬이 있어도 이 규칙이 먼저다.
 - PR마다 `CHANGELOG.md`에 1~3줄을 더한다. 소비 레포가 손으로 옮겨야 하는 변경이면 그 일을 적는다.
 - 같은 사실을 여러 문서에 적었으면(README, `docs/start.md`, `prompts/setup.md`) 함께 고친다.
-- 하네스 문서를 근거로 쓰면 공식 문서 링크와 확인일을 적는다.
+- 에이전트 도구의 문서를 근거로 쓰면 공식 문서 링크와 확인일을 적는다.
 - 리뷰는 `prompts/review.md`로 받는다. 되돌리기 쉬움이면 이 세션의 하위 에이전트에게 맡겨도 되고, 어려움이거나 민감한 파일을 건드리면 새 세션에 첨부한다(`POLICY.md` §3). 이 저장소의 PR은 `origin/main` 판의 `prompts/review.md`·`tools/review_preflight.py`·`REVIEW.md`로 리뷰한다.
 
 ## 하지 않는 것
