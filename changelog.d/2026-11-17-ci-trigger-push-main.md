@@ -1,0 +1,1 @@
+- `templates/github/README.md` 「계약 값」 표의 CI 트리거 칸에 템플릿의 `push: main`과 그 이유(캐시를 켜면 PR 실행이 main의 캐시를 읽는다)를 적었다. 값은 바뀌지 않는다. 소비 레포가 옮길 일은 없다.
