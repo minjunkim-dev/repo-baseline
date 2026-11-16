@@ -6,6 +6,7 @@
 # - 저장소 YAML은 CodeRabbit 웹의 저장소·조직 설정보다 우선하고, 조직 global override보다는 아래다.
 #   https://docs.coderabbit.ai/guides/configuration-overview
 # - inheritance: 없으면 가장 우선하는 설정 하나만 쓴다. 그러면 이 파일에 없는 키가 웹 설정 대신 기본값이 된다.
-#   true면 이 파일에 없는 키를 아래 단계(웹 설정 등)에서 받는다. https://docs.coderabbit.ai/configuration/configuration-inheritance
+#   true면 이 파일에 없는 키를 바로 아래 단계(Central YAML, 없으면 웹 설정)에서 받는다.
+#   그 단계에 inheritance가 없으면 상속은 거기서 멈춘다. https://docs.coderabbit.ai/configuration/configuration-inheritance
 language: "ko-KR"
 inheritance: true

@@ -201,10 +201,11 @@ done
 
 ## CodeRabbit 설정
 
-`.coderabbit.yaml`은 리뷰 언어를 한국어(`ko-KR`, 기본값 `en-US`)로 정한다. 근거 문서와 확인일은 파일 주석에 있다. `inheritance: true`가 있어서 이 파일에 없는 키는 CodeRabbit 웹 설정을 따른다. 없으면 웹 설정 대신 기본값이 쓰인다. 요약·채팅 답글까지 한국어가 되는지는 확인하지 못했다. 이 파일은 저장소마다 다른 값이 없어 「계약 값」 표에 넣지 않는다. 그 표는 GitHub 설정 값이고, 이 파일은 파일 자체가 정본이다. 새 저장소는 (a)의 3에서, 기존 저장소는 (b)의 5에서 함께 복사한다. 따로 더하거나 공통값이 바뀌었으면 아래를 한다. 어느 쪽이든 병합한 뒤 3으로 확인한다.
+`.coderabbit.yaml`은 리뷰 언어를 한국어(`ko-KR`, 기본값 `en-US`)로 정한다. 근거 문서와 확인일은 파일 주석에 있다. `inheritance: true`가 있어서 이 파일에 없는 키는 바로 아래 설정 단계를 따른다. Central YAML(`coderabbit` 저장소의 설정)이 없으면 CodeRabbit 웹 설정이다. 그 단계에 `inheritance`가 없으면 상속은 거기서 멈춘다. 이 파일에 `inheritance: true`가 없으면 웹 설정 대신 기본값이 쓰인다. 요약·채팅 답글까지 한국어가 되는지는 확인하지 못했다. 이 파일은 저장소마다 다른 값이 없어 「계약 값」 표에 넣지 않는다. 그 표는 GitHub 설정 값이고, 이 파일은 파일 자체가 정본이다. 새 저장소는 (a)의 3에서, 기존 저장소는 (b)의 5에서 함께 복사한다. 따로 더하거나 공통값이 바뀌었으면 아래를 한다. 어느 쪽이든 병합한 뒤 3으로 확인한다.
 
 1. 에이전트: 파일을 넣어 PR로 연다. 리뷰는 POLICY §3대로 한다.
-   - 저장소 루트에 `.coderabbit.yaml`이 없으면 그대로 복사한다.
+   - 저장소 루트에 `.coderabbit.yml`이나 `.coderabbit.config.ts`가 있으면 아무것도 넣지 않고 PR 본문에 적어 소유자에게 남긴다. YAML 파일이 있으면 CodeRabbit은 `.coderabbit.config.ts`를 무시한다([configuration-overview](https://docs.coderabbit.ai/guides/configuration-overview), 2026-11-16 확인).
+   - 저장소 루트에 CodeRabbit 설정 파일이 하나도 없으면 그대로 복사한다.
 
      ```sh
      cp <repo-baseline>/templates/github/.coderabbit.yaml <project>/.coderabbit.yaml
@@ -212,7 +213,7 @@ done
      ```
 
      확인: `cmp`가 아무것도 출력하지 않고 종료 코드 0이다.
-   - 이미 있으면 파일 전체를 복사하지 않는다. 그 파일에 `language: "ko-KR"` 줄만 합친다. 원래 `language` 줄이 있으면 그 줄을 바꾼다. 합친 사실을 PR 본문에 적는다.
+   - `.coderabbit.yaml`이 이미 있으면 파일 전체를 복사하지 않는다. 그 파일에 `language: "ko-KR"` 줄만 합친다. 원래 `language` 줄이 있으면 그 줄을 바꾼다. 합친 사실을 PR 본문에 적는다.
 
      ```sh
      grep -qx 'language: "ko-KR"' <project>/.coderabbit.yaml
