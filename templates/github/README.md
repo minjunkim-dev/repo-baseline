@@ -44,7 +44,7 @@
 2. 에이전트: 코어를 적용한다([prompts/setup.md](../../prompts/setup.md) 또는 [docs/start.md](../../docs/start.md)).
 3. 에이전트: 위 표의 파일을 복사하고 `ci.yml`의 `check`·`test`를 `AGENTS.md`의 명령으로 채운다. 세부 job을 나누면 「필수 체크 계약」대로 판정 job `ci`가 모은다.
 
-   확인: `grep -n REPLACE .github/workflows/ci.yml`이 아무것도 출력하지 않는다. `cmp <repo-baseline>/templates/github/.coderabbit.yaml .coderabbit.yaml`이 아무것도 출력하지 않는다.
+   확인: `grep -n REPLACE .github/workflows/ci.yml`이 아무것도 출력하지 않는다. `.coderabbit.yaml`을 새로 복사했으면 `cmp <repo-baseline>/templates/github/.coderabbit.yaml .coderabbit.yaml`이 아무것도 출력하지 않는다. 이미 있던 파일에 합쳤으면 `grep -qx 'language: "ko-KR"' .coderabbit.yaml`의 종료 코드가 0이다(「CodeRabbit 설정」의 1).
 4. 에이전트: `.github/repository-settings.json`에 「저장소 설정 파일」의 예시 모양으로 저장소마다 다른 값만 쓴다. 필수 체크는 「계약 값」의 값이다. `patterns_allowed`에는 workflow가 쓰는 GitHub 밖 action을 `owner/repo@*`로 적는다. 아래 명령이 출력한 것 가운데 `actions/`·`github/`로 시작하지 않는 것이다. 없으면 빈 목록이다.
 
    ```sh
