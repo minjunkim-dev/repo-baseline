@@ -9,3 +9,7 @@
     commit-message:
       prefix: chore
       include: scope
+    groups:
+      # One weekly PR for minor and patch updates; each major update still gets its own PR.
+      minor-and-patch:
+        update-types: [minor, patch]
