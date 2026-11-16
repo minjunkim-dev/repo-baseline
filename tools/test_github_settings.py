@@ -188,13 +188,19 @@ class GitHubSettingsTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             audit(profile, read)
 
-    def run_main(self, profile, read):
+    def run_main(self, profile, read, template=None):
+        """main() on a checkout holding profile; template=None uses the real template."""
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / ".github").mkdir()
             (root / ".github/repository-settings.json").write_text(json.dumps(profile))
+            source = settings.TEMPLATE
+            if template is not None:
+                source = root / "template.json"
+                source.write_text(json.dumps(template))
             stdout, stderr = io.StringIO(), io.StringIO()
-            with patch.object(settings, "ROOT", root), patch.object(settings, "read_api", read), redirect_stdout(stdout), redirect_stderr(stderr):
+            with patch.object(settings, "ROOT", root), patch.object(settings, "TEMPLATE", source), \
+                    patch.object(settings, "read_api", read), redirect_stdout(stdout), redirect_stderr(stderr):
                 status = settings.main()
             return status, stdout.getvalue(), stderr.getvalue()
 
@@ -206,13 +212,14 @@ class GitHubSettingsTests(unittest.TestCase):
             self.assertEqual(status, 2)
             self.assertEqual(out, "")
             self.assertIn("UNVERIFIED", err)
+        # The template fills what a project file leaves out; a control missing from both stops the run.
         for control in self.profile()["expected"]:
             profile = self.profile()
             del profile["expected"][control]
-            self.assertEqual(self.run_main(profile, lambda _: self.fail("Missing control reached network"))[0], 2)
+            self.assertEqual(self.run_main(profile, lambda _: self.fail("Missing control reached network"), {})[0], 2)
         profile = self.profile()
         del profile["expected"]["protection"]["enforce_admins"]["enabled"]
-        self.assertEqual(self.run_main(profile, lambda _: self.fail("Missing protection reached network"))[0], 2)
+        self.assertEqual(self.run_main(profile, lambda _: self.fail("Missing protection reached network"), {})[0], 2)
 
     def test_invalid_data_and_lookup_errors_are_unverified(self):
         profile = self.profile()
@@ -301,6 +308,78 @@ class GitHubSettingsTests(unittest.TestCase):
                     raise settings.subprocess.CalledProcessError(1, ["gh", "api"], stderr=f"HTTP {code}")
                 return self.reader(path)
             status, out, err = self.run_main(self.profile(), read)
+            self.assertEqual((status, out), (2, ""))
+            self.assertIn("UNVERIFIED", err)
+
+    def own_values(self):
+        """A project file with only the values that differ per repository."""
+        return {
+            "repository": "owner/repo", "repository_id": 12,
+            "expected": {
+                "protection": {"required_status_checks": {"checks": [{"context": "ci", "app_id": 15368}]}},
+                "allowed_actions": {"patterns_allowed": []},
+            },
+        }
+
+    def test_project_file_with_own_values_takes_common_values_from_the_template(self):
+        template = json.loads(settings.TEMPLATE.read_text(encoding="utf-8"))
+        profile = settings.merged(self.own_values())
+        settings.validate_profile(profile)
+        settings.validate_target(profile)
+        self.assertIs(profile["expected"]["protection"]["required_status_checks"]["strict"], False)
+        self.assertEqual(profile["expected"]["rulesets"], template["expected"]["rulesets"])
+        self.assertEqual(profile["expected"]["protection"]["required_status_checks"]["checks"],
+                         [{"context": "ci", "app_id": 15368}])
+        server = copy.deepcopy(profile["expected"])
+        def read(path):
+            rel = path.removeprefix("repos/owner/repo").lstrip("/")
+            views = {"": {"id": 12, "full_name": "owner/repo", **server["repository"]},
+                     "rulesets?includes_parents=false": [{"id": 1}], "rulesets/1": server["rulesets"][0],
+                     "branches/main/protection": server["protection"], "actions/permissions": server["actions"],
+                     "actions/permissions/selected-actions": server["allowed_actions"],
+                     "actions/permissions/workflow": server["workflow_token"],
+                     "actions/permissions/fork-pr-contributor-approval": server["fork_policy"],
+                     "immutable-releases": server["immutable_releases"],
+                     "private-vulnerability-reporting": server["private_vulnerability_reporting"],
+                     "code-scanning/default-setup": server["codeql"], "vulnerability-alerts": None}
+            return copy.deepcopy(views[rel])
+        status, out, err = self.run_main(self.own_values(), read)
+        self.assertEqual((status, err), (0, ""))
+        self.assertIn(f"BASELINE: common values from {settings.TEMPLATE}", out)
+        server["protection"]["required_status_checks"]["strict"] = True
+        status, out, _ = self.run_main(self.own_values(), read)
+        self.assertEqual(status, 1)
+        self.assertIn("protection.required_status_checks.strict", out)
+
+    def test_project_values_win_and_full_copies_merge_to_themselves(self):
+        own = json.loads((Path(__file__).resolve().parents[1] / ".github/repository-settings.json").read_text(encoding="utf-8"))
+        self.assertEqual(settings.merged(own), own)
+        self.assertEqual(settings.merged(self.profile()), self.profile())
+        values = self.own_values()
+        values["expected"]["protection"]["required_status_checks"]["strict"] = True
+        values["expected"]["rulesets"] = []
+        profile = settings.merged(values)
+        self.assertIs(profile["expected"]["protection"]["required_status_checks"]["strict"], True)
+        self.assertEqual(profile["expected"]["rulesets"], [])
+        self.assertIs(profile["expected"]["protection"]["enforce_admins"]["enabled"], True)
+
+    def test_exceptions_drop_template_values_and_unfilled_values_stop_before_reads(self):
+        values = self.own_values()
+        values["exceptions"] = {"codeql": self.exception("not_applicable"),
+                                "repository.security_and_analysis.secret_scanning.status": self.exception()}
+        profile = settings.merged(values)
+        settings.validate_profile(profile)
+        self.assertNotIn("codeql", profile["expected"])
+        self.assertNotIn("secret_scanning", profile["expected"]["repository"]["security_and_analysis"])
+        for key in ("repository", "expected"):
+            values = self.own_values()
+            if key == "repository":
+                del values["repository"]
+            else:
+                del values["expected"]["allowed_actions"]
+            with self.assertRaisesRegex(ValueError, "template values"):
+                settings.merged(values)
+            status, out, err = self.run_main(values, lambda _: self.fail("Unfilled value reached network"))
             self.assertEqual((status, out), (2, ""))
             self.assertIn("UNVERIFIED", err)
 

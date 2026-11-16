@@ -1,5 +1,6 @@
 """Layout checks for the redesigned baseline (redesign plan §7: https://github.com/minjunkim-dev/repo-baseline/blob/c3f6d569871f51b83c1405dee34db6850a0b30e3/docs/archive/redesign-2026-11.md)."""
 from pathlib import Path
+import json
 import re
 import unittest
 
@@ -49,6 +50,22 @@ class DistributionTests(unittest.TestCase):
         for rel in ["templates/github/repository-settings.json", ".github/repository-settings.json"]:
             self.assertNotIn('"review/gate"', (ROOT / rel).read_text(encoding="utf-8"), rel)
 
+
+    def test_contract_table_matches_the_settings_template(self):
+        readme = (ROOT / "templates/github/README.md").read_text(encoding="utf-8")
+        table = readme.split("## 계약 값", 1)[1].split("\n## ", 1)[0]
+        written = dict(re.findall(r"`([a-z_]+)=([^`]+)`", table))
+        template = json.loads((ROOT / "templates/github/repository-settings.json").read_text(encoding="utf-8"))
+        expected = template["expected"]
+        queue = next(rule["parameters"] for ruleset in expected["rulesets"] if ruleset["name"] == "merge-queue"
+                     for rule in ruleset["rules"] if rule["type"] == "merge_queue")
+        values = {**queue, "strict": expected["protection"]["required_status_checks"]["strict"],
+                  "app_id": expected["protection"]["required_status_checks"]["checks"][0]["app_id"],
+                  **{key: expected["repository"][key] for key in
+                     ("allow_squash_merge", "allow_merge_commit", "allow_rebase_merge",
+                      "allow_auto_merge", "delete_branch_on_merge")}}
+        self.assertEqual(written, {key: str(value).lower() if isinstance(value, bool) else str(value)
+                                   for key, value in values.items()})
 
 if __name__ == "__main__":
     unittest.main()
