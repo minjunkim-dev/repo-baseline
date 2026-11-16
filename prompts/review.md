@@ -75,9 +75,9 @@ PR 본문 Review 칸에 아래를 적는다. 본문을 고칠 수 없으면 보�
 리뷰어는 아래 두 가지 스레드를 해결 처리한다. 나머지 스레드는 해결 처리하지 않고 소유자에게 남긴다.
 
 - 받아들여 고친 지적의 스레드. 고친 커밋이 지금 PR head에 있고, Review 칸 「외부 리뷰 판정」에 그 지적과 고친 커밋을 적었어야 한다.
-- 버린 리뷰 봇 지적 가운데 심각도가 낮은 것의 스레드. 스레드의 첫 댓글을 리뷰 봇(로그인이 `[bot]`으로 끝남)이 달았고, 그 스레드에 봇과 리뷰어 말고는 답글이 없어야 한다. Review 칸 「외부 리뷰 판정」에 버린 이유를 적었어야 한다.
+- 버린 리뷰 봇 지적 가운데 심각도가 낮은 것의 스레드. 스레드의 첫 댓글을 리뷰 봇(로그인이 `[bot]`으로 끝남)이 달았고, 2번의 답글을 달기 전에 그 스레드에 봇이 아닌 계정의 답글이 없어야 한다. 리뷰어와 구현 세션도 소유자의 `gh` 로그인을 써서 소유자의 답글과 가릴 수 없기 때문이다. Review 칸 「외부 리뷰 판정」에 버린 이유를 적었어야 한다.
 
-심각도는 봇이 줄 단위 댓글에 붙인 라벨로 정한다. CodeRabbit은 댓글 첫 줄의 첫 굵은 라벨이 심각도다. 높은 것부터 `Critical`, `Major`, `Minor`, `Trivial`이고 `Info`는 순위 밖이다([문서](https://docs.coderabbit.ai/guides/code-review-overview#severity-levels), 확인일 2026-11-17). `Minor`·`Trivial`·`Info`가 낮은 심각도다. 같은 줄의 `Detected with Advanced Tier`, `Quick win` 같은 라벨은 심각도가 아니다. 심각도 라벨이 없거나 이 목록에 없는 라벨이면 높은 심각도로 본다. 다른 리뷰 봇도 같다.
+심각도는 봇이 줄 단위 댓글에 붙인 라벨로 정한다. CodeRabbit은 댓글 본문의 첫 굵은 라벨이 심각도다. 본문 첫 줄은 HTML 주석이고, 라벨 앞에는 아이콘 `<picture>` 태그가 붙는다. 문서는 `Critical`, `Major`, `Minor`, `Trivial`, `Info` 순으로 적는다([문서](https://docs.coderabbit.ai/guides/code-review-overview#severity-levels), 확인일 2026-11-17). `Minor`·`Trivial`·`Info`가 낮은 심각도다. 같은 줄의 `Detected with Advanced Tier`, `Quick win` 같은 라벨은 심각도가 아니다. 심각도 라벨이 없거나 이 목록에 없는 라벨이면 높은 심각도로 본다. 다른 리뷰 봇도 같다.
 
 Review 칸 「리뷰한 head」의 SHA가 해결 직전의 PR head SHA(`gh pr view <PR URL> --json headRefOid --jq .headRefOid`)와 같아야 한다. 다르면 해결 처리하지 않고 새 head를 다시 리뷰한다. 아래 경우에는 어떤 스레드도 해결 처리하지 않는다.
 
