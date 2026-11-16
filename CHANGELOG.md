@@ -4,6 +4,7 @@
 
 ## 2026-11 — 재설계 이후
 
+- `templates/github/README.md` 「계약 값」 표의 CI 트리거 칸에 템플릿의 `push: main`과 그 이유(PR 실행이 main의 캐시를 읽는다)를 적었다. 값은 바뀌지 않는다. 소비 레포가 옮길 일은 없다.
 - 판 올리기 안내(`docs/start.md` 「판 올리기」, `prompts/setup.md` 0절): hash-copy를 다시 적용하기 전에 `--check`와 기록된 `sha256`으로 소비 레포의 수정을 가리고, 있으면 덮어쓰기 전에 소유자에게 묻는다. 손으로 옮길 일은 절 이름이 아니라 이 파일의 모든 항목에서 확인한다. 소비 레포가 옮길 일은 없다.
 - 셋업 프롬프트(`prompts/setup.md`)에 판 올리기 경로를 더했다. 루트 `AGENTS.md`에 「명령」 4칸이 있으면 에이전트는 처음 적용 대신 `docs/start.md` 「판 올리기」대로 `CHANGELOG.md`의 지난번 뒤 항목을 옮긴다. 소비 레포가 옮길 일은 없다.
 - Dependabot 생태계 블록(`templates/github/dependabot-ecosystem.yml`, `profiles/hash-copy/dependabot-ecosystem.yml`)에 `minor-and-patch` 그룹을 더했다. minor·patch 업데이트는 주 1회 PR 하나로 모이고, 메이저 업데이트만 따로 열린다. 소비 레포는 `.github/dependabot.yml`의 패키지 관리자 블록마다 이 `groups`를 붙인다. hash-copy를 쓰면 `apply_baseline.py`를 다시 돌린다.
