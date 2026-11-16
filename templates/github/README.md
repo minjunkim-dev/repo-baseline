@@ -2,7 +2,7 @@
 
 코어(`templates/core/`)를 적용한 프로젝트를 GitHub에 올릴 때 쓴다. 기본 경계는 브랜치 보호 + 필수 CI + 소유자가 정하는 병합이다(POLICY §5).
 
-저장소는 조직이 소유한 공개 저장소여야 한다. 머지 큐 ruleset을 그런 저장소에서만 쓸 수 있기 때문이다(POLICY §5). `ci.yml`은 `merge_group` 이벤트에서도 돈다. 필수 체크인 workflow는 모두 `merge_group`에서도 돌아야 한다. 아니면 큐에 넣은 PR이 병합되지 않는다. `merge_group` 실행에는 `github.event.pull_request`와 `github.head_ref`가 없다.
+저장소는 조직이 소유한 공개 저장소여야 한다. 머지 큐 ruleset을 그런 저장소에서만 쓸 수 있기 때문이다(POLICY §5). 조직 단위 설정은 아래 「조직 설정」을 따른다. `ci.yml`은 `merge_group` 이벤트에서도 돈다. 필수 체크인 workflow는 모두 `merge_group`에서도 돌아야 한다. 아니면 큐에 넣은 PR이 병합되지 않는다. `merge_group` 실행에는 `github.event.pull_request`와 `github.head_ref`가 없다.
 
 | 파일 | 복사할 곳 | 메모 |
 | --- | --- | --- |
@@ -11,6 +11,26 @@
 | `repository-settings.json` | `.github/repository-settings.json` | `REPLACE` 값을 채운다 |
 | `SECURITY.md` | 저장소 루트 | GitHub은 `.github/`, 루트, `docs/` 순서로 이 파일을 찾는다. 셋 중 하나에 이미 있으면 그 파일에 합친다. `OWNER/REPO`를 채운다. 비공개 취약점 보고를 켠 뒤 이 파일을 병합한다 |
 | `agents/` | 에이전트 도구별 | `agents/README.md` |
+
+## 조직 설정
+
+저장소를 조직으로 옮기기 전에 소유자가 조직 설정을 한 번 맞춘다. `apply_github_settings.py`는 저장소 설정만 다루고 조직 설정은 쓰지 않는다. 조직은 무료 플랜이면 된다. 아래 값은 2026-11-16에 `minjunkim-labs`에서 화면으로 맞춘 것이다.
+
+| 화면 | 값 | 이유 |
+| --- | --- | --- |
+| Settings → Advanced Security → Configurations | 새 구성 하나: 시크릿 스캔과 push 보호, CodeQL default setup, Dependency graph, Dependabot 알림과 보안 업데이트, 비공개 취약점 보고를 Enabled로 둔다. 「Use as default for newly created repositories」는 Public, 「Enforce configuration」은 Don't enforce로 둔다. 기존 저장소에는 적용하지 않는다 | 조직에서 새로 만든 저장소가 처음부터 보안 기능을 갖는다. 강제하면 `apply_github_settings.py`가 설정을 바꾸지 못하고, 자체 CodeQL workflow를 쓰는 저장소와 default setup이 부딪친다 |
+| Settings → Member privileges | 저장소 만들기(Public, Private), 공개 여부 변경, 삭제와 이전, 저장소 관리자의 GitHub App 설치, 팀 만들기를 모두 끈다. 기본 권한은 Read로 둔다 | 초대한 멤버가 저장소, 규칙, 연결된 App을 바꾸지 못하게 소유자만 한다. Public은 Private을 끈 뒤에야 끌 수 있다 |
+| Settings → Actions → General | 외부 기여자 workflow 승인은 Require approval for all external contributors, Workflow permissions는 Read, Allow GitHub Actions to create and approve pull requests는 끈다 | 새 저장소가 물려받는 값을 저장소 기준값(`fork_policy`, `workflow_token`)과 맞춘다 |
+| Settings → Authentication security | Require two-factor authentication을 켠다 | 켜기 전에 People → Outside collaborators를 본다. 2FA가 없는 외부 협력자는 조직에서 빠진다 |
+| People | 소유자의 멤버십을 Public으로 둔다 | 개인 프로필에 조직이 보인다 |
+
+저장소를 조직으로 옮기면 그 저장소의 시크릿 스캔, push 보호, CodeQL default setup이 꺼진다(2026-11-16 확인). 저장소 이름이 바뀌므로 `repository-settings.json`의 `repository`를 새 이름으로 바꾸는 PR을 먼저 병합하고, 그 뒤 「적용 순서」의 4·5로 다시 켠다. `repository_id`는 바뀌지 않는다. 옛 소유자 이름을 확인하는 workflow나 스크립트(`github.repository == '...'`)도 찾아 바꾼다.
+
+멤버 권한과 2FA는 `read:org` 권한으로 읽어 확인한다. 나머지 조직 설정은 `admin:org` 권한이 필요해 화면에서 본다.
+
+```sh
+gh api orgs/<조직> --jq '{members_can_create_public_repositories, members_can_create_private_repositories, members_can_change_repo_visibility, members_can_delete_repositories, members_can_create_teams, two_factor_requirement_enabled}'
+```
 
 ## 적용 순서
 

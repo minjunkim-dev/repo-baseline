@@ -173,6 +173,25 @@ def read_rulesets(read, prefix):
             for item in summaries for detail in [read(f"{prefix}/rulesets/{item['id']}")]]
 
 
+def known_parameters(expected, actual):
+    """Drop rule parameters the baseline does not list; GitHub may add new ones.
+
+    Extra rulesets, extra rules and differing listed parameters still differ.
+    """
+    listed = {ruleset["name"]: {rule["type"]: set(rule.get("parameters") or {}) for rule in ruleset["rules"]
+                                if isinstance(rule, dict) and "type" in rule}
+              for ruleset in expected if isinstance(ruleset.get("rules"), list)}
+    result = []
+    for ruleset in actual:
+        keys = listed.get(ruleset.get("name"), {})
+        rules = [{**rule, "parameters": {k: v for k, v in rule["parameters"].items() if k in keys[rule["type"]]}}
+                 if isinstance(rule, dict) and rule.get("type") in keys and isinstance(rule.get("parameters"), dict)
+                 else rule
+                 for rule in ruleset.get("rules") or []]
+        result.append({**ruleset, "rules": rules})
+    return result
+
+
 def audit(profile, read=None):
     validate_profile(profile)
     read = read_api if read is None else read
@@ -203,7 +222,7 @@ def audit(profile, read=None):
             read(f"{prefix}/vulnerability-alerts")
             actual = {"enabled": True}
         elif name == "rulesets":
-            actual = [ruleset for _, ruleset in read_rulesets(read, prefix)]
+            actual = known_parameters(expected, [ruleset for _, ruleset in read_rulesets(read, prefix)])
         else:
             if name not in paths:
                 raise ValueError(f"Unsupported settings endpoint: {name}")

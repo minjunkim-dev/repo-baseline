@@ -4,6 +4,8 @@
 
 ## 2026-11 — 재설계 이후
 
+- `templates/github/README.md`에 「조직 설정」 절을 더했다. 보안 기본값 구성, 멤버 권한, Actions 기본값, 2FA, 저장소를 조직으로 옮길 때 다시 켜야 하는 설정을 적는다. 소비 레포가 옮길 일은 없다.
+- `check_github_settings.py`와 `apply_github_settings.py`는 ruleset 규칙의 매개변수 가운데 기준값에 적힌 것만 비교한다. GitHub가 매개변수를 더해도 DRIFT가 되지 않는다. 다른 ruleset·규칙이 더해지거나 적힌 값이 다르면 그대로 DRIFT다.
 - 머지 큐를 기본값으로 바꿨다. `POLICY.md` §5와 코어 `AGENTS.md` 병합 줄: 리뷰한 head SHA를 `enqueuePullRequest`의 `expectedHeadOid`로 지정해 큐에 넣는다. base 병합 예외 절차(diff 비교, sha256 댓글)는 지웠다. GitHub 저장소는 조직이 소유한 공개 저장소여야 한다. 소비 레포는 조직으로 옮기고 `ci.yml`에 `merge_group`, `repository-settings.json`에 `merge-queue` ruleset을 더한 뒤 `apply_github_settings.py`로 적용한다.
 - `check_github_settings.py`는 ruleset의 규칙 내용까지 비교하고, `apply_github_settings.py`는 ruleset을 만들거나 바꾼다(지우지는 않는다).
 - `POLICY.md` §5와 코어 `AGENTS.md` 병합 줄: 리뷰한 head 뒤의 새 커밋이 base 병합 커밋뿐이고, 새 base에서도 되돌리기·민감한 파일 판정이 그대로이며, merge-base 기준 PR diff가 같으면(`git diff --no-ext-diff --no-textconv --full-index` 출력을 `cmp`로 비교) 다시 리뷰하지 않는다. 새 head의 필수 CI 통과 뒤 새 head SHA로 병합하고, 두 SHA와 두 diff의 sha256을 PR 댓글에 남긴다. strict 브랜치 보호에서 base가 자주 움직이면 다시 리뷰가 되풀이됐다. 소비 레포는 코어 `AGENTS.md`의 병합 줄을 새 문장으로 바꾼다.
