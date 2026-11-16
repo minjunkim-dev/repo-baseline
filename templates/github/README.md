@@ -93,6 +93,7 @@ gh api orgs/<조직> --jq '{members_can_create_public_repositories, members_can_
 공통값이 바뀌면 소유자가 저장소마다 계획을 보고 적용한다. 도구는 실행한 repo-baseline 클론의 템플릿을 읽으므로 먼저 클론을 `main`으로 맞춘다.
 
 ```sh
+git -C <repo-baseline> switch main
 git -C <repo-baseline> pull --ff-only
 for p in <project-1> <project-2>; do
   python3 <repo-baseline>/tools/apply_github_settings.py "$p"
