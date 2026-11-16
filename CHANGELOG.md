@@ -4,6 +4,7 @@
 
 ## 2026-11 — 재설계 이후
 
+- 셋업 프롬프트(`prompts/setup.md`)에 판 올리기 경로를 더했다. 루트 `AGENTS.md`에 「명령」 4칸이 있으면 에이전트는 처음 적용 대신 `docs/start.md` 「판 올리기」대로 `CHANGELOG.md`의 지난번 뒤 항목을 옮긴다. 소비 레포가 옮길 일은 없다.
 - 리뷰 프롬프트 「외부 리뷰 스레드」: 리뷰어는 버린 리뷰 봇 지적 가운데 낮은 심각도(CodeRabbit `Minor`·`Trivial`·`Info`)의 스레드에 이유 한 줄 답글을 달고 해결 처리한다. 높은 심각도(`Critical`·`Major`, 라벨 없음)와 사람이 시작한 스레드는 답글만 달고 소유자에게 남기며, Review 칸 「소유자에게 남긴 스레드」에 id를 적는다. `required_conversation_resolution`은 그대로 켠다. 리뷰어 명령에 권한 허용 규칙을 둔 소비 레포는 답글 명령(`gh api repos/<owner>/<repo>/pulls/<번호>/comments/<댓글 id>/replies`)의 접두도 더한다.
 - Dependabot 생태계 블록(`templates/github/dependabot-ecosystem.yml`, `profiles/hash-copy/dependabot-ecosystem.yml`)에 `minor-and-patch` 그룹을 더했다. minor·patch 업데이트는 주 1회 PR 하나로 모이고, 메이저 업데이트만 따로 열린다. 소비 레포는 `.github/dependabot.yml`의 패키지 관리자 블록마다 이 `groups`를 붙인다. hash-copy를 쓰면 `apply_baseline.py`를 다시 돌린다.
 - 이 저장소 자신을 새 GitHub 계약으로 옮겼다. `check.yml`에 판정 job `ci`를 더해 옛 필수 체크 `Baseline checks`를 세부 job으로 모으고, `.github/repository-settings.json`은 저장소마다 다른 값만 남겼다(`strict`는 템플릿 값 `false`). 병합 뒤 소유자가 `apply_github_settings.py`로 계획을 보고 `--apply`한다. 소비 레포가 옮길 일은 없다.
