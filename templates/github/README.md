@@ -89,7 +89,7 @@
    git -C <project> remote -v
    ```
 
-   확인: 셋째 명령이 `<조직>/<이름>	Organization	public	<숫자>`를 출력하고, 그 숫자가 첫째 명령의 숫자와 같다(저장소 ID는 옮겨도 바뀌지 않는다). `remote -v`의 `origin`이 `github.com/<조직>/<이름>`이다. 옮기면 시크릿 스캔, push 보호, CodeQL default setup이 꺼진다(2026-11-16 확인). 7·8의 apply가 다시 켠다.
+   확인: 셋째 명령이 `<조직>/<이름>	Organization	public	<숫자>`를 출력하고, 그 숫자가 첫째 명령의 숫자와 같다(저장소 ID는 옮겨도 바뀌지 않는다). 옮기기는 비동기로 끝난다([문서](https://docs.github.com/en/rest/repos/repos#transfer-a-repository), 2026-11-16 확인). 셋째 명령이 404이거나 옛 이름을 출력하면 잠시 뒤 다시 실행한다. `remote -v`의 `origin`이 `github.com/<조직>/<이름>`이다. 옮기면 시크릿 스캔, push 보호, CodeQL default setup이 꺼진다(2026-11-16 확인). 7·8의 apply가 다시 켠다.
 2. 에이전트: 현재 서버 값을 기록한다. 9에서 비교한다. 브랜치 보호가 없으면 404가 나온다. 그것도 기록한다.
 
    ```sh
