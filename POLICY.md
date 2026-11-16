@@ -74,7 +74,7 @@ PR 본문 Merge Danger에 되돌리기 판정, 영향 범위, 되돌리는 법, 
 - 클라우드 에이전트에게 주는 토큰에는 병합 권한이 없다.
 - 로컬 에이전트는 에이전트 설정의 권한 규칙으로 병합에 확인을 받는다(확인 규칙이 없는 에이전트 도구는 병합을 막아 두고, 그 에이전트 도구로는 에이전트 병합을 쓰지 않는다). `main` push·보호 설정 변경은 막는다. 이것은 습관이지 보안 경계가 아니다. 같은 사용자 권한으로 도는 에이전트는 다른 명령으로 우회할 수 있다.
 - 로컬 에이전트의 병합을 기계적으로 막는 장치는 두지 않는다. 막아야 하는 프로젝트는 에이전트를 별도 OS 사용자와 GitHub 계정으로 돌린다.
-- GitHub에 올리면 [github 프로필](templates/github/)로 PR 필수, 필수 CI, force push·삭제 금지, 머지 큐를 켠다. 머지 큐는 조직이 소유한 공개 저장소와, GitHub Enterprise Cloud를 쓰는 조직의 비공개 저장소에서만 쓸 수 있다([문서](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/managing-a-merge-queue)의 첫 문단, 2026-11-16 확인). 그래서 GitHub 저장소는 조직(무료 플랜이면 된다)이 소유한다. 비공개 저장소는 지원 범위 밖이다.
+- GitHub에 올리면 [github 프로필](templates/github/)로 PR 필수, 필수 CI, force push·삭제 금지, 머지 큐를 켠다. 머지 큐는 조직이 소유한 공개 저장소와, GitHub Enterprise Cloud를 쓰는 조직의 비공개 저장소에서만 쓸 수 있다([문서](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/managing-a-merge-queue)의 「Who can use this feature?」, 2026-11-16 확인). 그래서 GitHub 저장소는 조직(무료 플랜이면 된다)이 소유한다. 비공개 저장소는 지원 범위 밖이다.
 
 ## 6. 회고
 
