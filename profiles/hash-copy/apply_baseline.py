@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
 """Copy shared files from this repository into a project and record their hashes.
 
-Usage: profiles/hash-copy/apply_baseline.py <project> [--check]
+Usage: profiles/hash-copy/apply_baseline.py <project> [--check | --force]
 
 The project's .github/repo-baseline.json lists each copied file as
 {"<path in project>": {"source": "<path here>"}}. Applying copies every source,
 then records source_commit and sha256. --check only reports files that differ.
+
+Applying stops before writing anything when it would overwrite content the
+manifest did not record: a target that differs from its recorded sha256 (a
+deleted target counts), or an existing target with no recorded sha256. A target
+that already equals the new content never stops. --force overwrites anyway.
 
 An entry with "ecosystems" is generated instead of copied: the source (the
 github-actions Dependabot config) gets one profiles/hash-copy/dependabot-ecosystem.yml
@@ -78,7 +83,25 @@ def content(entry):
     return data
 
 
-def apply(project, check=False):
+def local_edits(project, manifest):
+    """Targets whose overwrite would lose content the manifest did not record, with the reason."""
+    edits = []
+    for name, entry in sorted(manifest["files"].items()):
+        path, recorded = project / name, entry.get("sha256")
+        exists = path.is_file()
+        if exists and path.read_bytes() == content(entry):
+            continue
+        if recorded is None:
+            if exists:
+                edits.append(f"{name} (exists, no recorded sha256)")
+        elif not exists:
+            edits.append(f"{name} (deleted)")
+        elif hashlib.sha256(path.read_bytes()).hexdigest() != recorded:
+            edits.append(f"{name} (differs from recorded sha256)")
+    return edits
+
+
+def apply(project, check=False, force=False):
     project = project.resolve()
     manifest = load(project)
     differ = sorted(name for name, entry in manifest["files"].items()
@@ -87,6 +110,10 @@ def apply(project, check=False):
         return differ
     if git("status", "--porcelain"):
         raise ValueError("Commit repo-baseline changes first; source_commit must name the copied content")
+    edits = [] if force else local_edits(project, manifest)
+    if edits:
+        raise ValueError("Project changed these files; nothing was written. Reflect the change in repo-baseline"
+                         " and apply again, or apply with --force to discard it: " + ", ".join(edits))
     for name, entry in manifest["files"].items():
         data = content(entry)
         (project / name).parent.mkdir(parents=True, exist_ok=True)
@@ -99,12 +126,12 @@ def apply(project, check=False):
 
 
 def main(argv):
-    if len(argv) not in (2, 3) or (len(argv) == 3 and argv[2] != "--check"):
+    if len(argv) not in (2, 3) or (len(argv) == 3 and argv[2] not in ("--check", "--force")):
         print(__doc__, file=sys.stderr)
         return 2
-    check = len(argv) == 3
+    check = argv[2:] == ["--check"]
     try:
-        differ = apply(Path(argv[1]), check)
+        differ = apply(Path(argv[1]), check, force=argv[2:] == ["--force"])
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         print(f"FAILED: {error}", file=sys.stderr)
         return 2
