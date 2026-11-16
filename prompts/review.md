@@ -71,20 +71,20 @@ PR 본문 Review 칸에 아래를 적는다. 본문을 고칠 수 없으면 보�
 
 외부 리뷰 스레드는 봇이나 사람이 PR에 남긴 리뷰 스레드다. Review 칸을 적은 뒤 리뷰어가 처리한다. 구현 세션은 스레드를 해결 처리하지 않는다.
 
-리뷰어는 받아들여 고친 지적의 스레드만 해결 처리한다. 고친 커밋이 지금 PR head에 있고, Review 칸 「외부 리뷰 판정」에 그 지적과 고친 커밋을 적었어야 한다. 아래 경우에는 해결 처리하지 않는다.
+리뷰어는 받아들여 고친 지적의 스레드만 해결 처리한다. Review 칸 「리뷰한 head」의 SHA가 해결 직전의 PR head SHA(`gh pr view <PR URL> --json headRefOid --jq .headRefOid`)와 같아야 한다. 다르면 해결 처리하지 않고 새 head를 다시 리뷰한다. 또 고친 커밋이 지금 PR head에 있고, Review 칸 「외부 리뷰 판정」에 그 지적과 고친 커밋을 적었어야 한다. 아래 경우에는 해결 처리하지 않는다.
 
 - 본문을 고칠 수 없어 Review 칸을 적지 못했다.
 - 고친 것이 "PR에 미반영"이다.
 - 받아들였지만 고치지 않고 「남은 지적」에 두었다(보류).
 - 리뷰 전 확인의 종료 코드가 1이다. 외부 리뷰를 읽지 않았기 때문이다.
 
-1. 스레드 id를 받는다. `databaseId`는 입력의 줄 단위 댓글 `id`와 같다. 출력의 `totalCount`가 100을 넘으면 나머지는 해결 처리하지 않고 「남은 지적」에 "스레드 미해결(100개 초과)"로 적는다.
+1. 스레드 id를 받는다. `databaseId`는 입력의 줄 단위 댓글 `id`와 같다. 이 명령은 스레드의 첫 댓글만 받는다. 받아들인 지적이 답글이면 그 스레드는 찾지 못한다. 출력의 `totalCount`가 100을 넘으면 나머지는 해결 처리하지 않고 「남은 지적」에 "스레드 미해결(100개 초과)"로 적는다.
 
    ```sh
    gh api graphql -f query='query{repository(owner:"<owner>",name:"<repo>"){pullRequest(number:<번호>){reviewThreads(first:100){totalCount nodes{id isResolved comments(first:1){nodes{databaseId}}}}}}}'
    ```
 
-2. 해결할 스레드마다 아래 명령을 실행한다. 명령의 접두를 바꾸지 않는다. 소유자의 권한 허용 규칙이 이 형태에 맞춰져 있다.
+2. 해결할 스레드마다 아래 명령을 실행한다. 명령의 접두를 바꾸지 않는다. 소유자가 이 접두로 권한 허용 규칙을 둘 수 있다. 접두 허용 규칙은 같은 GraphQL 문서에 다른 mutation을 덧붙여도 통과할 수 있다. 그래서 소유자는 허용 규칙과 함께 `enqueuePullRequest`·`mergePullRequest`가 든 `gh api graphql`을 막는 거부 규칙도 두기를 권한다.
 
    ```sh
    gh api graphql -f query='mutation{resolveReviewThread(input:{threadId:"<id>"}){thread{isResolved}}}'
