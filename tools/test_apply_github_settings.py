@@ -230,8 +230,11 @@ class ApplyGitHubSettingsTests(unittest.TestCase):
         code, out, _ = self.run_tool(server, profile, apply=True)
         self.assertEqual((code, server.writes), (0, [("POST", "rulesets")]))
         self.assertIn("PASS", out)
-        server.rulesets[1]["rules"][0]["parameters"]["merge_method"] = "MERGE"
+        server.rulesets[1]["rules"][0]["parameters"]["new_github_field"] = 3  # GitHub added a parameter
         server.writes.clear()
+        self.assertEqual(self.run_tool(server, profile, apply=True)[0], 0)
+        self.assertEqual(server.writes, [])  # not drift, so nothing is rewritten
+        server.rulesets[1]["rules"][0]["parameters"]["merge_method"] = "MERGE"
         code, out, _ = self.run_tool(server, profile, apply=True)
         self.assertEqual((code, server.writes), (0, [("PUT", "rulesets/1")]))
 

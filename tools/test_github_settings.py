@@ -140,8 +140,18 @@ class GitHubSettingsTests(unittest.TestCase):
                 return copy.deepcopy(live)
             return self.reader(path)
         self.assertEqual(audit(profile, read), [])
+        live["rules"][0]["parameters"]["new_github_field"] = 3  # GitHub added a parameter: not drift
+        self.assertEqual(audit(profile, read), [])
         live["rules"][0]["parameters"]["merge_method"] = "MERGE"
         self.assertEqual(audit(profile, read), ["rulesets"])
+        live["rules"][0]["parameters"]["merge_method"] = "SQUASH"
+        del live["rules"][0]["parameters"]["merge_method"]  # a listed parameter that is gone is drift
+        self.assertEqual(audit(profile, read), ["rulesets"])
+        live["rules"][0]["parameters"]["merge_method"] = "SQUASH"
+        live["rules"].append({"type": "deletion"})  # an extra rule is drift
+        self.assertEqual(audit(profile, read), ["rulesets"])
+        self.assertEqual(settings.known_parameters([{"name": "q", "rules": []}], [{"name": "q", "rules": None}]),
+                         [{"name": "q", "rules": None}])  # null rules are not read as an empty list
 
     def test_rulesets_need_every_field_and_unique_names(self):
         profile = self.profile()

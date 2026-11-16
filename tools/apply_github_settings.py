@@ -208,7 +208,9 @@ def plan(profile, read=None):
             actual = metadata
         elif name == "rulesets":
             found = checker.read_rulesets(read, prefix)
-            actual = [ruleset for _, ruleset in found]
+            ids = [ruleset_id for ruleset_id, _ in found]
+            actual = checker.known_parameters(expected[name], [ruleset for _, ruleset in found])
+            found = list(zip(ids, actual))
         elif name == "allowed_actions" and "actions" in current and current["actions"].get("allowed_actions") != "selected":
             actual = None  # GitHub lists selected actions only under a "selected" policy; the actions write comes first
         else:
