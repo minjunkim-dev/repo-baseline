@@ -1,0 +1,1 @@
+- 변경 기록을 PR마다 `changelog.d/YYYY-MM-DD-<slug>.md` 파일 하나로 더한다. `CHANGELOG.md`는 2026-11-17 전의 기록으로 두고 새 항목을 더하지 않는다. 열린 PR들이 `CHANGELOG.md` 맨 위 줄에서 서로 충돌해 다시 리뷰하던 일이 없어진다. 판 올리기(`docs/start.md`, `prompts/setup.md`)는 두 곳을 모두 읽는다. 소비 레포가 옮길 일은 없다.

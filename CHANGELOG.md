@@ -1,6 +1,6 @@
 # 변경 기록
 
-항목당 1~3줄. 재설계 전 기록은 [CHANGELOG-2026.md](https://github.com/minjunkim-dev/repo-baseline/blob/c3f6d569871f51b83c1405dee34db6850a0b30e3/docs/archive/CHANGELOG-2026.md)(지운 보관 문서의 마지막 판)에 있다.
+2026-11-17 전의 기록이다. 새 항목은 이 파일에 더하지 않고 PR마다 [changelog.d/](changelog.d/)에 파일 하나로 더한다(`AGENTS.md` 「작업 방식」). 항목당 1~3줄. 재설계 전 기록은 [CHANGELOG-2026.md](https://github.com/minjunkim-dev/repo-baseline/blob/c3f6d569871f51b83c1405dee34db6850a0b30e3/docs/archive/CHANGELOG-2026.md)(지운 보관 문서의 마지막 판)에 있다.
 
 ## 2026-11 — 재설계 이후
 

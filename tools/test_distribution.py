@@ -33,6 +33,15 @@ class DistributionTests(unittest.TestCase):
         self.assertIn('\nlanguage: "ko-KR"\n', template)
         self.assertIn("\ninheritance: true\n", template)
 
+    def test_changelog_fragments_are_one_short_entry(self):
+        bad = []
+        for path in sorted((ROOT / "changelog.d").iterdir()):
+            lines = [l for l in path.read_text(encoding="utf-8").splitlines() if l.strip()]
+            if not re.fullmatch(r"\d{4}-\d{2}-\d{2}-[a-z0-9-]+\.md", path.name) \
+                    or not 1 <= len(lines) <= 3 or not lines[0].startswith("- "):
+                bad.append(path.name)
+        self.assertEqual(bad, [])
+
     def test_policy_stays_one_page(self):
         self.assertLessEqual(len((ROOT / "POLICY.md").read_text(encoding="utf-8")), 10000)
 
