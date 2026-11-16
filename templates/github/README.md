@@ -53,7 +53,7 @@
 5. 에이전트: 2~4를 PR 하나로 연다. 이 PR은 민감한 파일을 건드리므로 POLICY §3·§4대로 새 세션이 리뷰한다.
 
    확인: `gh pr checks <PR>`에 `ci`가 `pass`로 나온다.
-6. 소유자: diff를 읽고 병합한다. 아직 브랜치 보호와 큐가 없으므로 화면에서 squash로 병합한다. 그 뒤 `git -C <project> pull --ff-only`.
+6. 소유자: diff를 읽고 병합한다. 아직 브랜치 보호와 큐가 없으므로 화면에서 squash로 병합한다. 그 뒤 `git -C <project> switch main && git -C <project> pull --ff-only`(기본 브랜치가 `main`이 아니면 그 이름).
 7. 소유자: 계획을 본다. 읽기만 한다.
 
    명령은 「클론 맞추기와 재적용」의 블록이다. `<project-1> <project-2>`를 `<project>` 하나로 바꿔 실행한다.
@@ -101,7 +101,7 @@
 5. 에이전트: 3·4를 PR 하나로 연다. 민감한 파일이므로 새 세션이 리뷰한다.
 
    확인: `gh pr checks <PR>`에 옛 필수 체크와 `ci`가 모두 `pass`로 나온다.
-6. 소유자: diff를 읽고 리뷰한 SHA로 큐에 넣는다(POLICY §5). 큐가 아직 없으면(1에서 옮긴 직후 등) 화면에서 squash로 병합한다. 병합된 뒤 `git -C <project> pull --ff-only`.
+6. 소유자: diff를 읽고 리뷰한 SHA로 큐에 넣는다(POLICY §5). 큐가 아직 없으면(1에서 옮긴 직후 등) 화면에서 squash로 병합한다. 병합된 뒤 `git -C <project> switch main && git -C <project> pull --ff-only`(기본 브랜치가 `main`이 아니면 그 이름).
 7. 소유자: 계획을 본다(명령은 (a)의 7).
 
    확인: `DIFF:`는 `protection.required_status_checks.strict: true -> false`와 `protection.required_status_checks.checks`(옛 체크 → `ci`) 둘뿐이다. 1에서 옮겼거나 큐가 없었으면 꺼진 보안 기능과 `rulesets.merge-queue`의 `DIFF:`도 나온다. 그 밖의 `DIFF:`는 옛 파일이 템플릿과 달랐던 값이다. 적용하지 않고 4로 돌아가 그 값을 남길지 정한다.
