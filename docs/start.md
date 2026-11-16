@@ -56,7 +56,7 @@ ls CLAUDE.md CLAUDE.local.md .claude/CLAUDE.md 2>/dev/null   # 나온 파일은 
 
 ## 판 올리기
 
-이 저장소가 바뀐 뒤 이미 적용한 저장소를 맞추는 법이다. 무엇이 바뀌었는지는 변경 기록에서 지난번에 맞춘 뒤의 항목을 본다. 2026-11-17부터 항목은 [changelog.d/](../changelog.d/)에 PR마다 파일 하나로 있고, 그 전 항목은 [CHANGELOG.md](../CHANGELOG.md)에 있다. 조각 이름의 날짜는 작성일이라 병합 순서와 다르다. 그래서 지난번 뒤의 조각은 파일 이름이 아니라 git 범위로 찾는다(`git log -p <지난번 커밋>..origin/main -- CHANGELOG.md changelog.d/`의 `+` 줄). 소비 레포가 손으로 옮길 일은 거기에 적혀 있다.
+이 저장소가 바뀐 뒤 이미 적용한 저장소를 맞추는 법이다. 무엇이 바뀌었는지는 변경 기록에서 지난번에 맞춘 뒤의 항목을 본다. 2026-11-17부터 항목은 [changelog.d/](../changelog.d/)에 PR마다 파일 하나로 있고, 그 전 항목은 [CHANGELOG.md](../CHANGELOG.md)에 있다. 조각 이름의 날짜는 작성일이라 병합 순서와 다르다. 그래서 지난번 뒤의 조각은 파일 이름이 아니라 git 범위로 찾는다(`git log -p <지난번 커밋>..origin/main -- CHANGELOG.md changelog.d/`의 `+` 줄). 위 `--depth 1` clone에는 지난번 커밋이 없으니 먼저 `git fetch --unshallow`로 기록을 받는다. 소비 레포가 손으로 옮길 일은 거기에 적혀 있다. 지난번에 맞춘 판은 hash-copy 파일을 맞춘 때이거나 어림이라 손으로 옮길 일을 끝냈다는 보장이 없다. 그래서 손으로 옮길 일은 지난번 앞의 항목도 반영됐는지 확인하고, 빠졌으면 옮긴다.
 
 - hash-copy 프로필을 켰으면: 이 저장소의 깨끗한 `origin/main` checkout에서 `python3 profiles/hash-copy/apply_baseline.py <소비 레포 경로>`를 돌리고, 바뀐 파일로 소비 레포에 PR을 연다. 이 도구는 manifest의 대상 파일을 그대로 덮어쓰고, 소비 레포에서 고친 내용이 있어도 멈추지 않는다. 그래서 적용하기 전에 다음을 한다.
   1. 같은 명령에 `--check`를 붙여 돌린다. 파일을 쓰지 않고, 지금 원본과 다른 파일을 `DIFFERS`로 보고한다(그때 종료 코드는 1이다). 원본이 바뀌어도 `DIFFERS`가 되므로, 이것만으로는 누가 바꿨는지 모른다.
