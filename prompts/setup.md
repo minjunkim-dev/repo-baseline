@@ -40,8 +40,8 @@
 
 `git remote -v`가 GitHub를 가리키지 않으면 이 단계를 건너뛰고 보고에 적는다.
 
-1. `templates/github/README.md`를 읽고 그대로 따른다. 거기 없는 값을 새로 고르지 않는다.
-2. 파일로 두는 것만 한다: CI 골격(`.github/workflows/`), Dependabot 설정, 에이전트 권한 설정 예시, 저장소 설정 기준선 JSON, `SECURITY.md`.
+1. `templates/github/README.md`를 읽고 그대로 따른다. 새 저장소는 「(a) 새 저장소 셋업」, 이미 쓰던 저장소는 「(b) 기존 저장소 옮기기」의 에이전트 단계다. 값은 「계약 값」 표의 것을 쓰고 새로 고르지 않는다.
+2. 파일로 두는 것만 한다: CI 골격(`.github/workflows/`), Dependabot 설정, 에이전트 권한 설정 예시, 저장소마다 다른 값만 둔 `.github/repository-settings.json`, `SECURITY.md`.
 3. CI 골격은 `AGENTS.md`의 check·test 명령을 부르게 채운다.
 4. 서버에 설정을 적용하는 명령(`--apply` 등)은 실행하지 않는다. 소유자가 실행할 명령을 보고에 적는다.
 

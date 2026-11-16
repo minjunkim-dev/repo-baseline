@@ -69,8 +69,8 @@ PR 본문 Merge Danger에 되돌리기 판정, 영향 범위, 되돌리는 법, 
   - 저장소에 브랜치 보호와 필수 CI가 켜져 있고(github 프로필), 필수 CI가 통과했다. 돌고 있는 외부 리뷰(예: 리뷰 봇)도 끝났다.
   - 구현과 다른 컨텍스트의 리뷰가 끝났고 P0·P1이 남지 않았다. 외부 리뷰의 지적은 그 리뷰어가 받아들인 것만 센다(§3). 판정하지 않은 외부 리뷰 지적이 있으면 병합하지 않는다. 리뷰어도 되돌리기 쉬움으로 봤다.
   - 리뷰한 커밋을 머지 큐에 넣는다. 리뷰한 커밋은 리뷰 보고의 「리뷰한 head」다. 리뷰어가 직접 고친 커밋도 리뷰어가 그 head로 적으면 포함한다. 그 뒤 다른 push가 있으면 다시 리뷰한다. 큐에는 그 SHA를 지정해 넣는다: `gh api graphql -f query='mutation($id:ID!,$sha:GitObjectID!){enqueuePullRequest(input:{pullRequestId:$id,expectedHeadOid:$sha}){mergeQueueEntry{position}}}' -f id="$(gh pr view <PR 번호> --json id --jq .id)" -f sha=<SHA>`. PR head가 그 SHA가 아니면 GitHub가 거부한다. `gh pr merge`는 쓰지 않는다. 머지 큐 저장소에서는 자동 병합을 켜는 API를 불러 `allow_auto_merge: false`에서 거부된다(2026-11-16 시험).
-  - 큐는 최신 base와 앞선 큐 항목을 합친 결과에서 필수 CI를 다시 돌리고 squash로 병합한다. 그래서 PR 브랜치에 base를 합치지 않고, 브랜치 보호의 최신 브랜치 요구(`strict`)는 끈다. 그 요구는 head만 바꿔 다시 리뷰를 늘린다.
-  - 필수 체크는 판정 job 하나다. 이름은 `ci`이고 `pull_request`와 `merge_group`에서 돈다. 세부 job을 나누면 `ci` job이 `needs`와 `if: always()`로 모으고, 모든 세부 job이 `success`일 때만 통과한다. 예시와 근거는 [github 프로필](templates/github/README.md)에 있다. 큐에 들어간 PR의 브랜치는 GitHub가 push를 거부한다(2026-11-16 시험). 큐의 CI가 실패하면 PR이 큐에서 빠진다. 고친 뒤에는 다시 리뷰한다. 충돌 때문에 PR 브랜치에 base를 합쳐야 하면 head가 바뀌므로 다시 리뷰한다.
+  - 큐는 최신 base와 앞선 큐 항목을 합친 결과에서 필수 CI를 다시 돌리고 squash로 병합한다. 그래서 PR 브랜치에 base를 합치지 않고, 브랜치 보호의 최신 브랜치 요구(`strict`)는 끈다. 그 요구는 head만 바꿔 다시 리뷰를 늘린다. 큐에 들어간 PR의 브랜치는 GitHub가 push를 거부한다(2026-11-16 시험). 큐의 CI가 실패하면 PR이 큐에서 빠진다. 고친 뒤에는 다시 리뷰한다. 충돌 때문에 PR 브랜치에 base를 합쳐야 하면 head가 바뀌므로 다시 리뷰한다.
+  - 필수 체크는 세부 job을 모아 판정하는 job 하나다. 그 이름·트리거·판정 방식과 머지 큐·병합 설정 값은 [github 프로필](templates/github/README.md)의 「계약 값」 표가 정본이다. 셋업과 이전 절차도 거기에 있다.
 - 에이전트는 지시 없이 병합하지 않는다. 자동 병합은 쓰지 않는다(저장소 설정 `allow_auto_merge: false`). 큐에 넣는 것은 소유자의 병합 지시를 실행하는 것이다. 큐를 우회하는 병합(`gh pr merge --admin` 등)은 쓰지 않는다.
 - 클라우드 에이전트에게 주는 토큰에는 병합 권한이 없다.
 - 로컬 에이전트는 에이전트 설정의 권한 규칙으로 병합에 확인을 받는다(확인 규칙이 없는 에이전트 도구는 병합을 막아 두고, 그 에이전트 도구로는 에이전트 병합을 쓰지 않는다). `main` push·보호 설정 변경은 막는다. 이것은 습관이지 보안 경계가 아니다. 같은 사용자 권한으로 도는 에이전트는 다른 명령으로 우회할 수 있다.
