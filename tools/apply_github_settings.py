@@ -11,10 +11,11 @@ audits. A control is written whole, so one differing field resends its other
 baseline fields too. A failed write stops the run; rerun the plan to see where
 the repository stands.
 
-It never changes visibility, rulesets, workflow files, fields the auditor does not
-require, or branch protection that carries settings the baseline does not manage
-(signed commits, push restrictions, blocked creations, fork syncing, review bypass
-or dismissal lists); those are printed as MANUAL. Under an advanced CodeQL baseline
+Rulesets are matched by name: a missing one is created and a differing one is
+replaced whole. It never deletes a ruleset, and never changes visibility, workflow
+files, fields the auditor does not require, or branch protection that carries
+settings the baseline does not manage (signed commits, push restrictions, blocked
+creations, fork syncing, review bypass or dismissal lists); those are printed as MANUAL. Under an advanced CodeQL baseline
 it keeps default setup on until the CodeQL workflow is active. Declared exceptions
 are never written. Unfilled template values ("REPLACE...") stop it before any read.
 """
@@ -31,9 +32,9 @@ import check_github_settings as checker  # noqa: E402
 
 PROFILE = ".github/repository-settings.json"
 # Write order matters: security updates need alerts on; selected actions need allowed_actions=selected.
-ORDER = ("dependabot_alerts", "repository", "protection", "actions", "allowed_actions",
+ORDER = ("dependabot_alerts", "repository", "protection", "rulesets", "actions", "allowed_actions",
          "workflow_token", "fork_policy", "immutable_releases", "private_vulnerability_reporting", "codeql")
-MANUAL = ("rulesets", "codeql_workflow")
+MANUAL = ("codeql_workflow",)
 MERGE_FIELDS = ("allow_merge_commit", "allow_rebase_merge", "allow_squash_merge", "allow_auto_merge",
                 "delete_branch_on_merge", "allow_update_branch",
                 "squash_merge_commit_title", "squash_merge_commit_message")
@@ -165,6 +166,28 @@ def writes_for(name, expected, prefix, branch):
     return [("PUT", f"{prefix}/{endpoint(name, branch)}", {key: expected[key] for key in fields if key in expected})]
 
 
+def ruleset_writes(expected, found, prefix, manual):
+    """Create or replace each baseline ruleset by name; others are reported, never deleted."""
+    by_name = {}
+    for ruleset_id, ruleset in found:
+        by_name.setdefault(ruleset["name"], []).append((ruleset_id, ruleset))
+    shown, requests = [], []
+    for ruleset in expected:
+        same = by_name.get(ruleset["name"], [])
+        if len(same) > 1:
+            manual.append(f"rulesets.{ruleset['name']}: several rulesets have this name")
+        elif not same:
+            shown.append((f"rulesets.{ruleset['name']}", "<not set>", ruleset))
+            requests.append(("POST", f"{prefix}/rulesets", ruleset))
+        elif checker.differences(ruleset, same[0][1]):
+            shown.append((f"rulesets.{ruleset['name']}", same[0][1], ruleset))
+            requests.append(("PUT", f"{prefix}/rulesets/{same[0][0]}", ruleset))
+    names = {ruleset["name"] for ruleset in expected}
+    manual.extend(f"rulesets.{name} is not in the baseline; this tool does not delete it"
+                  for name in by_name if name not in names)
+    return shown, requests
+
+
 def plan(profile, read=None):
     """Return (changes, manual). changes: per control, the differing (path, current, baseline)
     values and the requests that fix them. manual: differences this tool leaves to a person."""
@@ -183,6 +206,9 @@ def plan(profile, read=None):
             continue
         if name == "repository":
             actual = metadata
+        elif name == "rulesets":
+            found = checker.read_rulesets(read, prefix)
+            actual = [ruleset for _, ruleset in found]
         elif name == "allowed_actions" and "actions" in current and current["actions"].get("allowed_actions") != "selected":
             actual = None  # GitHub lists selected actions only under a "selected" policy; the actions write comes first
         else:
@@ -196,6 +222,11 @@ def plan(profile, read=None):
         # A control that is not set yet differs in every field; list them so unaudited ones still show.
         drift = leaves(expected[name], name) if actual is None else checker.differences(expected[name], actual, name)
         if not drift:
+            continue
+        if name == "rulesets":
+            shown, requests = ruleset_writes(expected[name], found, prefix, manual)
+            if requests:
+                changes.append((shown, requests))
             continue
         if name in MANUAL:
             manual.extend(f"{path} differs; this tool does not change it" for path in drift)

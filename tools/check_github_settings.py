@@ -56,6 +56,8 @@ REQUIRED_FIELDS = {
     "codeql": "state",
     "codeql_workflow": "path state",
 }
+# A ruleset as the baseline records it: the rule itself, not ids or timestamps.
+RULESET_FIELDS = ("name", "target", "enforcement", "conditions", "rules", "bypass_actors")
 # Only advanced setup has a workflow file; default setup must not list it.
 ADVANCED_CODEQL = {"codeql_workflow"}
 STRING_FIELDS = {
@@ -117,8 +119,13 @@ def validate_profile(profile):
             continue
         value = expected[control]
         if control == "rulesets":
-            if not isinstance(value, list):
-                raise ValueError("Rulesets must be a list")
+            if not isinstance(value, list) or any(
+                not isinstance(item, dict) or set(item) != set(RULESET_FIELDS)
+                or not isinstance(item["name"], str) or not item["name"] for item in value
+            ):
+                raise ValueError("Rulesets must be a list of rulesets with " + ", ".join(RULESET_FIELDS))
+            if len({item["name"] for item in value}) != len(value):
+                raise ValueError("Ruleset names must be unique")
             continue
         if not isinstance(value, dict):
             raise ValueError(f"Invalid control: {control}")
@@ -159,6 +166,13 @@ def validate_target(profile):
         raise ValueError("Invalid baseline branch")
 
 
+def read_rulesets(read, prefix):
+    """(id, ruleset) for each repository ruleset; the summary list omits the rules, so read each one."""
+    summaries = read(f"{prefix}/rulesets?includes_parents=false") or []
+    return [(item["id"], {key: detail.get(key) for key in RULESET_FIELDS})
+            for item in summaries for detail in [read(f"{prefix}/rulesets/{item['id']}")]]
+
+
 def audit(profile, read=None):
     validate_profile(profile)
     read = read_api if read is None else read
@@ -171,7 +185,6 @@ def audit(profile, read=None):
         raise ValueError("Repository identity mismatch")
     paths = {
         "protection": f"branches/{branch}/protection",
-        "rulesets": "rulesets",
         "actions": "actions/permissions",
         "allowed_actions": "actions/permissions/selected-actions",
         "workflow_token": "actions/permissions/workflow",
@@ -189,6 +202,8 @@ def audit(profile, read=None):
             # A successful GET returns 204. Permission or API errors must fail.
             read(f"{prefix}/vulnerability-alerts")
             actual = {"enabled": True}
+        elif name == "rulesets":
+            actual = [ruleset for _, ruleset in read_rulesets(read, prefix)]
         else:
             if name not in paths:
                 raise ValueError(f"Unsupported settings endpoint: {name}")

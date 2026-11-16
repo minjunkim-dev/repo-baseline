@@ -2,6 +2,8 @@
 
 코어(`templates/core/`)를 적용한 프로젝트를 GitHub에 올릴 때 쓴다. 기본 경계는 브랜치 보호 + 필수 CI + 소유자가 정하는 병합이다(POLICY §5).
 
+저장소는 조직이 소유한 공개 저장소여야 한다. 머지 큐 ruleset을 그런 저장소에서만 쓸 수 있기 때문이다(POLICY §5). `ci.yml`은 `merge_group` 이벤트에서도 돈다. 필수 체크인 workflow는 모두 `merge_group`에서도 돌아야 한다. 아니면 큐에 넣은 PR이 병합되지 않는다. `merge_group` 실행에는 `github.event.pull_request`와 `github.head_ref`가 없다.
+
 | 파일 | 복사할 곳 | 메모 |
 | --- | --- | --- |
 | `ci.yml` | `.github/workflows/ci.yml` | `check`·`test` 단계를 `AGENTS.md`의 명령으로 바꾼다. 바꾸기 전에는 실패한다 |
@@ -30,7 +32,8 @@
 - 기본 실행은 다른 항목마다 `DIFF: 경로: 현재 값 -> 기준값`과 쓰기 요청 `PLAN`을 출력한다. 바꿀 것이 있으면 종료 코드 1이다.
 - `--apply`는 다시 조회해 그때 다른 항목만 쓰고 같은 검사기로 감사한다. 쓰기는 항목 단위다.
 - 남은 `REPLACE` 값, schema·저장소 이름·브랜치 오류는 조회 전에 멈춘다. 403 같은 오류는 아무것도 쓰지 않고 실패한다. 쓰기가 중간에 실패하면 쓴 요청을 출력하고 멈춘다. 계획을 다시 실행해 현재 상태를 본다.
-- 공개 여부·ruleset·CodeQL workflow 파일, 기준선이 관리하지 않는 브랜치 보호(서명 커밋·push 제한 등)는 쓰지 않고 `MANUAL`로 보고한다. `MANUAL`이 남으면 종료 코드 1이다.
+- ruleset은 이름으로 맞춘다. 없으면 만들고, 다르면 통째로 바꾼다. 기준선에 없는 ruleset은 지우지 않고 `MANUAL`로 보고한다.
+- 공개 여부·CodeQL workflow 파일, 기준선이 관리하지 않는 브랜치 보호(서명 커밋·push 제한 등)는 쓰지 않고 `MANUAL`로 보고한다. `MANUAL`이 남으면 종료 코드 1이다.
 - CodeQL default setup은 비동기로 켜지므로 최대 2분 기다린 뒤 감사한다.
 
 | 결과 | 종료 코드 | 뜻 |
