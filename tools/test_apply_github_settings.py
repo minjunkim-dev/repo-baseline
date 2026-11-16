@@ -419,32 +419,27 @@ class ApplyGitHubSettingsTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             tool.load(project)
 
-    def test_template_and_own_profiles_share_the_policy_values(self):
+    def test_template_and_own_profile_share_the_policy_values(self):
         template = json.loads((ROOT / "templates/github/repository-settings.json").read_text(encoding="utf-8"))
-        project = Path(self.project(template))
         with self.assertRaisesRegex(ValueError, "REPLACE|template"):
-            tool.load(project)
-        own = json.loads((ROOT / ".github/repository-settings.json").read_text(encoding="utf-8"))
-        required = own["expected"]["protection"]["required_status_checks"]["checks"]
-        self.assertEqual(
-            [(item["context"], item["app_id"]) for item in required],
-            [("Baseline checks", 15368)],
-        )
-        checker.validate_profile(own)
+            tool.load(Path(self.project(template)))
         placeholder = copy.deepcopy(BASELINE)
         placeholder["expected"]["protection"]["required_status_checks"]["checks"].append(
             {"context": "ci", "app_id": "REPLACE:<APP_ID>"})
         with self.assertRaisesRegex(ValueError, "template values"):
             tool.load(Path(self.project(placeholder)))
-        # This repository's own file still requires up-to-date branches; it moves to the template's strict: false
-        # in its own follow-up PR, and this check then drops the line below.
-        self.assertIs(template["expected"]["protection"]["required_status_checks"]["strict"], False)
-        for profile in (template, own):  # identity, verified checks and third-party actions are per project
-            del profile["expected"]["repository"]["visibility"]
-            del profile["expected"]["protection"]["required_status_checks"]["checks"]
-            del profile["expected"]["protection"]["required_status_checks"]["strict"]
-            del profile["expected"]["allowed_actions"]["patterns_allowed"]
-        self.assertEqual(template["expected"], own["expected"])
+        # This repository's own file keeps only per-project values; every policy value comes from the template.
+        own = json.loads((ROOT / ".github/repository-settings.json").read_text(encoding="utf-8"))
+        self.assertEqual(sorted(own), ["expected", "repository", "repository_id"])
+        self.assertEqual(own["expected"], {
+            "protection": {"required_status_checks": {"checks": [{"context": "ci", "app_id": 15368}]}},
+            "allowed_actions": {"patterns_allowed": []}})
+        profile = tool.load(ROOT)
+        self.assertIs(profile["expected"]["protection"]["required_status_checks"]["strict"], False)
+        for merged in (profile, template):  # identity, verified checks and third-party actions are per project
+            del merged["expected"]["protection"]["required_status_checks"]["checks"]
+            del merged["expected"]["allowed_actions"]["patterns_allowed"]
+        self.assertEqual(profile["expected"], template["expected"])
 
     def test_project_file_with_own_values_only_is_planned_against_the_template(self):
         values = {"repository": BASELINE["repository"], "repository_id": BASELINE["repository_id"],

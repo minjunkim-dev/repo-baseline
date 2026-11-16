@@ -18,7 +18,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Branch protection requires this job name (.github/repository-settings.json).
+  # The old required check; kept as a detail job until the server requires only ci.
   baseline:
     name: Baseline checks
     runs-on: ubuntu-24.04
@@ -37,3 +37,16 @@ jobs:
           for d in profiles/pr-conventions profiles/hash-copy; do
             python3 -m unittest discover -s "$d" -p 'test_*.py'
           done
+
+  # Branch protection requires this job name (.github/repository-settings.json).
+  ci:
+    name: ci
+    needs: [baseline]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: every job succeeded
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: for r in $RESULTS; do [ "$r" = success ] || { echo "a job ended with $r"; exit 1; }; done
