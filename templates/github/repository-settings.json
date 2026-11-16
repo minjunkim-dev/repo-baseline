@@ -6,7 +6,7 @@
   "expected": {
     "repository": {
       "default_branch": "main",
-      "visibility": "REPLACE: public or private",
+      "visibility": "public",
       "allow_merge_commit": false,
       "allow_rebase_merge": false,
       "allow_squash_merge": true,

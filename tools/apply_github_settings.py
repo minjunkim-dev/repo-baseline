@@ -216,8 +216,8 @@ def plan(profile, read=None):
             if name == "dependabot_alerts":
                 actual = {"enabled": found}  # 204 with no body when on, 404 when off
             if name == "private_vulnerability_reporting" and not found:
-                # Off answers {"enabled": false}; 404 means the feature is unavailable (private repository).
-                raise ValueError("private-vulnerability-reporting answered 404; declare it as an exception")
+                # Off answers {"enabled": false}; 404 means a private repository, which has no merge queue either.
+                raise ValueError("private-vulnerability-reporting answered 404; private repositories are outside the baseline (POLICY §5)")
         current[name] = actual if isinstance(actual, dict) else {}
         # A control that is not set yet differs in every field; list them so unaudited ones still show.
         drift = leaves(expected[name], name) if actual is None else checker.differences(expected[name], actual, name)

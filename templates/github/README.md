@@ -9,14 +9,14 @@
 | `ci.yml` | `.github/workflows/ci.yml` | `check`·`test` 단계를 `AGENTS.md`의 명령으로 바꾼다. 바꾸기 전에는 실패한다 |
 | `dependabot.yml` | `.github/dependabot.yml` | 패키지 관리자마다 `dependabot-ecosystem.yml`의 블록을 붙인다 |
 | `repository-settings.json` | `.github/repository-settings.json` | `REPLACE` 값을 채운다 |
-| `SECURITY.md` | 저장소 루트 | GitHub은 `.github/`, 루트, `docs/` 순서로 이 파일을 찾는다. 셋 중 하나에 이미 있으면 그 파일에 합친다. `OWNER/REPO`를 채운다. 공개 저장소는 비공개 취약점 보고를 켠 뒤 이 파일을 병합한다. 비공개 저장소는 비공개 취약점 보고와 보안 권고가 없으므로 보고 안내·링크·권고 목록 줄을 소유자에게 비공개로 연락할 경로로 바꾼다 |
+| `SECURITY.md` | 저장소 루트 | GitHub은 `.github/`, 루트, `docs/` 순서로 이 파일을 찾는다. 셋 중 하나에 이미 있으면 그 파일에 합친다. `OWNER/REPO`를 채운다. 비공개 취약점 보고를 켠 뒤 이 파일을 병합한다 |
 | `agents/` | 에이전트 도구별 | `agents/README.md` |
 
 ## 적용 순서
 
 1. 위 파일을 복사하고 `ci.yml`의 두 단계를 채운다.
 2. PR 하나를 열어 `ci` job이 실제로 성공하는 것을 본다.
-3. `repository-settings.json`의 `repository`, `repository_id`(`gh api repos/OWNER/NAME --jq .id`), `visibility`, 필수 체크 `context`(2의 job 이름, 기본 `ci`), `patterns_allowed`를 채워 병합한다.
+3. `repository-settings.json`의 `repository`, `repository_id`(`gh api repos/OWNER/NAME --jq .id`), 필수 체크 `context`(2의 job 이름, 기본 `ci`), `patterns_allowed`를 채워 병합한다.
 4. 소유자가 자기 기기에서 계획을 본다. 읽기만 한다.
 
    ```sh
@@ -60,4 +60,4 @@
 - `status`는 `unsupported`(기능 미지원) 또는 `not_applicable`(이 프로젝트에 해당 없음)이다.
 - 예외로 쓸 수 있는 항목은 `protection`, `rulesets`, `actions`, `allowed_actions`, `workflow_token`, `fork_policy`, `immutable_releases`, `private_vulnerability_reporting`, `dependabot_alerts`, `codeql`, `actions.sha_pinning_required`, `repository.security_and_analysis.<기능>.status`다. 저장소 ID·이름·기본 브랜치·공개 여부·병합 정책은 뺄 수 없다.
 - 같은 항목을 기대값과 예외에 함께 두면 스키마 오류다.
-- 비공개 취약점 보고는 공개 저장소에만 있다. 비공개 저장소는 `expected`에서 `private_vulnerability_reporting`을 빼고 예외에 `"private_vulnerability_reporting": {"status": "unsupported", "reason": "비공개 저장소", "evidence": "GET private-vulnerability-reporting이 404"}`를 둔다. 빼지 않으면 검사가 `UNVERIFIED`로 멈춘다.
+- 비공개 저장소는 지원 범위 밖이다(POLICY §5). 머지 큐와 비공개 취약점 보고를 쓸 수 없어서, 예외로 빼면 병합 규칙이 성립하지 않는다. `apply_github_settings.py`는 비공개 취약점 보고가 404이면 아무것도 쓰지 않고 멈춘다.
