@@ -58,7 +58,10 @@ ls CLAUDE.md CLAUDE.local.md .claude/CLAUDE.md 2>/dev/null   # 나온 파일은 
 
 이 저장소가 바뀐 뒤 이미 적용한 저장소를 맞추는 법이다. 무엇이 바뀌었는지는 [CHANGELOG.md](../CHANGELOG.md)에서 지난번에 맞춘 뒤의 항목을 본다. 소비 레포가 손으로 옮길 일은 거기에 적혀 있다.
 
-- hash-copy 프로필을 켰으면: 이 저장소의 깨끗한 `origin/main` checkout에서 `python3 profiles/hash-copy/apply_baseline.py <소비 레포 경로>`를 돌리고, 바뀐 파일로 소비 레포에 PR을 연다.
+- hash-copy 프로필을 켰으면: 이 저장소의 깨끗한 `origin/main` checkout에서 `python3 profiles/hash-copy/apply_baseline.py <소비 레포 경로>`를 돌리고, 바뀐 파일로 소비 레포에 PR을 연다. 이 도구는 manifest의 대상 파일을 그대로 덮어쓰고, 소비 레포에서 고친 내용이 있어도 멈추지 않는다. 그래서 적용하기 전에 다음을 한다.
+  1. 같은 명령에 `--check`를 붙여 돌린다. 파일을 쓰지 않고, 지금 원본과 다른 파일을 `DIFFERS`로 보고한다(그때 종료 코드는 1이다). 원본이 바뀌어도 `DIFFERS`가 되므로, 이것만으로는 누가 바꿨는지 모른다.
+  2. 다른 파일마다 소비 레포의 sha256을 manifest(`.github/repo-baseline.json`)에 기록된 `sha256`과 비교한다. 같으면 원본이 바뀐 것이다. 다르면 소비 레포의 수정이다. manifest에 `scripts/check_repo_baseline.py`가 있고 그 파일의 sha256이 기록값과 같으면 소비 레포에서 그것을 돌린다. `DRIFT`로 나온 파일이 소비 레포의 수정이다. 그 검사기도 복사한 파일이라, 고쳐졌으면 그 출력을 믿을 수 없다. 그 밖에는 `shasum -a 256 <파일>`로 비교한다.
+  3. 소비 레포의 수정이 있으면 덮어쓰기 전에 그 내용(원본 clone의 `git show <source_commit>:<source 경로>`와의 diff. 위 `--depth 1` clone이면 먼저 `git fetch --unshallow`로 기록을 받는다. `ecosystems` 항목은 생성한 파일이라 manifest의 `sha256`만 비교한다)을 보고하고, 그 수정을 이 저장소에 반영할지 소유자에게 묻는다. 답을 받은 뒤에 적용한다.
 - 손으로 `cp`했으면: 바뀐 코어 파일을 다시 복사한다. `AGENTS.md`·`REVIEW.md`는 덮어쓰지 말고 바뀐 줄만 손으로 합친다.
 - 판을 올리는 PR 자체는 소비 레포의 기존 검사기(base 브랜치의 것)로 검사된다. 검사기가 바뀌는 판이면 그 PR 본문은 옛 형식으로 쓴다. 예: 2026-11-14 판의 `되돌리기:` 줄은 옛 검사기가 모르므로, 그 PR 본문에는 `Door: 되돌리기 쉬움`처럼 옛 줄을 쓴다.
 

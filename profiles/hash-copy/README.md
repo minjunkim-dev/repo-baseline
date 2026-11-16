@@ -18,7 +18,7 @@
 python3 profiles/hash-copy/apply_baseline.py <소비 레포 경로>
 ```
 
-   파일을 복사하고 `source_commit`과 각 파일의 `sha256`을 manifest에 쓴다. `--check`는 쓰지 않고 다른 파일만 보고한다.
+   파일을 복사하고 `source_commit`과 각 파일의 `sha256`을 manifest에 쓴다. 적용은 대상 파일을 그대로 덮어쓰고, 기록된 `sha256`과 다른(소비 레포에서 고친) 파일이 있어도 멈추지 않는다. `--check`는 쓰지 않고 지금 원본과 다른 파일만 보고한다. 그래서 다시 적용하기 전에 `docs/start.md` 「판 올리기」대로 소비 레포의 수정이 있는지 확인한다.
 3. 소비 레포 CI에서 `python3 scripts/check_repo_baseline.py`를 돌린다(manifest에 `scripts/check_repo_baseline.py`가 들어 있어야 한다). 해시가 다르면 실패한다. `.mcp.json`에 비밀값처럼 보이는 문자 그대로의 값이 있어도 실패한다.
 4. `ecosystems`가 있는 항목은 복사 대신 생성한다. `templates/github/dependabot.yml` 뒤에 생태계마다 `profiles/hash-copy/dependabot-ecosystem.yml` 블록(옛 소비 레포 형식, `$ecosystem`·`$directory` 치환)을 붙인다.
 
