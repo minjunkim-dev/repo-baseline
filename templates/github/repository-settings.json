@@ -29,7 +29,7 @@
     },
     "protection": {
       "required_status_checks": {
-        "strict": true,
+        "strict": false,
         "checks": [
           {
             "context": "REPLACE: the ci.yml job name (default ci) after it succeeded on a real PR",

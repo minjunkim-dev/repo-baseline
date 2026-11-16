@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | `ci.yml` | `.github/workflows/ci.yml` | `check`·`test` 단계를 `AGENTS.md`의 명령으로 바꾼다. 바꾸기 전에는 실패한다 |
 | `dependabot.yml` | `.github/dependabot.yml` | 패키지 관리자마다 `dependabot-ecosystem.yml`의 블록을 붙인다 |
-| `repository-settings.json` | `.github/repository-settings.json` | `REPLACE` 값을 채운다 |
+| `repository-settings.json` | `.github/repository-settings.json` | 복사하지 않고 저장소마다 다른 값만 쓴다. 아래 「저장소 설정 파일」 |
 | `SECURITY.md` | 저장소 루트 | GitHub은 `.github/`, 루트, `docs/` 순서로 이 파일을 찾는다. 셋 중 하나에 이미 있으면 그 파일에 합친다. `OWNER/REPO`를 채운다. 비공개 취약점 보고를 켠 뒤 이 파일을 병합한다 |
 | `agents/` | 에이전트 도구별 | `agents/README.md` |
 
@@ -36,7 +36,7 @@ gh api orgs/<조직> --jq '{members_can_create_public_repositories, members_can_
 
 1. 위 파일을 복사하고 `ci.yml`의 두 단계를 채운다.
 2. PR 하나를 열어 `ci` job이 실제로 성공하는 것을 본다.
-3. `repository-settings.json`의 `repository`, `repository_id`(`gh api repos/OWNER/NAME --jq .id`), 필수 체크 `context`(2의 job 이름, 기본 `ci`), `patterns_allowed`를 채워 병합한다.
+3. `.github/repository-settings.json`에 `repository`, `repository_id`(`gh api repos/OWNER/NAME --jq .id`), 필수 체크 `context`(2의 job 이름, 기본 `ci`), `patterns_allowed`만 써서 병합한다(아래 「저장소 설정 파일」).
 4. 소유자가 자기 기기에서 계획을 본다. 읽기만 한다.
 
    ```sh
@@ -46,6 +46,66 @@ gh api orgs/<조직> --jq '{members_can_create_public_repositories, members_can_
 5. 계획을 승인하면 `--apply`를 붙여 다시 실행하고, 출력이 `PASS`인지 본다.
 
 에이전트는 4·5를 실행하지 않는다. 도구는 소유자의 `gh` 로그인으로 `gh api`를 부른다.
+
+## 필수 체크 계약
+
+- 브랜치 보호의 필수 체크는 판정(gate) job 하나다. 이름은 `ci`다.
+- 그 workflow는 `pull_request`와 `merge_group`에서 돈다. 세부 job도 두 이벤트에서 돈다.
+- 세부 job을 나누면 `ci` job이 `needs`로 모두 기다린다. `if: always()`를 붙여 세부 job이 실패해도 판정 job이 돌게 한다. 판정 job은 모든 `needs.*.result`가 `success`일 때만 통과한다. `if: always()`만 있고 결과를 보지 않으면 세부 job이 실패해도 통과한다.
+- PR 브랜치에 base를 합치지 않는다. 리뷰한 SHA로 큐에 넣는다(POLICY §5).
+
+```yaml
+  ci:
+    name: ci
+    needs: [lint, test]
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
+      - name: every job succeeded
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: for r in $RESULTS; do [ "$r" = success ] || { echo "a job ended with $r"; exit 1; }; done
+```
+
+필수 체크를 하나로 두면 세부 job을 더하거나 이름을 바꿔도 저장소 설정을 바꾸지 않는다. `ci.yml` 템플릿은 job이 하나뿐이라 그 job이 판정 job이다.
+
+## 저장소 설정 파일
+
+`apply_github_settings.py`와 `check_github_settings.py`는 이 폴더의 `repository-settings.json`을 공통값으로 읽는다. 저장소의 `.github/repository-settings.json`은 그 위에 얹는다. 두 도구는 공통값을 읽은 파일 경로를 `BASELINE:` 줄로 출력한다.
+
+- 객체는 키마다 합친다. 저장소 파일에 값이 있으면 그 값이 이긴다. 목록(`checks`, `patterns_allowed`, `rulesets`)은 통째로 바뀐다.
+- 저장소 파일에는 저장소마다 다른 값만 둔다: `repository`, `repository_id`, 필수 체크 `context`, `patterns_allowed`, 필요하면 `exceptions`. 공통값을 바꾸려면 저장소마다 PR을 내지 않고 이 템플릿을 바꾸는 PR 하나를 낸다.
+- `exceptions`에 적은 경로는 공통값에서 빠진다.
+- 저장소 파일에서 빠진 값이 템플릿의 `REPLACE` 값이면 도구는 조회 전에 멈춘다.
+- 템플릿 전체를 복사한 기존 파일도 그대로 통과한다. 다만 그 파일의 값이 이기므로, 공통값(예: `strict`)이 바뀌어도 그 저장소에는 적용되지 않는다. 공통값을 따르려면 파일을 아래처럼 줄인다.
+
+```json
+{
+  "repository": "OWNER/NAME",
+  "repository_id": 123456789,
+  "expected": {
+    "protection": {"required_status_checks": {"checks": [{"context": "ci", "app_id": 15368}]}},
+    "allowed_actions": {"patterns_allowed": []}
+  }
+}
+```
+
+공통값이 바뀌면 소유자가 저장소마다 계획을 보고 적용한다. 도구는 실행한 repo-baseline 클론의 템플릿을 읽으므로 먼저 클론을 `main`으로 맞춘다.
+
+```sh
+git -C <repo-baseline> pull --ff-only
+for p in <project-1> <project-2>; do
+  python3 <repo-baseline>/tools/apply_github_settings.py "$p"
+done
+```
+
+계획을 승인한 저장소만 `--apply`를 붙여 다시 실행하고 `PASS`를 본다.
+
+### 결정 근거
+
+- `strict`를 끈다(2026-11-16). 머지 큐는 최신 base와 앞선 큐 항목을 합친 결과로 필수 CI를 다시 돌린다. [문서](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/managing-a-merge-queue)는 큐가 「Require branches to be up to date」와 같은 이점을 주되 작성자에게 브랜치 업데이트를 요구하지 않는다고 쓴다. strict를 꺼야 한다고 쓰지는 않는다(2026-11-16 확인). strict를 켜 두면 base가 움직일 때마다 PR head를 바꿔야 하고, head가 바뀌면 다시 리뷰한다(POLICY §5).
+- 공통값을 템플릿에 모은다(2026-11-16). 그날 한 조직의 저장소 셋이 모두 템플릿 전체를 복사해 strict 같은 공통값을 저장소마다 들고 있었다. 정책 하나를 바꾸려면 저장소 수만큼 PR이 필요했다. 셋 모두 `merge-queue` ruleset(squash, ALLGREEN, 최대 5), `strict: true`, `allow_auto_merge: false`, `delete_branch_on_merge: true`를 썼다.
+- 조직 ruleset은 쓰지 않는다. 2026-11-16 무료 조직의 설정 화면에 「Organization rulesets won't be enforced until you upgrade this organization account to GitHub Team」이 떴다. 조직은 무료 플랜을 유지하고 공통값은 이 템플릿에 둔다.
 
 ## `apply_github_settings.py`
 

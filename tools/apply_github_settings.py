@@ -3,8 +3,12 @@
 
 Usage: tools/apply_github_settings.py <project> [--apply]
 
-Reads <project>/.github/repository-settings.json, the baseline that the project's
-read-only tools/check_github_settings.py audits. Without --apply it only reads:
+Reads <project>/.github/repository-settings.json on top of this clone's
+templates/github/repository-settings.json: the template gives the common values,
+and a value the project file sets wins (objects merge by key, lists are replaced
+whole). The project file may hold only its own values (identity, required checks,
+allowed actions, exceptions); a full copy of the template also works. The audit is
+tools/check_github_settings.py, which merges the same way. Without --apply it only reads:
 for each control that differs it prints every differing value (current -> baseline)
 and the write that would fix it. --apply plans again, makes those writes, then
 audits. A control is written whole, so one differing field resends its other
@@ -64,23 +68,13 @@ def endpoint(name, branch):
     }[name]
 
 
-def placeholders(value, path=""):
-    if isinstance(value, dict):
-        return [found for key, item in value.items() for found in placeholders(item, f"{path}.{key}" if path else key)]
-    if isinstance(value, list):
-        return [found for item in value for found in placeholders(item, path)]
-    return [path] if isinstance(value, str) and value.startswith("REPLACE") else []
-
-
 def load(project):
-    """The project's baseline, refused before any request if it is unfilled or inconsistent."""
+    """The project's file on top of the template's common values (checker.merged),
+    refused before any request if it is unfilled or inconsistent."""
     path = project / PROFILE
     if path.is_symlink() or not path.is_file() or project.resolve() not in path.resolve().parents:
         raise ValueError(f"{PROFILE} must be a regular file inside the project")
-    profile = json.loads(path.read_text(encoding="utf-8"))
-    unfilled = placeholders(profile)
-    if unfilled:
-        raise ValueError("Fill in the template values first: " + ", ".join(unfilled))
+    profile = checker.merged(json.loads(path.read_text(encoding="utf-8")))
     checker.validate_profile(profile)
     checker.validate_target(profile)
     if profile["expected"]["repository"]["default_branch"] != profile["default_branch"]:
@@ -288,6 +282,7 @@ def main(argv, read=None, write=write_api, sleep=time.sleep):
     done, attempt = [], None
     try:
         profile = load(Path(argv[1]))
+        print(f"BASELINE: common values from {checker.TEMPLATE}; project values from {Path(argv[1]) / PROFILE} win")
         changes, manual = plan(profile, read)
         for shown, requests in changes:
             for path, before, after in shown:

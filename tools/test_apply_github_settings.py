@@ -436,11 +436,33 @@ class ApplyGitHubSettingsTests(unittest.TestCase):
             {"context": "ci", "app_id": "REPLACE:<APP_ID>"})
         with self.assertRaisesRegex(ValueError, "template values"):
             tool.load(Path(self.project(placeholder)))
+        # This repository's own file still requires up-to-date branches; it moves to the template's strict: false
+        # in its own follow-up PR, and this check then drops the line below.
+        self.assertIs(template["expected"]["protection"]["required_status_checks"]["strict"], False)
         for profile in (template, own):  # identity, verified checks and third-party actions are per project
             del profile["expected"]["repository"]["visibility"]
             del profile["expected"]["protection"]["required_status_checks"]["checks"]
+            del profile["expected"]["protection"]["required_status_checks"]["strict"]
             del profile["expected"]["allowed_actions"]["patterns_allowed"]
         self.assertEqual(template["expected"], own["expected"])
+
+    def test_project_file_with_own_values_only_is_planned_against_the_template(self):
+        values = {"repository": BASELINE["repository"], "repository_id": BASELINE["repository_id"],
+                  "expected": {"protection": {"required_status_checks": {"checks": [{"context": "ci", "app_id": 15368}]}},
+                               "allowed_actions": {"patterns_allowed": []}}}
+        profile = tool.load(Path(self.project(values)))
+        self.assertIs(profile["expected"]["protection"]["required_status_checks"]["strict"], False)
+        server = FakeGitHub(profile)
+        server.state[PROTECTION]["required_status_checks"]["strict"] = True
+        code, out, _ = self.run_tool(server, values)
+        self.assertEqual(code, 1)
+        self.assertIn(f"BASELINE: common values from {checker.TEMPLATE}", out)
+        self.assertIn("DIFF: protection.required_status_checks.strict: true -> false", out)
+        self.assertEqual(server.writes, [])
+        code, out, _ = self.run_tool(server, values, apply=True)
+        self.assertEqual(code, 0, out)
+        self.assertIn("PASS", out)
+        self.assertEqual(server.writes, [("PUT", PROTECTION)])
 
 
 if __name__ == "__main__":

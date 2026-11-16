@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Read GitHub settings and report drift; never change repository settings."""
 
+import copy
 import json
 from pathlib import Path
 import re
@@ -9,6 +10,57 @@ import sys
 
 
 ROOT = Path(__file__).resolve().parents[1]
+# Common values every project shares; a project file needs only what differs.
+TEMPLATE = Path(__file__).resolve().parents[1] / "templates/github/repository-settings.json"
+
+
+def placeholders(value, path=""):
+    if isinstance(value, dict):
+        return [found for key, item in value.items() for found in placeholders(item, f"{path}.{key}" if path else key)]
+    if isinstance(value, list):
+        return [found for item in value for found in placeholders(item, path)]
+    return [path] if isinstance(value, str) and value.startswith("REPLACE") else []
+
+
+def overlay(base, project):
+    """Objects merge key by key and the project value wins; lists and other values are replaced whole."""
+    if not isinstance(base, dict) or not isinstance(project, dict):
+        return copy.deepcopy(project)
+    result = copy.deepcopy(base)
+    for key, value in project.items():
+        result[key] = overlay(base[key], value) if key in base else copy.deepcopy(value)
+    return result
+
+
+def merged(project, template=None):
+    """The project's settings on top of the template's common values.
+
+    A full copy of the template merges to itself, so older project files still work.
+    A template value under a path the project declares as an exception is dropped first.
+    Template values the project must fill in ("REPLACE...") stop the run here.
+    """
+    if not isinstance(project, dict):
+        raise ValueError("Baseline must be an object")
+    template = json.loads(TEMPLATE.read_text(encoding="utf-8")) if template is None else copy.deepcopy(template)
+    exceptions = project.get("exceptions", {})
+    expected = template.get("expected", {})
+    for path in exceptions if isinstance(exceptions, dict) else ():
+        parts = path.split(".")
+        chain = [expected]
+        for part in parts[:-1]:
+            chain.append(chain[-1].get(part) if isinstance(chain[-1], dict) else None)
+        if isinstance(chain[-1], dict):
+            chain[-1].pop(parts[-1], None)
+        # An object left empty goes too: GitHub omits an unavailable feature rather than answering {}.
+        for depth in range(len(parts) - 1, 0, -1):
+            parent, child = chain[depth - 1], chain[depth]
+            if isinstance(child, dict) and not child and isinstance(parent, dict):
+                parent.pop(parts[depth - 1], None)
+    profile = overlay(template, project)
+    unfilled = placeholders(profile)
+    if unfilled:
+        raise ValueError("Fill in the template values first: " + ", ".join(unfilled))
+    return profile
 
 
 def differences(expected, actual, path=""):
@@ -236,11 +288,12 @@ def audit(profile, read=None):
 
 def main():
     try:
-        profile = json.loads((ROOT / ".github/repository-settings.json").read_text())
+        profile = merged(json.loads((ROOT / ".github/repository-settings.json").read_text()))
         drift = audit(profile)
     except (ValueError, KeyError, TypeError, OSError, subprocess.SubprocessError) as error:
         print(f"UNVERIFIED: GitHub settings lookup failed ({type(error).__name__})", file=sys.stderr)
         return 2
+    print(f"BASELINE: common values from {TEMPLATE}")
     exceptions = profile.get("exceptions", {})
     for path, entry in sorted(exceptions.items()):
         print(f"{entry['status'].upper()}: {path}: {entry['reason']} ({entry['evidence']})")
