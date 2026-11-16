@@ -27,6 +27,12 @@ class DistributionTests(unittest.TestCase):
         self.assertEqual((ROOT / ".github/pull_request_template.md").read_text(encoding="utf-8"),
                          (ROOT / "templates/core/pull_request_template.md").read_text(encoding="utf-8"))
 
+    def test_own_coderabbit_config_is_the_template(self):
+        template = (ROOT / "templates/github/.coderabbit.yaml").read_text(encoding="utf-8")
+        self.assertEqual((ROOT / ".coderabbit.yaml").read_text(encoding="utf-8"), template)
+        self.assertIn('\nlanguage: "ko-KR"\n', template)
+        self.assertIn("\ninheritance: true\n", template)
+
     def test_policy_stays_one_page(self):
         self.assertLessEqual(len((ROOT / "POLICY.md").read_text(encoding="utf-8")), 10000)
 
