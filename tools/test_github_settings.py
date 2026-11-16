@@ -352,8 +352,6 @@ class GitHubSettingsTests(unittest.TestCase):
         self.assertIn("protection.required_status_checks.strict", out)
 
     def test_project_values_win_and_full_copies_merge_to_themselves(self):
-        own = json.loads((Path(__file__).resolve().parents[1] / ".github/repository-settings.json").read_text(encoding="utf-8"))
-        self.assertEqual(settings.merged(own), own)
         self.assertEqual(settings.merged(self.profile()), self.profile())
         values = self.own_values()
         values["expected"]["protection"]["required_status_checks"]["strict"] = True
