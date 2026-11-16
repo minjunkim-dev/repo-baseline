@@ -6,7 +6,7 @@
 
 `main` push 거부는 명시적 표기만 잡는다. `main`에 있는 채로 `git push origin`을 하면 통과한다. 그 경우는 서버의 브랜치 보호(PR 필수, `enforce_admins`)가 거절한다. GitHub 프로필을 켜지 않은 저장소에서는 이 구멍이 남는다.
 
-막을 것은 세 가지다: `.env` 읽기, `main`으로의 push, 브랜치 보호·저장소 설정을 쓰는 `gh api`. `gh pr merge`는 막지 않고 매번 확인을 받는다. 되돌리기 쉬움 PR은 소유자가 지시하면 에이전트가 병합할 수 있기 때문이다(POLICY §5). 확인 창에서 PR 번호와 `--match-head-commit`이 붙었는지 본다.
+막을 것은 세 가지다: `.env` 읽기, `main`으로의 push, 브랜치 보호·저장소 설정을 쓰는 `gh api`. 머지 큐에 넣는 `gh api graphql`(`enqueuePullRequest`)은 `gh api` 확인 규칙으로 매번 확인을 받는다. 되돌리기 쉬움 PR은 소유자가 지시하면 에이전트가 큐에 넣을 수 있기 때문이다(POLICY §5). 확인 창에서 PR과 `expectedHeadOid`의 SHA가 리뷰한 head인지 본다. `gh pr merge`도 확인을 받지만 머지 큐 저장소에서는 쓰지 않는다.
 
 확인일: 2026-11-08. 에이전트 도구가 바뀌면 링크한 공식 문서를 다시 본다.
 

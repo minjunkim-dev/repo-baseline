@@ -104,7 +104,7 @@ class GitHubSettingsTests(unittest.TestCase):
         if path.endswith("vulnerability-alerts"):
             return None
         endpoints = {
-            "branches/main/protection": "protection", "rulesets": "rulesets",
+            "branches/main/protection": "protection", "rulesets?includes_parents=false": "rulesets",
             "actions/permissions": "actions", "actions/permissions/selected-actions": "allowed_actions",
             "actions/permissions/workflow": "workflow_token",
             "actions/permissions/fork-pr-contributor-approval": "fork_policy",
@@ -125,6 +125,33 @@ class GitHubSettingsTests(unittest.TestCase):
         self.assertEqual(audit(self.profile(), read), ["repository.allow_merge_commit"])
         self.assertEqual(len(calls), len(self.profile()["expected"]))  # metadata + each other control
         self.assertTrue(all(path.startswith("repos/owner/repo") for path in calls))
+
+    def test_rulesets_compare_the_rule_not_ids_or_timestamps(self):
+        queue = {"name": "merge-queue", "target": "branch", "enforcement": "active", "bypass_actors": [],
+                 "conditions": {"ref_name": {"include": ["~DEFAULT_BRANCH"], "exclude": []}},
+                 "rules": [{"type": "merge_queue", "parameters": {"merge_method": "SQUASH"}}]}
+        profile = self.profile()
+        profile["expected"]["rulesets"] = [queue]
+        live = {"id": 7, "node_id": "RRS_x", "created_at": "2026-11-16T00:00:00Z", **copy.deepcopy(queue)}
+        def read(path):
+            if path.endswith("/rulesets?includes_parents=false"):
+                return [{"id": 7, "name": "merge-queue"}]
+            if path.endswith("/rulesets/7"):
+                return copy.deepcopy(live)
+            return self.reader(path)
+        self.assertEqual(audit(profile, read), [])
+        live["rules"][0]["parameters"]["merge_method"] = "MERGE"
+        self.assertEqual(audit(profile, read), ["rulesets"])
+
+    def test_rulesets_need_every_field_and_unique_names(self):
+        profile = self.profile()
+        profile["expected"]["rulesets"] = [{"name": "merge-queue"}]
+        with self.assertRaisesRegex(ValueError, "list of rulesets"):
+            settings.validate_profile(profile)
+        queue = {key: [] for key in settings.RULESET_FIELDS} | {"name": "q"}
+        profile["expected"]["rulesets"] = [queue, queue]
+        with self.assertRaisesRegex(ValueError, "unique"):
+            settings.validate_profile(profile)
 
     def test_wrong_repository_and_request_paths_stop_before_extra_reads(self):
         for value in ["owner/repo?bad", "../repo", "https://github.com/owner/repo"]:

@@ -19,6 +19,11 @@ from test_github_settings import BASELINE  # noqa: E402
 
 PREFIX = f"repos/{BASELINE['repository']}"
 PROTECTION = "branches/main/protection"
+QUEUE = {
+    "name": "merge-queue", "target": "branch", "enforcement": "active", "bypass_actors": [],
+    "conditions": {"ref_name": {"include": ["~DEFAULT_BRANCH"], "exclude": []}},
+    "rules": [{"type": "merge_queue", "parameters": {"merge_method": "SQUASH"}}],
+}
 
 
 def http_error(path, status):
@@ -34,6 +39,7 @@ class FakeGitHub:
         self.state = {tool.endpoint(name, profile["default_branch"]): value
                       for name, value in expected.items() if name not in ("repository", "dependabot_alerts")}
         self.state[PROTECTION] = self.protection_view(self.state[PROTECTION])
+        self.rulesets = dict(enumerate(self.state.pop("rulesets"), start=1))
         self.alerts = expected["dependabot_alerts"]["enabled"]
         self.codeql_pending = 0  # reads that still report the old state after a PATCH
         self.codeql_missing = 0  # reads after writes that answer 404
@@ -80,6 +86,12 @@ class FakeGitHub:
         if rel == "code-scanning/default-setup" and self.codeql_pending:
             self.codeql_pending -= 1
             return {"state": "not-configured"}
+        if rel == "rulesets?includes_parents=false":
+            return [{"id": key, "name": value["name"], "source_type": "Repository"} for key, value in self.rulesets.items()]
+        if rel.startswith("rulesets/"):
+            ruleset = self.rulesets[int(rel.split("/")[1])]
+            return {"id": int(rel.split("/")[1]), "node_id": "RRS_x", "source_type": "Repository",
+                    "current_user_can_bypass": "never", **copy.deepcopy(ruleset)}
         if self.state.get(rel) is None:
             raise http_error(path, 404)
         return copy.deepcopy(self.state[rel])
@@ -106,6 +118,10 @@ class FakeGitHub:
             self.state[rel] = {"enabled": on}
         elif rel == "code-scanning/default-setup":
             self.state[rel] = {"state": body["state"], "languages": ["python"]}
+        elif rel == "rulesets":
+            self.rulesets[max(self.rulesets, default=0) + 1] = copy.deepcopy(body)
+        elif rel.startswith("rulesets/"):
+            self.rulesets[int(rel.split("/")[1])] = copy.deepcopy(body)
         elif rel == PROTECTION:
             self.state[rel] = self.protection_view({
                 "required_status_checks": dict(body["required_status_checks"]),
@@ -198,14 +214,36 @@ class ApplyGitHubSettingsTests(unittest.TestCase):
             ("PATCH", ""), ("DELETE", "automated-security-fixes"),
             ("DELETE", "immutable-releases"), ("DELETE", "private-vulnerability-reporting")]))
 
-    def test_visibility_and_rulesets_are_left_to_a_person(self):
+    def test_visibility_and_extra_rulesets_are_left_to_a_person(self):
         server = FakeGitHub()
         server.metadata["visibility"] = "public"
-        server.state["rulesets"] = [{"id": 1, "name": "team rule"}]
+        server.rulesets[1] = {**copy.deepcopy(QUEUE), "name": "team rule"}
         code, out, _ = self.run_tool(server, apply=True)
         self.assertEqual((code, server.writes), (1, []))
         self.assertIn("MANUAL: repository.visibility", out)
-        self.assertIn("MANUAL: rulesets", out)
+        self.assertIn("MANUAL: rulesets.team rule is not in the baseline", out)
+
+    def test_missing_ruleset_is_created_and_a_changed_one_replaced(self):
+        profile = copy.deepcopy(BASELINE)
+        profile["expected"]["rulesets"] = [QUEUE]
+        server = FakeGitHub()
+        code, out, _ = self.run_tool(server, profile, apply=True)
+        self.assertEqual((code, server.writes), (0, [("POST", "rulesets")]))
+        self.assertIn("PASS", out)
+        server.rulesets[1]["rules"][0]["parameters"]["merge_method"] = "MERGE"
+        server.writes.clear()
+        code, out, _ = self.run_tool(server, profile, apply=True)
+        self.assertEqual((code, server.writes), (0, [("PUT", "rulesets/1")]))
+
+    def test_rulesets_sharing_a_name_are_left_to_a_person(self):
+        profile = copy.deepcopy(BASELINE)
+        profile["expected"]["rulesets"] = [QUEUE]
+        server = FakeGitHub(profile)
+        server.rulesets[2] = copy.deepcopy(QUEUE)
+        server.rulesets[2]["enforcement"] = "disabled"
+        code, out, _ = self.run_tool(server, profile, apply=True)
+        self.assertEqual((code, server.writes), (1, []))
+        self.assertIn("several rulesets have this name", out)
 
     def test_protection_with_unmanaged_settings_is_left_to_a_person(self):
         server = FakeGitHub()
