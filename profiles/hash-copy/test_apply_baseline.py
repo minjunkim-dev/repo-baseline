@@ -84,6 +84,7 @@ class ApplyBaselineTests(unittest.TestCase):
         self.assertTrue(text.startswith((apply_baseline.HERE / "templates/github/dependabot.yml").read_text()))
         self.assertIn("  - package-ecosystem: cargo\n    directory: /services/api\n", text)
         self.assertEqual(text.count("interval: weekly"), 2)
+        self.assertIn("      minor-and-patch:\n        update-types: [minor, patch]\n", text)
         self.assertEqual(apply_baseline.apply(self.project, check=True), [])
         (self.project / target).write_text(text.replace('"10:00"', '"09:00"'))
         self.assertEqual(apply_baseline.apply(self.project, check=True), [target])
