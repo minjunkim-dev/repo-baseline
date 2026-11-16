@@ -95,7 +95,7 @@ gh api orgs/<조직> --jq '{members_can_create_public_repositories, members_can_
 ```sh
 git -C <repo-baseline> switch main &&
 git -C <repo-baseline> pull --ff-only &&
-[ -z "$(git -C <repo-baseline> status --porcelain)" ] &&
+[ -z "$(git -C <repo-baseline> status --porcelain --untracked-files=all)" ] &&
 [ "$(git -C <repo-baseline> rev-parse HEAD)" = "$(git -C <repo-baseline> rev-parse '@{u}')" ] &&
 for p in <project-1> <project-2>; do
   python3 <repo-baseline>/tools/apply_github_settings.py "$p"
