@@ -4,9 +4,10 @@
 
 ## 2026-11 — 재설계 이후
 
+- `templates/github/.coderabbit.yaml`을 더했다. CodeRabbit 리뷰 언어를 `ko-KR`로 정하고 `inheritance: true`로 나머지 키는 바로 아래 설정 단계(Central YAML이 없으면 웹 설정)를 따른다. 소비 레포는 루트에 `.coderabbit.yaml`이 없으면 이 파일을 그대로 복사하고, 이미 있으면 `language: "ko-KR"` 줄만 합친다(`templates/github/README.md` 「CodeRabbit 설정」). repo-baseline 루트에도 같은 파일을 둔다.
+- 리뷰 프롬프트: 리뷰어는 받아들여 고친 외부 리뷰 지적의 스레드만, Review 칸에 적은 뒤 `resolveReviewThread`로 해결 처리한다. 버리거나 보류한 지적의 스레드는 소유자가 처리한다. 소비 레포가 옮길 일은 없다.
 - GitHub 설정 기준값의 `required_status_checks.strict`를 `false`로 바꿨다. 필수 체크는 `pull_request`·`merge_group`에서 도는 판정 job `ci` 하나다. 계약 값은 `templates/github/README.md` 「계약 값」 표가 정본이고, 같은 문서에 새 저장소 셋업(a)과 기존 저장소 이전(b, 개인 계정 저장소는 조직 이전부터) 절차가 있다.
 - `apply_github_settings.py`·`check_github_settings.py`는 공통값을 템플릿에서 읽고 저장소 파일의 값을 얹는다. 전체를 복사한 파일도 통과하지만 그 파일의 `strict: true`가 이긴다. 소비 레포는 `.github/repository-settings.json`을 저장소마다 다른 값만 남게 줄이고(기본 브랜치·CodeQL advanced setup처럼 템플릿과 일부러 다르게 둔 값은 남긴다), 필수 체크를 판정 job `ci`로 맞춘 뒤 소유자가 계획을 보고 `--apply`한다.
-
 - `templates/github/README.md`에 「조직 설정」 절을 더했다. 보안 기본값 구성, 멤버 권한, Actions 기본값, 2FA, 저장소를 조직으로 옮길 때 다시 켜야 하는 설정을 적는다. 소비 레포가 옮길 일은 없다.
 - `check_github_settings.py`와 `apply_github_settings.py`는 ruleset 규칙의 매개변수 가운데 기준값에 적힌 것만 비교한다. GitHub가 매개변수를 더해도 DRIFT가 되지 않는다. 다른 ruleset·규칙이 더해지거나 적힌 값이 다르면 그대로 DRIFT다.
 - 머지 큐를 기본값으로 바꿨다. `POLICY.md` §5와 코어 `AGENTS.md` 병합 줄: 리뷰한 head SHA를 `enqueuePullRequest`의 `expectedHeadOid`로 지정해 큐에 넣는다. base 병합 예외 절차(diff 비교, sha256 댓글)는 지웠다. GitHub 저장소는 조직이 소유한 공개 저장소여야 한다. 소비 레포는 조직으로 옮기고 `ci.yml`에 `merge_group`, `repository-settings.json`에 `merge-queue` ruleset을 더한 뒤 `apply_github_settings.py`로 적용한다.
