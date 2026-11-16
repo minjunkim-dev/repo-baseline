@@ -78,10 +78,10 @@ PR 본문 Review 칸에 아래를 적는다. 본문을 고칠 수 없으면 보�
 - 받아들였지만 고치지 않고 「남은 지적」에 두었다(보류).
 - 리뷰 전 확인의 종료 코드가 1이다. 외부 리뷰를 읽지 않았기 때문이다.
 
-1. 스레드 id를 받는다. `databaseId`는 입력의 줄 단위 댓글 `id`와 같다. 스레드가 100개를 넘으면 나머지는 해결 처리하지 않고 「남은 지적」에 "스레드 미해결(100개 초과)"로 적는다.
+1. 스레드 id를 받는다. `databaseId`는 입력의 줄 단위 댓글 `id`와 같다. 출력의 `totalCount`가 100을 넘으면 나머지는 해결 처리하지 않고 「남은 지적」에 "스레드 미해결(100개 초과)"로 적는다.
 
    ```sh
-   gh api graphql -f query='query{repository(owner:"<owner>",name:"<repo>"){pullRequest(number:<번호>){reviewThreads(first:100){nodes{id isResolved comments(first:1){nodes{databaseId}}}}}}}'
+   gh api graphql -f query='query{repository(owner:"<owner>",name:"<repo>"){pullRequest(number:<번호>){reviewThreads(first:100){totalCount nodes{id isResolved comments(first:1){nodes{databaseId}}}}}}}'
    ```
 
 2. 해결할 스레드마다 아래 명령을 실행한다. 명령의 접두를 바꾸지 않는다. 소유자의 권한 허용 규칙이 이 형태에 맞춰져 있다.
