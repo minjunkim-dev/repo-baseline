@@ -38,7 +38,8 @@ class DistributionTests(unittest.TestCase):
         for path in sorted((ROOT / "changelog.d").iterdir()):
             lines = [l for l in path.read_text(encoding="utf-8").splitlines() if l.strip()]
             if not re.fullmatch(r"\d{4}-\d{2}-\d{2}-[a-z0-9-]+\.md", path.name) \
-                    or not 1 <= len(lines) <= 3 or not lines[0].startswith("- "):
+                    or not 1 <= len(lines) <= 3 or not lines[0].startswith("- ") \
+                    or any(l.startswith("- ") for l in lines[1:]):
                 bad.append(path.name)
         self.assertEqual(bad, [])
 
