@@ -97,7 +97,7 @@ Review 칸 「리뷰한 head」의 SHA가 해결 직전의 PR head SHA(`gh pr vi
    gh api repos/<owner>/<repo>/pulls/<번호>/comments/<댓글 id>/replies -f body='<이유 한 줄>'
    ```
 
-3. 해결할 스레드마다 아래 명령을 실행한다. 버린 낮은 심각도 봇 지적의 스레드는 실행 직전에 입력의 줄 단위 댓글 명령을 다시 돌린다. 2번에서 단 답글 말고 봇이 아닌 계정의 답글이 생겼으면 해결 처리하지 않고 소유자에게 남긴다. 명령의 접두를 바꾸지 않는다. 소유자가 이 접두로 권한 허용 규칙을 둘 수 있다. 접두 허용 규칙은 같은 GraphQL 문서에 다른 mutation을 덧붙여도 통과할 수 있다. 그래서 소유자는 허용 규칙과 함께 `enqueuePullRequest`·`mergePullRequest`가 든 `gh api graphql`을 막는 거부 규칙도 두기를 권한다.
+3. 해결할 스레드마다 아래 명령을 실행한다. 버린 낮은 심각도 봇 지적의 스레드는 실행 직전에 입력의 줄 단위 댓글 명령을 다시 돌린다. 2번에서 단 답글 말고 봇이 아닌 계정의 답글이 생겼거나, 봇 답글에 낮은 심각도가 아닌 새 지적이 생겼으면 해결 처리하지 않고 소유자에게 남긴다. 명령의 접두를 바꾸지 않는다. 소유자가 이 접두로 권한 허용 규칙을 둘 수 있다. 접두 허용 규칙은 같은 GraphQL 문서에 다른 mutation을 덧붙여도 통과할 수 있다. 그래서 소유자는 허용 규칙과 함께 `enqueuePullRequest`·`mergePullRequest`가 든 `gh api graphql`을 막는 거부 규칙도 두기를 권한다.
 
    ```sh
    gh api graphql -f query='mutation{resolveReviewThread(input:{threadId:"<id>"}){thread{isResolved}}}'
