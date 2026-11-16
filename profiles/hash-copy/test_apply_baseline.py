@@ -1,5 +1,8 @@
 """Apply shared files into a scratch project, then verify them with the copied checker."""
 
+import contextlib
+import hashlib
+import io
 import json
 import shutil
 from pathlib import Path
@@ -53,6 +56,84 @@ class ApplyBaselineTests(unittest.TestCase):
         result = self.run_checker()
         self.assertEqual(result.returncode, 1)
         self.assertIn("DRIFT: " + CHECKER, result.stdout)
+
+    def run_main(self, *flags):
+        err = io.StringIO()
+        with patch.object(apply_baseline, "git", fake_git), contextlib.redirect_stdout(io.StringIO()), \
+                contextlib.redirect_stderr(err):
+            code = apply_baseline.main(["apply_baseline.py", str(self.project), *flags])
+        return code, err.getvalue()
+
+    def two_files(self, edited):
+        """A clean old copy that needs updating, plus the given text in a second target."""
+        template = ".github/pull_request_template.md"
+        files = {CHECKER: {"source": SOURCE, "sha256": hashlib.sha256(b"old\n").hexdigest()},
+                 template: {"source": template, "sha256": hashlib.sha256(b"old\n").hexdigest()}}
+        self.write_manifest({"files": files, "source_commit": "a" * 40})
+        (self.project / "scripts").mkdir()
+        (self.project / CHECKER).write_text("old\n")
+        (self.project / template).write_text(edited)
+        return template
+
+    def test_local_edit_stops_before_writing_anything(self):
+        template = self.two_files("old\nlocal edit\n")
+        manifest = (self.project / apply_baseline.MANIFEST).read_bytes()
+        code, err = self.run_main()
+        self.assertEqual(code, 2)
+        self.assertIn(template + " (differs from recorded sha256)", err)
+        self.assertIn("--force", err)
+        self.assertNotIn(CHECKER, err)
+        self.assertEqual((self.project / CHECKER).read_text(), "old\n")
+        self.assertEqual((self.project / template).read_text(), "old\nlocal edit\n")
+        self.assertEqual((self.project / apply_baseline.MANIFEST).read_bytes(), manifest)
+
+    def test_force_overwrites_local_edit_and_records_new_hashes(self):
+        template = self.two_files("old\nlocal edit\n")
+        self.assertEqual(self.run_main("--force"), (0, ""))
+        new = (apply_baseline.HERE / template).read_bytes()
+        self.assertEqual((self.project / template).read_bytes(), new)
+        manifest = json.loads((self.project / apply_baseline.MANIFEST).read_text())
+        self.assertEqual(manifest["files"][template]["sha256"], hashlib.sha256(new).hexdigest())
+        self.assertEqual(manifest["source_commit"], "c" * 40)
+
+    def test_unchanged_copy_and_copy_already_equal_to_new_content_do_not_stop(self):
+        template = ".github/pull_request_template.md"
+        # A change already reflected in repo-baseline: the file equals the new content, not the record.
+        self.two_files((apply_baseline.HERE / template).read_text())
+        self.assertEqual(self.run_main(), (0, ""))
+        self.assertEqual((self.project / CHECKER).read_bytes(), (apply_baseline.HERE / SOURCE).read_bytes())
+
+    def test_deleted_target_and_existing_file_without_record_stop(self):
+        template = ".github/pull_request_template.md"
+        self.two_files("old\n")
+        (self.project / template).unlink()
+        code, err = self.run_main()
+        self.assertEqual(code, 2)
+        self.assertIn(template + " (deleted)", err)
+        self.assertFalse((self.project / template).exists())
+        # First adoption over a file the project already had.
+        self.write_manifest({"files": {CHECKER: {"source": SOURCE}}})
+        code, err = self.run_main()
+        self.assertEqual(code, 2)
+        self.assertIn(CHECKER + " (exists, no recorded sha256)", err)
+        self.assertEqual((self.project / CHECKER).read_text(), "old\n")
+
+    def test_edited_generated_dependabot_config_stops(self):
+        target = ".github/dependabot.yml"
+        ecosystems = [{"package-ecosystem": "cargo", "directory": "/"}]
+        self.write_manifest({"files": {target: {"source": "templates/github/dependabot.yml", "ecosystems": ecosystems}}})
+        self.assertEqual(self.run_main(), (0, ""))
+        text = (self.project / target).read_text()
+        (self.project / target).write_text(text.replace('"10:00"', '"09:00"'))
+        code, err = self.run_main()
+        self.assertEqual(code, 2)
+        self.assertIn(target + " (differs from recorded sha256)", err)
+        self.assertIn('"09:00"', (self.project / target).read_text())
+
+    def test_unknown_flag_is_rejected(self):
+        code, err = self.run_main("--yes")
+        self.assertEqual(code, 2)
+        self.assertIn("Usage:", err)
 
     def test_dirty_source_unknown_source_and_escaping_target_fail(self):
         with patch.object(apply_baseline, "git", lambda *args: " M scripts/x.py"):
