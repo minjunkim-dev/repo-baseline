@@ -20,7 +20,7 @@
 | 항목 | 값 | 어디에 있나 |
 | --- | --- | --- |
 | 필수 체크 | 판정(gate) job 하나. 이름 `ci`, GitHub Actions(`app_id=15368`) | 저장소 파일 `protection.required_status_checks.checks` |
-| CI 트리거 | `pull_request`와 `merge_group`. 판정 job과 세부 job 모두. `ci.yml` 템플릿은 `push: main`에서도 돈다. PR 실행은 main에서 만든 캐시를 읽고, `merge_group` 실행이 만든 캐시는 그 큐 브랜치만 읽는다([문서](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching#restrictions-for-accessing-a-cache), 2026-11-17 확인) | `.github/workflows/ci.yml` |
+| CI 트리거 | `pull_request`와 `merge_group`. 판정 job과 세부 job 모두. `ci.yml` 템플릿은 `push: main`에서도 돈다. 소비 레포가 setup 액션의 캐시 옵션을 켜면 PR 실행은 main에서 만든 캐시를 읽는다. 실행은 자기 브랜치와 기본 브랜치(PR이면 base 브랜치도)의 캐시만 읽고, PR 실행이 만든 캐시는 그 PR의 merge ref에 묶인다([문서](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching#restrictions-for-accessing-a-cache), 2026-11-17 확인). 이 규칙대로면 `merge_group` 실행의 캐시도 그 큐 브랜치에만 묶이므로, main의 캐시는 `push: main` 실행이 만든다 | `.github/workflows/ci.yml` |
 | 판정 방식 | `needs` + `if: always()`, 모든 `needs.*.result`가 `success`일 때만 통과 | `.github/workflows/ci.yml`(「필수 체크 계약」) |
 | 최신 브랜치 요구 | `strict=false` | 템플릿 `protection.required_status_checks` |
 | 머지 큐 | ruleset `merge-queue`: `merge_method=SQUASH`, `grouping_strategy=ALLGREEN`, `max_entries_to_build=5`, `max_entries_to_merge=5`, `min_entries_to_merge=1`, `min_entries_to_merge_wait_minutes=0`, `check_response_timeout_minutes=60` | 템플릿 `rulesets` |
