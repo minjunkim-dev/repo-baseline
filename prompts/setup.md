@@ -9,7 +9,7 @@
 ## 지킬 것
 
 - 원본은 공개 저장소 `https://github.com/minjunkim-dev/repo-baseline`의 `main`이다. 저장소 밖 임시 폴더에 clone해서 읽는다.
-- 읽을 것은 `templates/core/`, `POLICY.md`, (GitHub이면) `templates/github/`뿐이다. 판 올리기면 `CHANGELOG.md`와 `docs/start.md` 「판 올리기」도 읽는다. 옛 문서는 읽지 않는다.
+- 읽을 것은 `templates/core/`, `POLICY.md`, (GitHub이면) `templates/github/`뿐이다. 판 올리기면 `CHANGELOG.md`, `docs/start.md` 「판 올리기」, 옮길 항목이 가리키는 파일(예: `profiles/` 아래 파일)도 읽는다. 옛 문서는 읽지 않는다.
 - 있는 파일을 덮어쓰지 않는다. 이미 있으면 템플릿 내용을 합치고, 합친 내용을 보고한다.
 - 비밀값 파일(`.env*`, 키)을 읽거나 만들거나 커밋하지 않는다.
 - `main`에 직접 push하지 않는다. PR을 병합하지 않는다.
@@ -23,7 +23,7 @@
 1. 작업 브랜치를 만든다.
 2. 원본의 `docs/start.md` 「판 올리기」를 따른다. `CHANGELOG.md`에서 지난번에 맞춘 뒤의 항목을 읽고, 소비 레포가 옮길 일을 한다. 이 저장소에 없는 프로필의 항목은 건너뛴다.
 3. 지난번에 맞춘 때를 저장소에서 확인할 수 없으면, 어림한 시점과 근거를 보고에 적는다.
-4. 3단계 검증과 4단계 PR은 그대로 한다. Summary에는 반영한 CHANGELOG 항목과 건너뛴 항목을 적는다. 2단계의 민감한 파일을 건드렸으면 이 PR은 되돌리기 어려움이다.
+4. 3단계 검증과 4단계 PR은 그대로 한다. Summary에는 반영한 CHANGELOG 항목과 건너뛴 항목을 적는다. `POLICY.md` §4의 민감한 파일을 건드렸으면 이 PR은 되돌리기 어려움이다.
 
 ## 1. 코어 적용
 
