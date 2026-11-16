@@ -150,6 +150,8 @@ class GitHubSettingsTests(unittest.TestCase):
         live["rules"][0]["parameters"]["merge_method"] = "SQUASH"
         live["rules"].append({"type": "deletion"})  # an extra rule is drift
         self.assertEqual(audit(profile, read), ["rulesets"])
+        self.assertEqual(settings.known_parameters([{"name": "q", "rules": []}], [{"name": "q", "rules": None}]),
+                         [{"name": "q", "rules": None}])  # null rules are not read as an empty list
 
     def test_rulesets_need_every_field_and_unique_names(self):
         profile = self.profile()

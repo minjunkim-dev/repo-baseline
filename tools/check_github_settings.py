@@ -183,11 +183,14 @@ def known_parameters(expected, actual):
               for ruleset in expected if isinstance(ruleset.get("rules"), list)}
     result = []
     for ruleset in actual:
+        if not isinstance(ruleset.get("rules"), list):
+            result.append(ruleset)  # a missing or odd rules value must still differ
+            continue
         keys = listed.get(ruleset.get("name"), {})
         rules = [{**rule, "parameters": {k: v for k, v in rule["parameters"].items() if k in keys[rule["type"]]}}
                  if isinstance(rule, dict) and rule.get("type") in keys and isinstance(rule.get("parameters"), dict)
                  else rule
-                 for rule in ruleset.get("rules") or []]
+                 for rule in ruleset["rules"]]
         result.append({**ruleset, "rules": rules})
     return result
 
