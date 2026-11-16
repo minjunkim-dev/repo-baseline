@@ -74,7 +74,7 @@ gh api orgs/<조직> --jq '{members_can_create_public_repositories, members_can_
 `apply_github_settings.py`와 `check_github_settings.py`는 이 폴더의 `repository-settings.json`을 공통값으로 읽는다. 저장소의 `.github/repository-settings.json`은 그 위에 얹는다. 두 도구는 공통값을 읽은 파일 경로를 `BASELINE:` 줄로 출력한다.
 
 - 객체는 키마다 합친다. 저장소 파일에 값이 있으면 그 값이 이긴다. 목록(`checks`, `patterns_allowed`, `rulesets`)은 통째로 바뀐다.
-- 저장소 파일에는 저장소마다 다른 값만 둔다: `repository`, `repository_id`, 필수 체크 `context`, `patterns_allowed`, 필요하면 `exceptions`. 공통값을 바꾸려면 저장소마다 PR을 내지 않고 이 템플릿을 바꾸는 PR 하나를 낸다.
+- 저장소 파일에는 저장소마다 다른 값만 둔다: `repository`, `repository_id`, 필수 체크 `context`, `patterns_allowed`, 필요하면 `exceptions`. 템플릿과 일부러 다르게 둔 값도 남긴다. 예: 기본 브랜치가 `main`이 아니면 `default_branch`와 `expected.repository.default_branch`, CodeQL advanced setup이면 `expected.codeql.state`(`not-configured`)와 `expected.codeql_workflow`. 지우면 템플릿 값을 받아 계획이 그 값으로 바꾸려 한다. 공통값을 바꾸려면 저장소마다 PR을 내지 않고 이 템플릿을 바꾸는 PR 하나를 낸다.
 - `exceptions`에 적은 경로는 공통값에서 빠진다.
 - 저장소 파일에서 빠진 값이 템플릿의 `REPLACE` 값이면 도구는 조회 전에 멈춘다.
 - 템플릿 전체를 복사한 기존 파일도 그대로 통과한다. 다만 그 파일의 값이 이기므로, 공통값(예: `strict`)이 바뀌어도 그 저장소에는 적용되지 않는다. 공통값을 따르려면 파일을 아래처럼 줄인다.
@@ -93,8 +93,9 @@ gh api orgs/<조직> --jq '{members_can_create_public_repositories, members_can_
 공통값이 바뀌면 소유자가 저장소마다 계획을 보고 적용한다. 도구는 실행한 repo-baseline 클론의 템플릿을 읽으므로 먼저 클론을 `main`으로 맞춘다.
 
 ```sh
-git -C <repo-baseline> switch main
-git -C <repo-baseline> pull --ff-only
+git -C <repo-baseline> switch main &&
+git -C <repo-baseline> pull --ff-only &&
+git -C <repo-baseline> diff --quiet HEAD -- templates/github/repository-settings.json &&
 for p in <project-1> <project-2>; do
   python3 <repo-baseline>/tools/apply_github_settings.py "$p"
 done
