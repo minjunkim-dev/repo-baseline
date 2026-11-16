@@ -9,7 +9,7 @@
 ## 지킬 것
 
 - 원본은 공개 저장소 `https://github.com/minjunkim-dev/repo-baseline`의 `main`이다. 저장소 밖 임시 폴더에 clone해서 읽는다.
-- 읽을 것은 `templates/core/`, `POLICY.md`, (GitHub이면) `templates/github/`뿐이다. 판 올리기면 `CHANGELOG.md`, `docs/start.md` 「판 올리기」, 옮길 항목이 가리키는 파일(예: `profiles/` 아래 파일)도 읽는다. 옛 문서는 읽지 않는다.
+- 읽을 것은 `templates/core/`, `POLICY.md`, (GitHub이면) `templates/github/`뿐이다. 판 올리기면 `CHANGELOG.md`와 `changelog.d/`, `docs/start.md` 「판 올리기」, 옮길 항목이 가리키는 파일(예: `profiles/` 아래 파일)도 읽는다. 옛 문서는 읽지 않는다.
 - 있는 파일을 덮어쓰지 않는다. 이미 있으면 템플릿 내용을 합치고, 합친 내용을 보고한다. 예외: 판 올리기에서 `docs/start.md` 「판 올리기」가 다시 쓰라는 파일(`apply_baseline.py`가 쓰는 파일, 손으로 복사한 코어 파일)은 덮어쓴다. `apply_baseline.py`가 멈추면 0절 3번을 따른다. `AGENTS.md`·`REVIEW.md`는 판 올리기에서도 바뀐 줄만 합치고, `.gitignore`는 1단계처럼 없는 줄만 붙인다.
 - 비밀값 파일(`.env*`, 키)을 읽거나 만들거나 커밋하지 않는다.
 - `main`에 직접 push하지 않는다. PR을 병합하지 않는다.
@@ -24,10 +24,10 @@
 - 루트 `REVIEW.md`와 `.github/pull_request_template.md`가 있다.
 
 1. 작업 브랜치를 만든다.
-2. 지난번에 맞춘 때를 정한다. hash-copy를 쓰면 `apply_baseline.py`를 돌리기 전의 `.github/repo-baseline.json` `source_commit`이다. 이 도구가 그 값을 새 판으로 바꾸므로 먼저 적어 둔다. 원본 clone에서 `git log -p --format='%h %cs %s' <source_commit>..origin/main -- CHANGELOG.md`의 `+` 줄로 그 뒤에 더해진 항목을 찾는다. 그 밖에는 저장소에서 확인할 수 없으면 어림한 시점과 근거를 보고에 적는다.
+2. 지난번에 맞춘 때를 정한다. hash-copy를 쓰면 `apply_baseline.py`를 돌리기 전의 `.github/repo-baseline.json` `source_commit`이다. 이 도구가 그 값을 새 판으로 바꾸므로 먼저 적어 둔다. 원본 clone에서 `git log -p --format='%h %cs %s' <source_commit>..origin/main -- CHANGELOG.md changelog.d/`의 `+` 줄로 그 뒤에 더해진 항목을 찾는다. 그 밖에는 저장소에서 확인할 수 없으면 어림한 시점과 근거를 보고에 적는다.
 3. hash-copy를 쓰면 `apply_baseline.py`로 적용한다. 소비 레포에서 고친 파일이 있으면 도구가 아무것도 쓰지 않고 멈춘다. 그때는 멈춘 파일과 고친 내용을 보고하고, 그 수정을 원본에 반영할지 소유자에게 묻는다. 그 뒤는 `docs/start.md` 「판 올리기」대로 한다. `--force`는 소유자가 답한 뒤에만 쓴다.
-4. 원본의 `docs/start.md` 「판 올리기」를 따른다. `CHANGELOG.md`에서 2번 시점 뒤의 항목을 읽고, 소비 레포가 옮길 일을 한다. 이 저장소에 없는 프로필의 항목은 건너뛴다. 2번 시점은 hash-copy 파일을 맞춘 판이거나 어림이라, 손으로 옮길 일은 끝냈다는 보장이 없다. 그래서 `CHANGELOG.md`의 손으로 옮길 일은 절과 관계없이 모든 항목을, 2번 시점 앞의 것도 저장소에 반영됐는지 확인하고, 빠졌으면 옮긴다. 재설계 전 기록(`CHANGELOG-2026.md`)은 다른 파일이라 이 범위에 들어가지 않는다.
-5. 3단계 검증과 4단계 PR은 그대로 한다. 다만 검사기가 바뀌는 판이면 PR 본문은 `docs/start.md` 「판 올리기」대로 옛 형식으로 쓴다. Summary에는 반영한 CHANGELOG 항목과 건너뛴 항목을 적는다. `POLICY.md` §4의 민감한 파일을 건드렸으면 이 PR은 되돌리기 어려움이다.
+4. 원본의 `docs/start.md` 「판 올리기」를 따른다. `CHANGELOG.md`와 `changelog.d/`에서 2번 시점 뒤의 항목을 읽고, 소비 레포가 옮길 일을 한다. 이 저장소에 없는 프로필의 항목은 건너뛴다. 2번 시점은 hash-copy 파일을 맞춘 판이거나 어림이라, 손으로 옮길 일은 끝냈다는 보장이 없다. 그래서 `CHANGELOG.md`와 `changelog.d/`의 손으로 옮길 일은 절·파일과 관계없이 모든 항목을, 2번 시점 앞의 것도 저장소에 반영됐는지 확인하고, 빠졌으면 옮긴다. 재설계 전 기록(`CHANGELOG-2026.md`)은 다른 파일이라 이 범위에 들어가지 않는다.
+5. 3단계 검증과 4단계 PR은 그대로 한다. 다만 검사기가 바뀌는 판이면 PR 본문은 `docs/start.md` 「판 올리기」대로 옛 형식으로 쓴다. Summary에는 반영한 변경 기록 항목과 건너뛴 항목을 적는다. `POLICY.md` §4의 민감한 파일을 건드렸으면 이 PR은 되돌리기 어려움이다.
 
 ## 1. 코어 적용
 
@@ -86,7 +86,7 @@
 아래 형식으로 짧게 보고한다.
 
 ```
-적용: 코어 [완료|부분|판 올리기(반영한 CHANGELOG 범위)] / GitHub 프로필 [완료|건너뜀(이유)]
+적용: 코어 [완료|부분|판 올리기(반영한 변경 기록 범위)] / GitHub 프로필 [완료|건너뜀(이유)]
 PR: <링크>
 명령 4칸: setup=<결과> check=<결과> test=<결과> build=<결과>
 합친 기존 파일: <없음|목록>

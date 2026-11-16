@@ -24,14 +24,15 @@
 | `prompts/` | 에이전트에게 첨부하는 셋업·리뷰·회고 프롬프트 |
 | `docs/start.md` | 사람이 따라 하는 코어 적용 절차 |
 | `REVIEW.md` | 이 저장소의 리뷰 기준. 리뷰할 때만 읽는다 |
-| `CHANGELOG.md` | PR마다 1~3줄. 소비 레포가 손으로 옮길 일을 적는다 |
+| `changelog.d/` | 변경 기록. PR마다 파일 하나에 1~3줄. 소비 레포가 손으로 옮길 일을 적는다 |
+| `CHANGELOG.md` | 2026-11-17 전의 변경 기록. 새 항목을 더하지 않는다 |
 
 ## 작업 방식
 
 - `POLICY.md`를 따른다. 기준 브랜치는 `main` 하나, 병합은 squash다. 에이전트는 §5의 조건을 만족하는 되돌리기 쉬움 PR만, 소유자가 지시할 때 병합한다.
 - 시작 전에 완료 기준을 정하고 PR 본문 Summary에 적는다. 완료 주장은 위 test 명령의 실제 출력이다.
 - PR 본문은 `.github/pull_request_template.md`를, 리뷰와 회고는 `prompts/review.md`·`prompts/retro.md`를 따른다. PR 본문 작성·코드 리뷰·회고를 하는 다른 스킬이 있어도 이 규칙이 먼저다.
-- PR마다 `CHANGELOG.md`에 1~3줄을 더한다. 소비 레포가 손으로 옮겨야 하는 변경이면 그 일을 적는다.
+- PR마다 `changelog.d/YYYY-MM-DD-<slug>.md` 파일 하나를 더한다. 날짜는 작성일, slug는 영문 소문자·숫자·`-`다. 내용은 `- `로 시작하는 항목 하나, 1~3줄이다. 소비 레포가 손으로 옮겨야 하는 변경이면 그 일을 적는다. `CHANGELOG.md`는 고치지 않는다. 열린 PR들이 같은 줄을 고쳐 충돌하지 않게 하려는 것이다.
 - 같은 사실을 여러 문서에 적었으면(README, `docs/start.md`, `prompts/setup.md`) 함께 고친다.
 - 에이전트 도구의 문서를 근거로 쓰면 공식 문서 링크와 확인일을 적는다.
 - 리뷰는 `prompts/review.md`로 받는다. 되돌리기 쉬움이면 이 세션의 하위 에이전트에게 맡겨도 되고, 어려움이거나 민감한 파일을 건드리면 새 세션에 첨부한다(`POLICY.md` §3). 이 저장소의 PR은 `origin/main` 판의 `prompts/review.md`·`tools/review_preflight.py`·`REVIEW.md`로 리뷰한다.

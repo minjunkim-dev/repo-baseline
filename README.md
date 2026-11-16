@@ -38,4 +38,4 @@ PR을 열면 [prompts/review.md](prompts/review.md)로 리뷰한다. 되돌리�
 ## 그 밖에
 
 - 비밀값은 이 저장소에 두지 않는다. 보안 문제 보고는 [SECURITY.md](SECURITY.md).
-- 변경 기록: [CHANGELOG.md](CHANGELOG.md). 재설계 전 기록은 [CHANGELOG-2026.md](https://github.com/minjunkim-dev/repo-baseline/blob/c3f6d569871f51b83c1405dee34db6850a0b30e3/docs/archive/CHANGELOG-2026.md)(지운 보관 문서의 마지막 판).
+- 변경 기록: [changelog.d/](changelog.d/)(2026-11-17부터, PR마다 파일 하나)와 [CHANGELOG.md](CHANGELOG.md)(그 전). 재설계 전 기록은 [CHANGELOG-2026.md](https://github.com/minjunkim-dev/repo-baseline/blob/c3f6d569871f51b83c1405dee34db6850a0b30e3/docs/archive/CHANGELOG-2026.md)(지운 보관 문서의 마지막 판).

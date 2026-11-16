@@ -2,6 +2,8 @@
 from pathlib import Path
 import json
 import re
+import stat
+import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -15,6 +17,25 @@ def docs():
         if rel.startswith((".git/", "graft/")):
             continue
         yield path
+
+
+FRAGMENT_MAX_BYTES = 8192
+
+
+def fragment_problem(path):
+    """Why a changelog.d/ file is not one short entry, or None. Checks the name first and never follows symlinks."""
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}-[a-z0-9-]+\.md", path.name):
+        return "name is not YYYY-MM-DD-<slug>.md"
+    if not stat.S_ISREG(path.lstat().st_mode):
+        return "not a regular file (symlink or directory)"
+    with open(path, "rb") as f:
+        data = f.read(FRAGMENT_MAX_BYTES + 1)
+    if len(data) > FRAGMENT_MAX_BYTES:
+        return f"size is over {FRAGMENT_MAX_BYTES} bytes"
+    lines = [l for l in data.decode("utf-8").splitlines() if l.strip()]
+    if not 1 <= len(lines) <= 3 or not lines[0].startswith("- ") or any(l.startswith("- ") for l in lines[1:]):
+        return "not one entry of 1-3 lines starting with '- '"
+    return None
 
 
 class DistributionTests(unittest.TestCase):
@@ -32,6 +53,31 @@ class DistributionTests(unittest.TestCase):
         self.assertEqual((ROOT / ".coderabbit.yaml").read_text(encoding="utf-8"), template)
         self.assertIn('\nlanguage: "ko-KR"\n', template)
         self.assertIn("\ninheritance: true\n", template)
+
+    def test_changelog_fragments_are_one_short_entry(self):
+        problems = [f"{path.name}: {fragment_problem(path)}"
+                    for path in sorted((ROOT / "changelog.d").iterdir()) if fragment_problem(path)]
+        self.assertEqual(problems, [])
+
+    def test_fragment_check_rejects_bad_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp)
+            good = d / "2026-11-17-ok.md"
+            good.write_text("- one entry\n  continued\n", encoding="utf-8")
+            cases = {"2026-11-17-ok.md": None, "Bad.md": "name", "2026-11-17-two.md": "one entry",
+                     "2026-11-17-big.md": "size", "2026-11-17-link.md": "regular file",
+                     "2026-11-17-dir.md": "regular file"}
+            (d / "Bad.md").write_text("- x\n", encoding="utf-8")
+            (d / "2026-11-17-two.md").write_text("- a\n- b\n", encoding="utf-8")
+            (d / "2026-11-17-big.md").write_text("- " + "x" * FRAGMENT_MAX_BYTES, encoding="utf-8")
+            (d / "2026-11-17-link.md").symlink_to(good)
+            (d / "2026-11-17-dir.md").mkdir()
+            for name, expected in cases.items():
+                problem = fragment_problem(d / name)
+                if expected is None:
+                    self.assertIsNone(problem, name)
+                else:
+                    self.assertIn(expected, problem or "", name)
 
     def test_policy_stays_one_page(self):
         self.assertLessEqual(len((ROOT / "POLICY.md").read_text(encoding="utf-8")), 10000)
