@@ -8,7 +8,7 @@
 
 ```bash
 git rev-parse --git-dir >/dev/null 2>&1 || git init   # 빈 프로젝트면 저장소부터 만든다
-git clone --depth 1 https://github.com/minjunkim-dev/repo-baseline /tmp/repo-baseline
+git clone --depth 1 https://github.com/minjunkim-labs/repo-baseline /tmp/repo-baseline
 B=/tmp/repo-baseline/templates/core
 cp -n "$B/AGENTS.md" "$B/REVIEW.md" .
 mkdir -p .github && cp -n "$B/pull_request_template.md" .github/

@@ -5,7 +5,7 @@
 
 ## 코어 적용 3단계
 
-1. 이 저장소를 받는다(공개, 인증 불필요): `git clone https://github.com/minjunkim-dev/repo-baseline`
+1. 이 저장소를 받는다(공개, 인증 불필요): `git clone https://github.com/minjunkim-labs/repo-baseline`
 2. [templates/core/](templates/core/)를 프로젝트에 복사한다. `AGENTS.md`, `REVIEW.md`, `.github/pull_request_template.md`, `.gitignore` 추가분. Claude Code·Codex·Cursor 모두 `AGENTS.md`를 읽으므로 `CLAUDE.md`는 두지 않는다.
 3. `AGENTS.md`의 명령 4칸(setup/check/test/build)과 `REVIEW.md`의 빈칸을 채우고, 첫 PR을 슬림 양식으로 연다.
 
@@ -32,11 +32,11 @@ PR을 열면 [prompts/review.md](prompts/review.md)로 리뷰한다. 되돌리�
 
 | 프로젝트 | 저장소 |
 | --- | --- |
-| Smallnext | `minjunkim-dev/smallnext` |
-| BGLike | `minjunkim-dev/BGLike` |
-| Runstir | `minjunkim-dev/mobile-runtime` |
+| Smallnext | `minjunkim-labs/smallnext` |
+| BGLike | `minjunkim-labs/BGLike` |
+| Runstir | `minjunkim-labs/mobile-runtime` |
 
 ## 그 밖에
 
 - 비밀값은 이 저장소에 두지 않는다. 보안 문제 보고는 [SECURITY.md](SECURITY.md).
-- 변경 기록: [changelog.d/](changelog.d/)(2026-11-17부터, PR마다 파일 하나)와 [CHANGELOG.md](CHANGELOG.md)(그 전). 재설계 전 기록은 [CHANGELOG-2026.md](https://github.com/minjunkim-dev/repo-baseline/blob/c3f6d569871f51b83c1405dee34db6850a0b30e3/docs/archive/CHANGELOG-2026.md)(지운 보관 문서의 마지막 판).
+- 변경 기록: [changelog.d/](changelog.d/)(2026-11-17부터, PR마다 파일 하나)와 [CHANGELOG.md](CHANGELOG.md)(그 전). 재설계 전 기록은 [CHANGELOG-2026.md](https://github.com/minjunkim-labs/repo-baseline/blob/c3f6d569871f51b83c1405dee34db6850a0b30e3/docs/archive/CHANGELOG-2026.md)(지운 보관 문서의 마지막 판).
