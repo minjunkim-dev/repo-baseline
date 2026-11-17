@@ -119,7 +119,7 @@ def apply(project, check=False, force=False):
         (project / name).parent.mkdir(parents=True, exist_ok=True)
         (project / name).write_bytes(data)
         entry["sha256"] = hashlib.sha256(data).hexdigest()
-    manifest["source"] = "minjunkim-dev/repo-baseline"
+    manifest["source"] = "minjunkim-labs/repo-baseline"
     manifest["source_commit"] = git("rev-parse", "HEAD")
     (project / MANIFEST).write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     return differ
