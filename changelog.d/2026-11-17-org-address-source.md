@@ -1,0 +1,1 @@
+- `templates/core/AGENTS.md`의 POLICY 링크와 hash-copy `apply_baseline.py`가 manifest에 적는 `source` 값을 조직 주소(`minjunkim-labs/repo-baseline`)로 고쳤다. 소비 레포는 `AGENTS.md`의 POLICY 링크 주소를 손으로 바꾼다(옛 주소도 리다이렉트된다). hash-copy를 켠 소비 레포는 다음 적용 때 manifest의 `source`가 바뀐다.

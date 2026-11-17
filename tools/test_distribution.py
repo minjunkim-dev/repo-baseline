@@ -1,4 +1,4 @@
-"""Layout checks for the redesigned baseline (redesign plan §7: https://github.com/minjunkim-dev/repo-baseline/blob/c3f6d569871f51b83c1405dee34db6850a0b30e3/docs/archive/redesign-2026-11.md)."""
+"""Layout checks for the redesigned baseline (redesign plan §7: https://github.com/minjunkim-labs/repo-baseline/blob/c3f6d569871f51b83c1405dee34db6850a0b30e3/docs/archive/redesign-2026-11.md)."""
 from pathlib import Path
 import json
 import re
