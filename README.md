@@ -20,6 +20,7 @@
 | [hash-copy](profiles/hash-copy/) | 공통 검사기를 해시로 고정해 여러 저장소에 똑같이 두고 싶을 때(Python 필요) |
 | [team](profiles/team/) | 2명 이상. CODEOWNERS와 사람 승인 |
 | [matt-skills](profiles/matt-skills/) | 리뷰의 두 축 판단·회고·PR 본문을 Matt Pocock 스킬에 맡기고 싶을 때. 켜면 스킬 설치가 규칙이다(설치 확인 스크립트) |
+| [ops](profiles/ops/) | 배포해서 사람이 쓰는 앱. 에러 추적·제품 분석·감시 도구를 조직에서 한 번 켤 것과 소비 레포마다 할 것, 비밀값 이름 |
 | [pstack](profiles/pstack/) | pstack 스킬을 쓸 때. 기본 동작 중 이 기준과 어긋나는 것(병합, 바로 반영, 규칙 위치)을 `AGENTS.md`에 적는다 |
 
 PR을 열면 [prompts/review.md](prompts/review.md)로 리뷰한다. 되돌리기 쉬움이고 민감한 파일을 건드리지 않으면 구현 세션의 하위 에이전트가 리뷰해도 되고, 어려움이거나 민감한 파일을 건드리면 새 세션이 리뷰한다. 리뷰하는 기기에는 이 저장소의 클론과 Python 3.9 이상이 있어야 한다(리뷰 전 확인 스크립트).
