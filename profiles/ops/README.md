@@ -2,7 +2,7 @@
 
 배포해서 사람이 쓰는 앱(웹, 서버, 모바일)에 에러 추적·제품 분석·감시를 붙일 때 켠다. 배포하지 않는 저장소(라이브러리, 도구, 문서)에는 켜지 않는다. 스크립트는 없다. 앱 코드와 배포 대상이 스택마다 달라서 공통으로 복사할 파일이 없기 때문이다.
 
-이 프로필은 도구를 고르는 일과 설정하는 곳을 정한다. 도구마다 설정하는 곳은 셋 중 하나다. 조직에서 한 번, 이 저장소의 규칙, 소비 레포마다.
+이 프로필은 도구를 고르는 일과 설정하는 곳을 정한다. 도구마다 설정하는 곳은 아래 표의 「설정하는 곳」 열에 적는다.
 
 ## 도구
 
@@ -23,7 +23,7 @@
 
 소유자가 한다. 저장소 파일을 바꾸지 않는다.
 
-1. GitHub 조직의 Code security 설정에서 secret scanning, push protection, Dependabot alerts·security updates, CodeQL default setup을 켠 구성을 새 저장소의 기본값으로 정한다. 그러면 새 저장소가 [github 프로필](../../templates/github/)의 `repository-settings.json` 검사를 처음부터 통과한다.
+1. GitHub 조직의 Code security 설정에서 secret scanning, push protection, Dependabot alerts·security updates, CodeQL default setup을 켠 구성을 새 저장소의 기본값으로 정한다. 그러면 새 저장소가 [github 프로필](../../templates/github/)의 `repository-settings.json` 가운데 `security_and_analysis` 항목을 처음부터 맞춘다. 병합 설정, 브랜치 보호, 머지 큐는 github 프로필 절차로 따로 켠다.
 2. GitGuardian GitHub App을 조직의 모든 저장소에 설치한다.
 3. Sentry와 PostHog 조직 계정을 하나씩 만든다. Sentry의 GitHub 연동을 조직에 설치한다(커밋과 릴리스를 에러에 잇는다).
 
@@ -43,7 +43,7 @@
 
 | 이름 | 무엇 | 비밀값인가 |
 | --- | --- | --- |
-| `SENTRY_DSN` | 에러를 보낼 주소. Sentry SDK가 이 이름을 읽는다 | 아니다. 클라이언트 코드에 들어간다 |
+| `SENTRY_DSN` | 에러를 보낼 주소. SDK 초기화에 넘긴다 | 아니다. 클라이언트 코드에 들어간다 |
 | `SENTRY_AUTH_TOKEN` | CI가 소스맵·릴리스를 올리는 토큰 | 그렇다. GitHub secrets에만 둔다 |
 | `POSTHOG_KEY` | PostHog 프로젝트 키 | 아니다. 클라이언트 코드에 들어간다 |
 | `POSTHOG_HOST` | PostHog 지역 주소 | 아니다 |
@@ -58,7 +58,8 @@
 - 에러 추적은 Sentry, 제품 분석은 PostHog다. 다른 도구를 더하려면 먼저 소유자에게 묻는다.
 - 비밀값 이름은 `SENTRY_DSN`, `SENTRY_AUTH_TOKEN`, `POSTHOG_KEY`, `POSTHOG_HOST`다. `.env.example`에 빈 칸으로 둔다.
 - `SENTRY_AUTH_TOKEN`은 GitHub secrets에만 둔다.
-- 개인 정보는 분석 이벤트에 넣지 않는다.
+- 개인 정보는 분석 이벤트에 넣지 않는다. 세션 녹화를 켜면 입력 필드를 가린다.
+- SDK를 처음 붙이거나 보내는 데이터를 넓히는 PR은 되돌리기 어려움이다(POLICY §4 다른 사람 데이터의 노출).
 - DNS, Cloudflare, 감시 대상 변경은 소유자가 한다.
 ```
 
