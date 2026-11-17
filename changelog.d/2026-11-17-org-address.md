@@ -1,0 +1,1 @@
+- README·SECURITY·`docs/start.md`·프롬프트의 저장소 주소를 조직 주소(`minjunkim-labs/...`)로 고쳤다. 옛 주소는 GitHub가 리다이렉트하므로 소비 레포가 옮길 일은 없다.

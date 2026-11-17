@@ -8,7 +8,7 @@
 
 ## 지킬 것
 
-- 원본은 공개 저장소 `https://github.com/minjunkim-dev/repo-baseline`의 `main`이다. 저장소 밖 임시 폴더에 clone해서 읽는다.
+- 원본은 공개 저장소 `https://github.com/minjunkim-labs/repo-baseline`의 `main`이다. 저장소 밖 임시 폴더에 clone해서 읽는다.
 - 읽을 것은 `templates/core/`, `POLICY.md`, (GitHub이면) `templates/github/`뿐이다. 판 올리기면 `CHANGELOG.md`와 `changelog.d/`, `docs/start.md` 「판 올리기」, 옮길 항목이 가리키는 파일(예: `profiles/` 아래 파일)도 읽는다. 옛 문서는 읽지 않는다.
 - 있는 파일을 덮어쓰지 않는다. 이미 있으면 템플릿 내용을 합치고, 합친 내용을 보고한다. 예외: 판 올리기에서 `docs/start.md` 「판 올리기」가 다시 쓰라는 파일(`apply_baseline.py`가 쓰는 파일, 손으로 복사한 코어 파일)은 덮어쓴다. `apply_baseline.py`가 멈추면 0절 3번을 따른다. `AGENTS.md`·`REVIEW.md`는 판 올리기에서도 바뀐 줄만 합치고, `.gitignore`는 1단계처럼 없는 줄만 붙인다.
 - 비밀값 파일(`.env*`, 키)을 읽거나 만들거나 커밋하지 않는다.
