@@ -111,14 +111,21 @@ class CheckSkillsTest(unittest.TestCase):
         with redirect_stdout(out):
             code = check_skills.main(["main", "--harness", "claude", "--settings", str(project)], self.home)
         self.assertEqual(code, 0, out.getvalue())  # the reviewer's project turns it on
-        project.write_text('{"enabledPlugins": {"mattpocock-skills@mattpocock": false}}', encoding="utf-8")
+        off = self.home.parent / "local-settings.json"
+        off.write_text('{"enabledPlugins": {"mattpocock-skills@mattpocock": false}}', encoding="utf-8")
         with redirect_stdout(io.StringIO()):
+            for files, code in (([project, off], 1), ([off, project], 0)):  # the later file wins
+                argv = ["main", "--harness", "claude"] + [a for f in files for a in ("--settings", str(f))]
+                self.assertEqual(check_skills.main(argv, self.home), code, files)
+            project.write_text(off.read_text(encoding="utf-8"), encoding="utf-8")
             self.assertEqual(check_skills.main(["main", "--harness", "claude", "--settings", str(project)], self.home), 1)
             self.assertEqual(check_skills.main(["main", "--harness", "codex", "--settings", str(project)], self.home), 2)
             self.assertEqual(check_skills.main(["main", "--harness", "claude", "--settings"], self.home), 2)
+            self.assertEqual(check_skills.main(["main", "--harness", "claude", "--settings", str(off), "--settings", "--settings"],
+                                               self.home), 2)  # a missing value, not a file named --settings
             project.write_text('{"enabledPlugins": []}', encoding="utf-8")
             (self.home / ".claude/settings.json").write_text("{}", encoding="utf-8")  # the plugin is on for the user
-            for bad in ("missing.json", str(self.home), "--settings", str(project)):  # not silently the user's answer
+            for bad in ("missing.json", str(self.home), str(project)):  # not silently the user's answer
                 self.assertEqual(check_skills.main(["main", "--harness", "claude", "--settings", bad], self.home), 1)
 
     def test_only_the_reviewers_harness_counts(self):

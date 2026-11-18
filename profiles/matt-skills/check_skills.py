@@ -132,17 +132,18 @@ def plugin_version(root, cache):
     return tuple(int(n) for n in re.findall(r"\d+", version)) if numbered else (), str(root)
 
 
-def disabled(home, harness, settings=()):
+def disabled(home, harness, project=()):
     """Plugins ("<plugin>@<marketplace>") turned off; their cached copies cannot be called.
     Claude Code keeps the switch in enabledPlugins; the highest source that names a plugin wins
-    (https://code.claude.com/docs/en/plugins/loading, checked 2026-11-19). settings: the project files, in load order.
+    (https://code.claude.com/docs/en/plugins/loading, checked 2026-11-19).
+    project: enabledPlugins of the --settings files, already read, in load order.
     shortcut: only the files given are read; a local settings file the reviewer did not pass is not.
     """
     if harness != "claude":
         return set()
     merged = {}
-    for file in (home / ".claude/settings.json", *settings):
-        merged.update(plugins_in(file) or {})
+    for plugins in (plugins_in(home / ".claude/settings.json") or {}, *project):
+        merged.update(plugins)
     return {key for key, on in merged.items() if on is False}
 
 
@@ -155,7 +156,7 @@ def plugins_in(file):
     return plugins if isinstance(plugins, dict) else None
 
 
-def find(name, marker, home, harness, settings=()):
+def find(name, marker, home, harness, project=()):
     """Return (path of Matt's SKILL.md or None, paths of same-name skills that are not Matt's).
 
     A personal skill answers to the bare name, so a different one there hides Matt's copy in that harness.
@@ -167,7 +168,7 @@ def find(name, marker, home, harness, settings=()):
     personal = [home / p for p in folders]
     cache = home / cache
     roots = list(cache.glob("*/mattpocock-skills*/*/skills")) + list(cache.glob("*/mattpocock-skills*/*/skills/*"))
-    off = disabled(home, harness, settings)
+    off = disabled(home, harness, project)
     roots = [r for r in roots if "{1}@{0}".format(*r.relative_to(cache).parts) not in off]
     plugins = sorted(roots, key=lambda root: plugin_version(root, cache), reverse=True)
     found, others = None, []
@@ -187,20 +188,21 @@ def find(name, marker, home, harness, settings=()):
 def main(argv=None, home=None):
     args = sys.argv[1:] if argv is None else argv
     extra, settings = args[3:], []
-    while extra[:1] == ["--settings"] and len(extra) >= 2:
+    while extra[:1] == ["--settings"] and len(extra) >= 2 and not extra[1].startswith("-"):
         settings.append(extra[1])
         extra = extra[2:]
     if len(args) < 3 or args[1] != "--harness" or args[2] not in HARNESSES or extra or (settings and args[2] != "claude"):
         print(__doc__.strip())
         return 2
-    unread = [file for file in settings if plugins_in(file) is None]
-    for file in unread:  # the reviewer asked for this file; 1, not 2, so setup (any exit but 1 passes) fails
-        print(f"--settings {file}: 설정 파일로 읽지 못했다")
-    if unread:
+    project = [plugins_in(file) for file in settings]  # read once: every skill sees the same answer
+    for file, plugins in zip(settings, project):
+        if plugins is None:  # the reviewer asked for this file; 1, not 2, so setup (any exit but 1 passes) fails
+            print(f"--settings {file}: 설정 파일로 읽지 못했다")
+    if None in project:
         return 1
     home, missing = Path(home or Path.home()), 0
     for name, marker in SKILLS.items():
-        skill, others = find(name, marker, home, args[2], settings)
+        skill, others = find(name, marker, home, args[2], project)
         if skill:
             print(f"{name}: {skill} (sha256 {hashlib.sha256(skill.read_bytes()).hexdigest()[:12]})")
         else:
