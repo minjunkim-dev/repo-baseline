@@ -116,6 +116,10 @@ class CheckSkillsTest(unittest.TestCase):
             self.assertEqual(check_skills.main(["main", "--harness", "claude", "--settings", str(project)], self.home), 1)
             self.assertEqual(check_skills.main(["main", "--harness", "codex", "--settings", str(project)], self.home), 2)
             self.assertEqual(check_skills.main(["main", "--harness", "claude", "--settings"], self.home), 2)
+            for bad in ("missing.json", str(self.home), "--settings"):  # unreadable: not silently the user's answer
+                self.assertEqual(check_skills.main(["main", "--harness", "claude", "--settings", bad], self.home), 2)
+            project.write_text('{"enabledPlugins": []}', encoding="utf-8")
+            self.assertEqual(check_skills.main(["main", "--harness", "claude", "--settings", str(project)], self.home), 2)
 
     def test_only_the_reviewers_harness_counts(self):
         self.install(root=".cursor/plugins/cache/mattpocock/mattpocock-skills/49dd158/skills/engineering")

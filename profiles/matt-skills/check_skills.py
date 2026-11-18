@@ -8,7 +8,8 @@ The harness is the one the reviewer runs in; only the folders it reads count.
 the .claude/settings.json of the folder it runs in. Its enabledPlugins override the user's, later files winning.
 Pass only a file the PR under review cannot change.
 Exit 0: delegate. 1: a skill is not installed (stop the review).
-2: do not delegate (review it directly): the PR touched files a harness loads, or the answer is unclear.
+2: do not delegate (review it directly): the PR touched files a harness loads, a --settings file cannot be read,
+or the answer is unclear.
 
 Scope: this decides delegation only. Instruction files the PR changed (AGENTS.md, rule files, what they import)
 reach the reviewer's harness with or without delegation, so the lists below are a best effort, not a guard.
@@ -142,13 +143,17 @@ def disabled(home, harness, settings=()):
         return set()
     merged = {}
     for file in (home / ".claude/settings.json", *settings):
-        try:
-            plugins = json.loads(Path(file).read_text(encoding="utf-8")).get("enabledPlugins", {})
-        except (OSError, ValueError, AttributeError):
-            continue
-        if isinstance(plugins, dict):
-            merged.update(plugins)
+        merged.update(plugins_in(file) or {})
     return {key for key, on in merged.items() if on is False}
+
+
+def plugins_in(file):
+    """enabledPlugins of one settings file, or None if the file cannot be read as settings."""
+    try:
+        plugins = json.loads(Path(file).read_text(encoding="utf-8")).get("enabledPlugins", {})
+    except (OSError, ValueError, AttributeError):
+        return None
+    return plugins if isinstance(plugins, dict) else None
 
 
 def find(name, marker, home, harness, settings=()):
@@ -188,6 +193,11 @@ def main(argv=None, home=None):
         extra = extra[2:]
     if len(args) < 3 or args[1] != "--harness" or args[2] not in HARNESSES or extra or (settings and args[2] != "claude"):
         print(__doc__.strip())
+        return 2
+    unread = [file for file in settings if plugins_in(file) is None]
+    for file in unread:  # the reviewer asked for this file; without it the answer is unclear
+        print(f"--settings {file}: 설정 파일로 읽지 못했다")
+    if unread:
         return 2
     home, missing = Path(home or Path.home()), 0
     for name, marker in SKILLS.items():
