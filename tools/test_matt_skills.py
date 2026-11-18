@@ -98,6 +98,25 @@ class CheckSkillsTest(unittest.TestCase):
         settings.write_text("not json", encoding="utf-8")
         self.assertEqual(self.check()[0], 0)
 
+    def test_project_settings_turn_a_plugin_back_on(self):
+        cache = ".claude/plugins/cache"
+        self.install(root=f"{cache}/mattpocock/mattpocock-skills/1.3.2/skills/engineering")
+        (self.home / ".claude/settings.json").write_text('{"enabledPlugins": {"mattpocock-skills@mattpocock": false}}',
+                                                          encoding="utf-8")
+        project = self.home.parent / "office-settings.json"
+        project.write_text('{"enabledPlugins": {"mattpocock-skills@mattpocock": true}}', encoding="utf-8")
+        self.commit("src/app.py")
+        self.assertEqual(self.check()[0], 1)  # off for the user: no copy the reviewer can call
+        out = io.StringIO()
+        with redirect_stdout(out):
+            code = check_skills.main(["main", "--harness", "claude", "--settings", str(project)], self.home)
+        self.assertEqual(code, 0, out.getvalue())  # the reviewer's project turns it on
+        project.write_text('{"enabledPlugins": {"mattpocock-skills@mattpocock": false}}', encoding="utf-8")
+        with redirect_stdout(io.StringIO()):
+            self.assertEqual(check_skills.main(["main", "--harness", "claude", "--settings", str(project)], self.home), 1)
+            self.assertEqual(check_skills.main(["main", "--harness", "codex", "--settings", str(project)], self.home), 2)
+            self.assertEqual(check_skills.main(["main", "--harness", "claude", "--settings"], self.home), 2)
+
     def test_only_the_reviewers_harness_counts(self):
         self.install(root=".cursor/plugins/cache/mattpocock/mattpocock-skills/49dd158/skills/engineering")
         self.commit("src/app.py")
