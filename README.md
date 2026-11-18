@@ -28,13 +28,16 @@ PR을 열면 [prompts/review.md](prompts/review.md)로 리뷰한다. 되돌리�
 
 ## 적용 중인 프로젝트
 
-2026-11-08 기준으로 세 곳 모두 코어(`AGENTS.md`·`REVIEW.md`)와 github 프로필로 옮겼다(#71). 그 뒤의 상태는 확인하지 않았다.
+2026-11-18 기준으로 아래 여섯 곳 모두 코어(`AGENTS.md`·`REVIEW.md`)와 github 프로필(`.github/repository-settings.json`·PR 템플릿)이 있다. 이 저장소도 같은 구성을 쓴다. 서버 설정이 파일과 맞는지는 소유자가 `tools/apply_github_settings.py` 계획 모드로 확인한다. repo-office 연결은 `docs/agents/office.md`가 있는 곳이다.
 
-| 프로젝트 | 저장소 |
-| --- | --- |
-| Smallnext | `minjunkim-labs/smallnext` |
-| BGLike | `minjunkim-labs/BGLike` |
-| Runstir | `minjunkim-labs/mobile-runtime` |
+| 프로젝트 | 저장소 | repo-office |
+| --- | --- | --- |
+| Smallnext | `minjunkim-labs/smallnext` | 연결 |
+| BGLike | `minjunkim-labs/BGLike` | 연결 |
+| Runstir | `minjunkim-labs/mobile-runtime` | 연결 |
+| answer-desk | `minjunkim-labs/answer-desk` | 없음 |
+| portfolio | `minjunkim-labs/portfolio` | 없음 |
+| repo-office | `minjunkim-labs/repo-office` | 해당 없음 |
 
 ## 그 밖에
 
