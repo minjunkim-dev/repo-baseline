@@ -4,12 +4,11 @@
 Run it from the working tree of the repository under review, after the review preflight:
     python3 -I <repo-baseline>/profiles/matt-skills/check_skills.py <base ref> --harness <claude|codex|cursor> [--settings <file>]...
 The harness is the one the reviewer runs in; only the folders it reads count.
---settings (claude only, repeatable): a project settings file the reviewer's Claude Code loads after the user's, such as
-the .claude/settings.json of the folder it runs in. Its enabledPlugins override the user's, later files winning.
-Pass only a file the PR under review cannot change.
-Exit 0: delegate. 1: a skill is not installed (stop the review).
-2: do not delegate (review it directly): the PR touched files a harness loads, a --settings file cannot be read,
-or the answer is unclear.
+--settings (claude only, repeatable): a project settings file the reviewer's Claude Code loads after the user's.
+Its enabledPlugins override the user's, later files winning. Pass only a file the PR under review cannot change,
+so not one inside the tree under review.
+Exit 0: delegate. 1: a skill is not installed, or a --settings file cannot be read (stop the review).
+2: do not delegate (review it directly): the PR touched files a harness loads, or the answer is unclear.
 
 Scope: this decides delegation only. Instruction files the PR changed (AGENTS.md, rule files, what they import)
 reach the reviewer's harness with or without delegation, so the lists below are a best effort, not a guard.
@@ -135,8 +134,8 @@ def plugin_version(root, cache):
 
 def disabled(home, harness, settings=()):
     """Plugins ("<plugin>@<marketplace>") turned off; their cached copies cannot be called.
-    Claude Code keeps the switch in enabledPlugins, and project settings override user settings
-    (https://code.claude.com/docs/en/settings, checked 2026-11-19). settings: the project files, in load order.
+    Claude Code keeps the switch in enabledPlugins; the highest source that names a plugin wins
+    (https://code.claude.com/docs/en/plugins/loading, checked 2026-11-19). settings: the project files, in load order.
     shortcut: only the files given are read; a local settings file the reviewer did not pass is not.
     """
     if harness != "claude":
@@ -195,10 +194,10 @@ def main(argv=None, home=None):
         print(__doc__.strip())
         return 2
     unread = [file for file in settings if plugins_in(file) is None]
-    for file in unread:  # the reviewer asked for this file; without it the answer is unclear
+    for file in unread:  # the reviewer asked for this file; 1, not 2, so setup (any exit but 1 passes) fails
         print(f"--settings {file}: 설정 파일로 읽지 못했다")
     if unread:
-        return 2
+        return 1
     home, missing = Path(home or Path.home()), 0
     for name, marker in SKILLS.items():
         skill, others = find(name, marker, home, args[2], settings)
