@@ -1,1 +1,1 @@
-- README: github 프로필은 GitHub에 올리면 켠다고 적었다(POLICY §5와 같다). hash-copy는 규칙이 아니라 복사 도구라 프로필 표에서 빼고 따로 적었다. 경로는 그대로다. 소비 레포가 옮길 일은 없다.
+- README·docs/start.md: github 프로필은 GitHub에 올리면 켠다고 적었다(POLICY §5와 같다). hash-copy는 규칙이 아니라 복사 도구라 프로필 표에서 빼고 따로 적었다. 경로는 그대로다. 소비 레포가 옮길 일은 없다.
