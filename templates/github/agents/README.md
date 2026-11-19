@@ -64,9 +64,9 @@
 
 플러그인·스킬은 같은 작업을 켤 때와 끌 때 한 번씩 돌려 보고, 결과가 나아진 것만 켠다.
 
-리뷰의 두 축 판단·회고·PR 본문을 이 스킬에 맡기려면 [matt-skills 프로필](../../../profiles/matt-skills/README.md)을 켠다. Matt 스킬의 기본 동작 중 POLICY와 어긋나는 점, 그것을 메우는 절차, 설치 확인 스크립트가 그 프로필에 있다. 프로필을 켜지 않고 스킬만 써도 그 「어긋나는 점」은 지킨다.
+에이전트로 개발하면 기본 프로필인 [matt-skills 프로필](../../../profiles/matt-skills/README.md)을 켠다. Matt 스킬의 기본 동작 중 POLICY와 어긋나는 점, 그것을 메우는 절차, 설치 확인 스크립트가 그 프로필에 있다. 프로필을 켜지 않고 스킬만 써도 그 「어긋나는 점」은 지킨다.
 
-pstack 스킬을 쓰면 [pstack 프로필](../../../profiles/pstack/README.md)의 절을 `AGENTS.md`에 붙인다.
+에이전트로 개발하면 기본 프로필인 [pstack 프로필](../../../profiles/pstack/README.md)의 절을 `AGENTS.md`에 붙인다.
 
 코어 기준에 없는 것을 이 스킬로 채울 수 있다. 이 스킬은 사람이 부를 때만 돈다(`disable-model-invocation`, [v1.3.2](https://github.com/mattpocock/skills/tree/v1.3.2/skills), 확인일 2026-11-10).
 

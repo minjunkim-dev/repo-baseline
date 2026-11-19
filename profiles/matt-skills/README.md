@@ -1,6 +1,6 @@
 # matt-skills 프로필
 
-기본 프로필이다. 에이전트로 개발하면 켠다. [Matt Pocock 스킬](https://github.com/mattpocock/skills)에 Issue 절차(`to-spec`·`to-tickets`·`triage`·`grilling`), 구현(`tdd`·`diagnose`), 리뷰의 두 축 판단(`code-review`), 회고(`retro`), PR 본문(`pr`)을 맡긴다. 안전장치는 그대로 repo-baseline 프롬프트가 맡는다. 리뷰 전 확인, 직접 고치기, 라운드, 외부 리뷰 판정, Review 칸이 그것이다. 이 프로필을 켠 저장소에서는 스킬 설치가 규칙이다. 그래도 스킬이 없는 기기·클라우드 세션·사람은 코어 규칙만으로 일한다. 빌드·테스트·CI는 스킬에 기대지 않는다.
+기본 프로필이다. 에이전트로 개발하면 켠다. [Matt Pocock 스킬](https://github.com/mattpocock/skills)에 Issue 절차(`to-spec`·`to-tickets`·`triage`·`grilling`), 구현(`tdd`·`diagnosing-bugs`), 리뷰의 두 축 판단(`code-review`), 회고(`retro`), PR 본문(`pr`)을 맡긴다. 안전장치는 그대로 repo-baseline 프롬프트가 맡는다. 리뷰 전 확인, 직접 고치기, 라운드, 외부 리뷰 판정, Review 칸이 그것이다. 이 프로필을 켠 저장소에서는 스킬 설치가 규칙이다. 그래도 스킬이 없는 기기·클라우드 세션·사람은 코어 규칙만으로 일한다. 빌드·테스트·CI는 스킬에 기대지 않는다.
 
 ## 켜기
 

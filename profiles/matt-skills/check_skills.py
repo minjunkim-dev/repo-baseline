@@ -7,7 +7,7 @@ The harness is the one the reviewer runs in; only the folders it reads count.
 --settings (claude only, repeatable): a project settings file the reviewer's Claude Code loads after the user's.
 Its enabledPlugins override the user's, later files winning. Pass only a file the PR under review cannot change,
 so not one inside the tree under review.
-Exit 0: delegate. 1: a skill is not installed, or a --settings file cannot be read (stop the review).
+Exit 0: delegate. 1: a skill is not installed, or a --settings file cannot be read (review it directly).
 2: do not delegate (review it directly): the PR touched files a harness loads, or the answer is unclear.
 
 Scope: this decides delegation only. Instruction files the PR changed (AGENTS.md, rule files, what they import)
