@@ -36,7 +36,8 @@
       "Bash(gh api *Repository*)",
       "Bash(gh api *BranchProtection*)",
       "Bash(gh api *Ruleset*)",
-      "Bash(gh api *mergeBranch*)"
+      "Bash(gh api *mergeBranch*)",
+      "Bash(gh api *Environment*)"
     ]
   }
 }
