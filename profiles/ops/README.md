@@ -43,7 +43,7 @@
 3. 소유자가 배포한 URL을 UptimeRobot에 등록한다. 알림은 소유자에게 간다.
 4. 도메인이 있으면 Cloudflare에 연결한다. DNS를 옮기는 일이라서 소유자가 한다.
 5. `.env.example`에 아래 이름의 빈 칸을 더한다. 값은 커밋하지 않는다.
-6. 서버를 직접 운영하게 되면 Grafana Cloud에 로그와 지표를 보낸다. 비밀값이 GitHub secrets와 로컬 `.env` 말고 한 곳 더 생겨 세 곳을 넘으면 Infisical로 옮긴다. 둘 다 소유자에게 먼저 알린다.
+6. 서버를 직접 운영하게 되면 Grafana Cloud에 로그와 지표를 보낸다. 비밀값을 두는 곳이 GitHub secrets와 로컬 `.env`를 더해 세 곳을 넘으면 Infisical로 옮긴다. 둘 다 소유자에게 먼저 알린다.
 
 ## 비밀값 이름
 
@@ -58,12 +58,12 @@
 
 ## 켜기
 
-소비 레포 `AGENTS.md` 「작업 방식」 끝에 아래 절을 붙인다. 규칙을 그대로 옮기므로 repo-baseline 클론이 없는 세션도 읽는다. 빼는 도구가 있으면 그 도구의 줄을 지우고 `뺀 도구:` 줄을 더한다.
+소비 레포 `AGENTS.md` 「작업 방식」 끝에 아래 절을 붙인다. 규칙을 그대로 옮기므로 repo-baseline 클론이 없는 세션도 읽는다. 빼는 도구가 있으면 절에서 그 도구를 지우고 `뺀 도구:` 줄을 더한다.
 
 ```markdown
 ### ops
 
-- repo-baseline ops 프로필의 도구를 모두 쓴다. 빼는 도구는 이 절에 `뺀 도구: <도구> — <이유>`로 적는다. 다른 도구를 더하려면 먼저 소유자에게 묻는다.
+- repo-baseline ops 프로필의 도구를 모두 쓴다. 빼는 도구는 이 절에 `뺀 도구: 도구 — 이유` 한 줄로 적는다. 다른 도구를 더하려면 먼저 소유자에게 묻는다.
 - 코드·의존성 보안(GitHub secret scanning, push protection, Dependabot, CodeQL)과 GitGuardian은 조직에서 켜져 있다. 저장소에서 끄지 않는다.
 - 에러 추적은 Sentry, 제품 분석은 PostHog다. SDK는 처음 배포하는 PR에서 붙인다.
 - 배포한 URL은 UptimeRobot에, 도메인은 Cloudflare에 소유자가 등록한다.

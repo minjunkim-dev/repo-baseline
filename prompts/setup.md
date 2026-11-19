@@ -9,7 +9,7 @@
 ## 지킬 것
 
 - 원본은 공개 저장소 `https://github.com/minjunkim-labs/repo-baseline`의 `main`이다. 저장소 밖 임시 폴더에 clone해서 읽는다.
-- 읽을 것은 `templates/core/`, `POLICY.md`, (GitHub이면) `templates/github/`뿐이다. 판 올리기면 `CHANGELOG.md`와 `changelog.d/`, `docs/start.md` 「판 올리기」, 옮길 항목이 가리키는 파일(예: `profiles/` 아래 파일)도 읽는다. 옛 문서는 읽지 않는다.
+- 읽을 것은 `templates/core/`, `POLICY.md`, (GitHub이면) `templates/github/`, (배포하는 앱이면) `profiles/ops/README.md`뿐이다. 판 올리기면 `CHANGELOG.md`와 `changelog.d/`, `docs/start.md` 「판 올리기」, 옮길 항목이 가리키는 파일(예: `profiles/` 아래 파일)도 읽는다. 옛 문서는 읽지 않는다.
 - 있는 파일을 덮어쓰지 않는다. 이미 있으면 템플릿 내용을 합치고, 합친 내용을 보고한다. 예외: 판 올리기에서 `docs/start.md` 「판 올리기」가 다시 쓰라는 파일(`apply_baseline.py`가 쓰는 파일, 손으로 복사한 코어 파일)은 덮어쓴다. `apply_baseline.py`가 멈추면 0절 3번을 따른다. `AGENTS.md`·`REVIEW.md`는 판 올리기에서도 바뀐 줄만 합치고, `.gitignore`는 1단계처럼 없는 줄만 붙인다.
 - 비밀값 파일(`.env*`, 키)을 읽거나 만들거나 커밋하지 않는다.
 - `main`에 직접 push하지 않는다. PR을 병합하지 않는다.
@@ -65,7 +65,7 @@
 저장소가 배포해서 사람이 쓰는 앱(웹, 서버, 모바일, 게임)이 아니면 이 단계를 건너뛰고 보고에 적는다. 판단이 애매하면 소유자에게 묻는다.
 
 1. 원본의 `profiles/ops/README.md`를 읽는다.
-2. 그 「켜기」 절을 `AGENTS.md` 「작업 방식」 끝에 붙인다. 빼는 도구가 분명하면(예: 웹 도메인이 없으면 Cloudflare) 그 도구의 줄을 지우고 `뺀 도구: <도구> — <이유>` 줄을 더한다.
+2. 그 「켜기」 절을 `AGENTS.md` 「작업 방식」 끝에 붙인다. 빼는 도구가 분명하면(예: 웹 도메인이 없으면 Cloudflare) 절에서 그 도구를 지우고 `뺀 도구: <도구> — <이유>` 줄을 더한다.
 3. SDK는 설치하지 않는다. 처음 배포하는 PR에서 한다.
 
 ## 4. 검증
@@ -84,7 +84,7 @@
 커밋하고 PR을 연다. 본문은 `.github/pull_request_template.md` 양식이다.
 
 - Author: 너의 도구 / 모델.
-- Summary: 코어 적용(했으면 GitHub 프로필도). 완료 기준: 템플릿 빈칸이 없다, `.env`가 무시된다, 비밀값이 스테이징되지 않았다, `CLAUDE.md`가 없거나 `@AGENTS.md` 한 줄이다, (GitHub 프로필을 했으면) workflow YAML이 파싱된다. 전에 통과하던 프로젝트 명령은 그대로 통과한다.
+- Summary: 코어 적용(했으면 GitHub 프로필·ops 프로필도). 완료 기준: 템플릿 빈칸이 없다, `.env`가 무시된다, 비밀값이 스테이징되지 않았다, `CLAUDE.md`가 없거나 `@AGENTS.md` 한 줄이다, (GitHub 프로필을 했으면) workflow YAML이 파싱된다. 전에 통과하던 프로젝트 명령은 그대로 통과한다.
 - Evidence: 4단계 출력. 확인하지 않은 범위.
 - Merge Danger: 코어만이면 되돌리기 쉬움, GitHub 프로필을 했으면 되돌리기 어려움과 걸린 경로.
 - Review: 비워 둔다. 리뷰는 다른 컨텍스트가 원본 저장소의 `prompts/review.md`로 한다.
