@@ -2,13 +2,13 @@
 
 에이전트 설정의 거부 규칙은 보안 경계가 아니다. `gh api`, `gh auth token`과 `curl`, 셸 스크립트, `git -C . push` 같은 다른 표기로 우회된다. 브랜치 보호와 필수 CI도 소유자 `gh` 로그인으로 도는 에이전트의 병합까지는 막지 못한다(POLICY §5). 이 설정은 실수를 줄이는 장치다. 기계적으로 막아야 하면 에이전트를 별도 OS 사용자와 GitHub 계정으로 돌린다.
 
-`gh api`는 인자 패턴으로 읽기와 쓰기를 확실히 가를 수 없어서 전부 확인(`ask`)을 받는다. 보호·ruleset 경로는 거부한다. 이슈·PR 댓글은 `gh issue comment`, `gh pr comment`처럼 하위 명령으로 쓴다.
+`gh api`는 사람이 정해야 하는 일에만 확인(`ask`)을 받는다. 병합(머지 큐에 넣기 `enqueuePullRequest`, `mergePullRequest`, 자동 병합 켜기·끄기, REST `/merge`)과 저장소 설정 변경이다(POLICY §4·§5). 저장소 설정 변경은 `PATCH`·`PUT`·`DELETE`, 비밀값·변수(`/secrets`, `/variables`), 웹훅·배포 키(`/hooks`, `/keys`), 협업자(`/collaborators`, `/invitations`), Actions 권한(`/actions/permissions`), 환경(`/environments`), 저장소 이전(`/transfer`)으로 거르고, GraphQL은 `Repository`·`BranchProtection`·`Ruleset`·`Environment`·`mergeBranch`가 든 요청으로 거른다. 읽기와 이슈·PR 댓글·답글·스레드 해결 같은 쓰기에는 이 규칙이 확인을 붙이지 않는다. 기본 모드에서는 규칙에 없는 `gh` 명령도 Claude Code가 확인 창을 띄운다([Permissions](https://code.claude.com/docs/en/permissions#read-only-commands)). bypass·auto 모드나 allow 규칙이 있을 때만 묻지 않고 돈다. 패턴은 인자 어디에서든 이 글자를 찾으므로 `--jq` 식이나 경로에 같은 글자가 있으면 다른 명령도 확인을 받는다. 덜 묻는 것보다 더 묻는 쪽으로 틀린다. 보호·ruleset 경로는 거부한다. 이슈·PR 댓글은 `gh issue comment`, `gh pr comment`처럼 하위 명령으로 쓴다.
 
 `main` push 거부는 명시적 표기만 잡는다. `main`에 있는 채로 `git push origin`을 하면 통과한다. 그 경우는 서버의 브랜치 보호(PR 필수, `enforce_admins`)가 거절한다. GitHub 프로필을 켜지 않은 저장소에서는 이 구멍이 남는다.
 
-막을 것은 세 가지다: `.env` 읽기, `main`으로의 push, 브랜치 보호·저장소 설정을 쓰는 `gh api`. 머지 큐에 넣는 `gh api graphql`(`enqueuePullRequest`)은 `gh api` 확인 규칙으로 매번 확인을 받는다. 되돌리기 쉬움 PR은 소유자가 지시하면 에이전트가 큐에 넣을 수 있기 때문이다(POLICY §5). 확인 창에서 PR과 `expectedHeadOid`의 SHA가 리뷰한 head인지 본다. `gh pr merge`도 확인을 받지만 머지 큐 저장소에서는 쓰지 않는다.
+막을 것은 세 가지다: `.env` 읽기, `main`으로의 push, 브랜치 보호·저장소 설정을 쓰는 `gh api`. 머지 큐에 넣는 `gh api graphql`(`enqueuePullRequest`)은 확인 규칙으로 매번 확인을 받는다. 되돌리기 쉬움 PR은 소유자가 지시하면 에이전트가 큐에 넣을 수 있기 때문이다(POLICY §5). 확인 창에서 PR과 `expectedHeadOid`의 SHA가 리뷰한 head인지 본다. `gh pr merge`도 확인을 받지만 머지 큐 저장소에서는 쓰지 않는다.
 
-확인일: 2026-11-08. 에이전트 도구가 바뀌면 링크한 공식 문서를 다시 본다.
+확인일: 2026-11-20. 에이전트 도구가 바뀌면 링크한 공식 문서를 다시 본다.
 
 ## 어디에 두는가
 
@@ -43,7 +43,7 @@
 
 ## Claude Code
 
-`claude-settings.json`을 프로젝트의 `.claude/settings.json`으로 복사한다. 이미 있으면 `permissions.deny`와 `permissions.ask`를 합친다. 예전 예시에서 가져온 `gh pr merge` deny 항목은 지운다. deny가 ask보다 먼저 걸려서 남아 있으면 병합이 계속 막힌다.
+`claude-settings.json`을 프로젝트의 `.claude/settings.json`으로 복사한다. 이미 있으면 `permissions.deny`와 `permissions.ask`를 합친다. 예전 예시에서 가져온 `gh pr merge` deny 항목은 지운다. deny가 ask보다 먼저 걸려서 남아 있으면 병합이 계속 막힌다. 예전 예시의 ask 항목 `Bash(gh api *)`도 지운다. 남아 있으면 모든 `gh api`가 계속 확인을 받는다.
 
 - 문법: [Permissions](https://code.claude.com/docs/en/permissions), [Settings](https://code.claude.com/docs/en/settings). `*`는 규칙의 어느 자리에나 올 수 있다. `.env` 예시 `Read(./.env)`, `Read(./.env.*)`는 Settings 문서의 예시와 같다. 하위 폴더의 `.env`는 `**/` 규칙으로 막는다.
 - 지침 파일은 `AGENTS.md` 하나다. Claude Code는 작업 폴더와 그 위 폴더에 `CLAUDE.md`·`.claude/CLAUDE.md`·`CLAUDE.local.md`가 없을 때 `AGENTS.md`를 읽는다([Memory](https://code.claude.com/docs/en/memory), 확인일 2026-11-09). 개인용 `CLAUDE.local.md`를 하나 두기만 해도 `AGENTS.md`를 읽지 않으므로 만들지 않는다. 꼭 써야 하면 사용자 설정 `~/.claude/settings.json`에서 `pluginConfigs."cc-plugin-agents-md@builtin".options.instructionFiles`를 `"claude-md-and-agents-md"`로 둔다. 이 설정은 프로젝트의 `.claude/settings.json`에 두면 무시된다.
