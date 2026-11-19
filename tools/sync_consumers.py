@@ -115,10 +115,9 @@ def changelog_since(commit):
 def body(sha, before, migration, changed, check_output):
     door = "어려움" if any(SENSITIVE.match(p) for p in changed) else "쉬움"
     notes = "\n".join(changelog_since(before)) or "- (변경 기록 없음)"
-    blocks = any(not p.startswith(".github/") for p in changed)
-    kind = ("이전 PR이다. hash-copy manifest를 처음 두고, 관리 블록 밖의 옛 절을 블록으로 바꾼다. 동기화 전용이 아니므로 리뷰를 거친다."
-            if migration and blocks else
-            "이전 PR이다. hash-copy manifest를 처음 둔다. 기록한 파일은 이미 원본과 같다. 동기화 전용이 아니므로 리뷰를 거친다."
+    kind = ("이전 PR이다. hash-copy manifest를 처음 둔다. 기록한 파일은 이미 원본과 같다. 동기화 전용이 아니므로 리뷰를 거친다."
+            if migration and set(changed) == {apply_baseline.MANIFEST} else
+            "이전 PR이다. hash-copy manifest를 처음 두고, 기록한 파일과 관리 블록을 원본으로 맞춘다. 바뀐 파일은 Evidence에 있다. 동기화 전용이 아니므로 리뷰를 거친다."
             if migration else "동기화 전용 PR이다. 바뀐 바이트는 모두 관리 블록과 해시가 기록된 파일 안에 있다.")
     return f"""Author: 스크립트 / 없음 (repo-baseline tools/sync_consumers.py)
 

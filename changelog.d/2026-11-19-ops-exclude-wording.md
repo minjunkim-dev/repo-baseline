@@ -1,1 +1,1 @@
-- ops 블록 첫 줄이 manifest를 쓰는 저장소에도 블록을 손으로 고치라고 읽혔다. 빼는 도구는 `.github/repo-baseline.json`의 `exclude`에 적고, manifest가 없을 때만 블록을 고친다고 적었다. 동기화 대상 소비 레포는 `tools/sync_consumers.py`가 여는 동기화 전용 PR로 받는다. 목록에 없는 배포 앱은 판 올리기 때 블록 첫 줄을 새 문구로 바꾼다.
+- ops 블록 첫 줄이 manifest를 쓰는 저장소에도 블록을 손으로 고치라고 읽혔다. 빼는 도구는 `.github/repo-baseline.json`의 `blocks.ops.exclude`에 적고, manifest가 없을 때만 블록을 고친다고 적었다. 동기화 대상 소비 레포는 `tools/sync_consumers.py`가 여는 동기화 전용 PR로 받는다. 목록에 없는 배포 앱은 판 올리기 때 블록 첫 줄을 새 문구로 바꾼다.

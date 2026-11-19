@@ -77,6 +77,13 @@ class SyncOnlyTest(unittest.TestCase):
         self.assertEqual(changelog_since("--output=/tmp/x"), [])
         self.assertEqual(changelog_since(None), [])
 
+    def test_migration_body_claims_files_match_only_when_just_the_manifest_changed(self):
+        def says_same(changed):
+            return "이미 원본과 같다" in sync_consumers.body("a" * 40, None, True, changed, "SAME")
+        self.assertTrue(says_same([MANIFEST]))
+        self.assertFalse(says_same([MANIFEST, ".github/pull_request_template.md"]))
+        self.assertFalse(says_same([MANIFEST, "AGENTS.md"]))
+
     def test_standing_order_is_declared(self):
         config = json.loads(sync_consumers.CONSUMERS.read_text(encoding="utf-8"))
         self.assertEqual(config["enqueue"], "sync-only")
