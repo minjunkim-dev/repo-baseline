@@ -224,7 +224,8 @@ class BlockTests(unittest.TestCase):
         self.manifest({"ops": {"target": "AGENTS.md", "exclude": {"Cloudflare": "웹 도메인이 없다"}}})
 
     def manifest(self, blocks):
-        (self.project / apply_baseline.MANIFEST).write_text(json.dumps({"blocks": blocks}, ensure_ascii=False))
+        (self.project / apply_baseline.MANIFEST).write_text(json.dumps({"blocks": blocks}, ensure_ascii=False),
+                                                               encoding="utf-8")
 
     def agents(self):
         return (self.project / "AGENTS.md").read_text(encoding="utf-8")
@@ -263,6 +264,13 @@ class BlockTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "differs from recorded sha256"):
             self.apply()
         self.assertEqual(self.apply(check=True), ["AGENTS.md#ops"])
+
+    def test_broken_marker_pair_stops_even_when_forced(self):
+        broken = self.AGENTS.replace("### ops\n", apply_baseline.OPS.BEGIN + "\n### ops\n")
+        (self.project / "AGENTS.md").write_text(broken, encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "exactly one pair"):
+            self.apply(force=True)
+        self.assertEqual(self.agents(), broken)
 
     def test_invalid_blocks_stop(self):
         for blocks in ({"ops": {"target": "AGENTS.md", "exclude": {"Datadog": "x"}}},

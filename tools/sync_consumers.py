@@ -30,8 +30,12 @@ PREFIX = "baseline/sync-"
 PASSING = {"SUCCESS", "SKIPPED", "NEUTRAL"}
 # Bots whose PR comments are summaries, not review findings.
 SUMMARY_BOTS = {"coderabbitai[bot]", "coderabbitai"}
-# Paths a sync PR must never touch without a person reading it (POLICY §4, github profile).
-SENSITIVE = re.compile(r"^\.github/(workflows/|dependabot\.yml$|repository-settings\.json$)")
+# Paths a sync PR must never touch without a person reading it (POLICY §4 sensitive paths).
+SENSITIVE = re.compile(
+    r"\.github/(workflows/|dependabot\.yml$|repository-settings\.json$)"
+    r"|(?:.*/)?\.(claude|agents|codex|cursor)/"
+    r"|(?:.*/)?(CODEOWNERS|\.mcp\.json|package\.json|go\.mod|go\.sum|Cargo\.toml|pyproject\.toml"
+    r"|[^/]*\.lock|[^/]*-lock\.(json|yaml))$")
 
 
 def run(*args, cwd=None):

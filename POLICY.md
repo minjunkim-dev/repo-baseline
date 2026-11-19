@@ -79,7 +79,7 @@ PR 본문 Merge Danger에 되돌리기 판정, 영향 범위, 되돌리는 법, 
   - 하나라도 확인하지 못하면 넣지 않고 소유자에게 남긴다.
   - 아래의 권한 규칙 확인은 에이전트의 것이다. 파이프라인은 그 확인을 거치지 않는다. 상시 지시 파일이 민감한 파일인 것이 그 대신이다.
 - repo-baseline 동기화 파이프라인(`tools/sync_consumers.py`)이 연 동기화 전용 PR은 다른 컨텍스트 리뷰 대신 결정적 검사로 큐에 넣는다. 상시 지시는 `tools/consumers.json`의 `"enqueue": "sync-only"`다(민감한 파일). 다음을 모두 만족해야 한다.
-  - 바뀐 바이트가 모두 hash-copy manifest에 기록된 파일과 관리 블록 안에 있고, base에도 manifest와 블록 표시가 있다(이전 PR은 해당하지 않는다).
+  - 바뀐 바이트가 모두 hash-copy manifest에 기록된 파일과 관리 블록 안에 있고, base에도 manifest와 블록 표시가 있다(이전 PR은 해당하지 않는다). 바뀐 경로에 §4의 민감한 파일 경로가 없다.
   - 그 head에서 지금 repo-baseline `origin/main`으로 `apply_baseline.py --check`가 같다고 나온다. diff가 원본 변경과 같다는 증명이 리뷰를 대신한다.
   - head manifest가 base manifest와 기록 칸(sha256, source_commit)만 다르다. 동기화 대상을 넓히거나 줄이는 PR은 리뷰한다.
   - 필수 CI가 통과했고, PR의 커밋이 모두 파이프라인 계정의 것이며, 리뷰·리뷰 스레드·댓글(리뷰 봇의 요약 댓글 제외)이 하나도 없다. 있으면 넣지 않고 소유자에게 남긴다.

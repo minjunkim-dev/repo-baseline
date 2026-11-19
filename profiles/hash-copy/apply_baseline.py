@@ -119,6 +119,9 @@ def with_block(text, entry, force):
         return text[:span[0]] + new + text[span[1]:]
     if not force:
         return None
+    if OPS.BEGIN in text or OPS.END in text:
+        # A broken marker pair would survive the rewrite and leave two markers.
+        raise ValueError("ops markers are not exactly one pair; fix them by hand first")
     section = re.search(r"^### ops[ \t]*\n.*?(?=^#{1,3} |\Z)", text, re.M | re.S)
     if section:
         tail = "\n" if section.end() < len(text) else ""

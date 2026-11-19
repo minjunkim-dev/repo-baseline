@@ -59,7 +59,7 @@
 
 ## 켜기
 
-소비 레포 `AGENTS.md` 「작업 방식」 끝에 아래 블록을 표시 줄(`<!-- repo-baseline:ops -->`, `<!-- /repo-baseline:ops -->`)까지 그대로 붙인다. 규칙을 그대로 옮기므로 repo-baseline 클론이 없는 세션도 읽는다. 블록 안은 손으로 고치지 않는다. 빼는 도구가 있으면 그 도구 이름(또는 그 도구의 비밀값 이름)이 나오는 줄을 지우고, 끝 표시 줄 바로 앞에 `- 뺀 도구: <도구> — <이유>` 줄을 더한다. 줄마다 도구가 하나뿐이라 이 두 가지 말고는 바꿀 것이 없다. hash-copy manifest의 `blocks`에 적으면 도구가 이 일을 한다(`profiles/hash-copy/README.md`).
+소비 레포 `AGENTS.md` 「작업 방식」 끝에 아래 블록을 표시 줄(`<!-- repo-baseline:ops -->`, `<!-- /repo-baseline:ops -->`)까지 그대로 붙인다. 규칙을 그대로 옮기므로 repo-baseline 클론이 없는 세션도 읽는다. 블록 안은 손으로 고치지 않는다. 빼는 도구가 있으면 그 도구 이름(또는 그 도구의 비밀값 이름)이 나오는 줄을 지우고, 끝 표시 줄 바로 앞에 `- 뺀 도구: <도구> — <이유>` 줄을 더한다. 여러 도구를 빼면 이 줄은 위 도구 표의 순서로 둔다. 줄마다 도구가 하나뿐이라 이 두 가지 말고는 바꿀 것이 없다. hash-copy manifest의 `blocks`에 적으면 도구가 이 일을 한다(`profiles/hash-copy/README.md`).
 
 ```markdown
 <!-- repo-baseline:ops -->

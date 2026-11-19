@@ -64,6 +64,10 @@ class SyncOnlyTest(unittest.TestCase):
                          ["base has no manifest (migration)"])
         self.assertEqual(self.reasons(["src/app.py", ".github/workflows/ci.yml"], {}, {}),
                          [".github/workflows/ci.yml is sensitive", "src/app.py is not managed"])
+        # Every POLICY §4 path stays with a person even when the manifest manages it.
+        for path in [".github/CODEOWNERS", ".claude/settings.json", "app/.cursor/rules.md", ".mcp.json",
+                     "web/package.json", "uv.lock", "pnpm-lock.yaml"]:
+            self.assertEqual(self.reasons([path], {}, {}), [f"{path} is sensitive"])
 
     def test_base_without_markers_is_not(self):
         reasons = self.reasons(["AGENTS.md"], {"AGENTS.md": "### ops\n- 옛 문구\n"}, {"AGENTS.md": agents(BLOCK)})
