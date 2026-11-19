@@ -58,6 +58,8 @@ def check(repo, readme_text, sdk=False):
         else:
             excluded.add(match.group(1))
     present = {line.rstrip() for line in section.splitlines()}
+    # An exclusion reason must not count as another tool still being named.
+    named = "\n".join(line for line in section.splitlines() if not EXCLUSION.match(line))
     for rule in rules(readme_text):
         if not any(tool in rule for tool in excluded):
             if rule not in present:
@@ -65,7 +67,7 @@ def check(repo, readme_text, sdk=False):
             continue
         # A rule naming an excluded tool may be reworded, but its other tools stay named.
         for tool in known:
-            if tool in rule and tool not in excluded and tool not in section:
+            if tool in rule and tool not in excluded and tool not in named:
                 problems.append(f"ops 절에 없고 `뺀 도구:` 줄도 없다: {tool}")
     if sdk:
         problems += env_problems(repo, excluded)

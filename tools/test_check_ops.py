@@ -57,6 +57,8 @@ class CheckOpsTest(unittest.TestCase):
     def test_exclusion_keeps_other_tools_on_the_same_line(self):
         ops = CLOUDFLARE_OUT.replace("배포한 URL은 UptimeRobot에 소유자가 등록한다.", "소유자가 등록한다.")
         self.assertEqual(self.problems(ops=ops), ["ops 절에 없고 `뺀 도구:` 줄도 없다: UptimeRobot"])
+        ops = ops.replace("데스크톱 게임", "데스크톱 게임, UptimeRobot과 무관")
+        self.assertEqual(self.problems(ops=ops), ["ops 절에 없고 `뺀 도구:` 줄도 없다: UptimeRobot"])
 
     def test_exclusion_line_format_and_name(self):
         problems = self.problems(ops=SNIPPET + "- 뺀 도구: Cloudflare\n- 뺀 도구: Datadog — 비싸다\n")
