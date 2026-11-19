@@ -32,8 +32,8 @@ def rules(readme_text):
 
 
 def mentions(tool, text):
-    """The tool cell or one of its secret names appears in the text."""
-    return tool in text or any(owner in tool and name in text for name, owner in NAMES.items())
+    """The tool cell and the tool's secret names that appear in the text."""
+    return [word for word in [tool] + [name for name, owner in NAMES.items() if owner in tool] if word in text]
 
 
 def ops_section(agents_text):
@@ -72,8 +72,11 @@ def check(repo, readme_text, sdk=False):
             continue
         # A rule naming an excluded tool may be reworded, but its other tools stay named.
         for tool in known:
-            if mentions(tool, rule) and tool not in excluded and not mentions(tool, named):
-                problems.append(f"ops 절에 없고 `뺀 도구:` 줄도 없다: {tool}")
+            if tool in excluded:
+                continue
+            for word in mentions(tool, rule):
+                if word not in named:
+                    problems.append(f"ops 절에 없고 `뺀 도구:` 줄도 없다: {word}")
     if sdk:
         problems += env_problems(repo, excluded)
     return problems

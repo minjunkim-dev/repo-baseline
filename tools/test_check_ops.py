@@ -84,6 +84,10 @@ class CheckOpsTest(unittest.TestCase):
         self.assertEqual(self.problems(ops=ops), [])
         dropped = "\n".join(line for line in ops.splitlines() if not line.startswith("- 개인 정보는"))
         self.assertEqual(len(self.problems(ops=dropped)), 1)
+        # The other tool's secret names on a reworded line must stay.
+        ops = ops.replace("`POSTHOG_KEY`, `POSTHOG_HOST`다", "없다")
+        self.assertEqual(self.problems(ops=ops), ["ops 절에 없고 `뺀 도구:` 줄도 없다: POSTHOG_KEY",
+                                                  "ops 절에 없고 `뺀 도구:` 줄도 없다: POSTHOG_HOST"])
 
     def test_cli_flag_and_path(self):
         root = self.repo()
