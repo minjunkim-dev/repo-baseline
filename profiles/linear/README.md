@@ -41,7 +41,7 @@
 
 1. 동기화할 Linear 팀을 이 저장소 전용으로 정한다. 양방향 동기화는 그 팀에서 새로 만든 Issue의 제목·설명을 저장소 Issue로 만든다. 공개 저장소면 모두 공개된다. 그 팀에는 저장소에 올려도 되는 작업만 두고, 공개하지 않을 작업은 동기화하지 않는 다른 팀에 둔다.
 2. Linear 조직에 GitHub 연동을 설치하고(저장소는 Only select repositories로 고르고, 코드 접근은 켜지 않는다. Issue 동기화와 PR 연결은 코드 접근 없이 된다), 저장소 하나를 1번 팀과 양방향 동기화한다(Linear 설정 > Integrations > GitHub). 「Automatically link or create issues on merge」는 끈다. 켜 두면 Linear ID 없이 병합된 PR마다 Linear Issue가 새로 생기고, 양방향 동기화로 GitHub에 중복 Issue가 생긴다.
-3. 켜기 전에 만든 GitHub Issue는 동기화되지 않으므로 Linear의 [GitHub Issues 가져오기](https://linear.app/docs/import-issues#github-issues)로 1번 팀에 옮긴다.
+3. 켜기 전에 만든 GitHub Issue는 동기화되지 않으므로 Linear의 [GitHub Issues 가져오기](https://linear.app/docs/import-issues#github-issues)로 1번 팀에 옮긴다. 가져온 Issue는 양방향으로 동기화된다. 6개월 넘게 갱신되지 않은 열린 Issue는 팀 보관함으로 들어가므로, 가져온 뒤 보관함을 보고 아직 할 Issue를 꺼낸다([가져오기 문서](https://linear.app/docs/github-to-linear), 확인일 2026-11-20).
 4. 1번 팀의 PR 자동화(Settings > Team > Workflows & automations > Pull request and commit automations)에서 PR이 열리거나 리뷰를 요청할 때 상태를 옮기는 칸이 켜져 있는지 본다. 꺼져 있으면 `Refs <Linear ID>`로 이어도 진행 상태가 옮겨지지 않는다. 기본값은 PR이 열리면 In Progress다.
 5. 그 팀의 라벨을 상태 라벨 다섯 개로 맞춘다.
 6. 소비 레포 `AGENTS.md` 「작업 방식」 끝에 한 줄을 붙인다: `- 계획은 Linear로 본다. 원본은 GitHub Issue다. repo-baseline linear 프로필의 규칙을 따른다.`
