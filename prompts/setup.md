@@ -65,7 +65,7 @@
 저장소가 배포해서 사람이 쓰는 앱(웹, 서버, 모바일, 게임)이 아니면 이 단계를 건너뛰고 보고에 적는다. 판단이 애매하면 소유자에게 묻는다.
 
 1. 원본의 `profiles/ops/README.md`를 읽는다.
-2. 그 「켜기」 블록을 표시 줄까지 `AGENTS.md` 「작업 방식」 끝에 붙인다. 빼는 도구가 분명하면(예: 웹 도메인이 없으면 Cloudflare) 그 도구가 나오는 줄을 지우고 끝 표시 줄 앞에 `- 뺀 도구: <도구> — <이유>` 줄을 더한다(여러 개면 ops 도구 표의 순서로). 소유자에게 `tools/consumers.json`에 이 저장소를 더하자고 보고에 적는다. 그러면 다음 판 올리기부터 `tools/sync_consumers.py`가 맞춘다. 이미 `.github/repo-baseline.json`이 있는 저장소는 `consumers.json`의 manifest를 쓰지 않으므로, 그 manifest에도 `blocks.ops`(대상과 뺀 도구)를 더한다.
+2. 그 「켜기」 블록을 표시 줄까지 `AGENTS.md` 「작업 방식」 끝에 붙인다. 이미 `.github/repo-baseline.json`이 있으면 손으로 붙이지 말고 그 manifest에 `blocks.ops`(대상과 `exclude`)를 더한 뒤 `apply_baseline.py`로 쓴다. 멈춘 이유가 `AGENTS.md block ops (no markers)` 하나뿐이면 기존 `### ops` 절을 새 블록과 비교한다. `--force`는 그 절 전체를 새 블록으로 바꾸기 때문이다. 새 블록에 없는 저장소 규칙이 없으면 `--force`로 다시 돌린다. 있으면 0절 3번을 따른다. 다른 파일 때문에 멈추면 0절 3번을 따른다. `--force`는 그 파일의 수정도 버리기 때문이다. manifest가 없으면 손으로 붙이고, 빼는 도구가 분명하면(예: 웹 도메인이 없으면 Cloudflare) 그 도구가 나오는 줄을 지우고 끝 표시 줄 앞에 `- 뺀 도구: <도구> — <이유>` 줄을 더한다(여러 개면 ops 도구 표의 순서로). 소유자에게 `tools/consumers.json`에 이 저장소를 더하자고 보고에 적는다. 그러면 다음 판 올리기부터 `tools/sync_consumers.py`가 맞춘다. 이미 `.github/repo-baseline.json`이 있는 저장소는 `consumers.json`의 manifest를 쓰지 않으므로, 그 manifest에도 `blocks.ops`(대상과 뺀 도구)를 더한다.
 3. SDK는 설치하지 않는다. 아직 배포하지 않았으면 처음 배포하는 PR에서 한다. 이미 배포한 앱이면 이 PR이 병합된 뒤 SDK와 감시 등록만 하는 PR을 따로 연다. 그 PR은 되돌리기 어려움이다. 보고에 이 다음 일을 적는다.
 
 ## 4. 검증
