@@ -2,9 +2,11 @@
 """Check that a consumer repo carries the ops profile; never changes files or calls a service.
 
 Usage: python3 <repo-baseline clone>/tools/check_ops.py [--sdk] [consumer repo path, default .]
-Without --sdk it checks the AGENTS.md ops section, which setup adds before any .env file exists.
+Without --sdk it checks the AGENTS.md ops block, which setup adds before any .env file exists.
 With --sdk it also checks the .env.example names, which the first-deploy SDK PR adds.
-The rules and the tool list come from profiles/ops/README.md in this clone, so the README stays the only source.
+The block must equal ops_block(): the 「켜기」 snippet of profiles/ops/README.md in this clone,
+minus the lines that name an excluded tool, plus one `뺀 도구:` line per excluded tool.
+hash-copy (profiles/hash-copy/apply_baseline.py) writes the block with the same function.
 Exit 0 when every check passes, 1 with one line per problem otherwise.
 """
 
@@ -13,9 +15,10 @@ import re
 import sys
 
 README = Path(__file__).resolve().parents[1] / "profiles/ops/README.md"
+BEGIN, END = "<!-- repo-baseline:ops -->", "<!-- /repo-baseline:ops -->"
 # Each secret name belongs to the tool whose table cell contains this word.
 NAMES = {"SENTRY_DSN": "Sentry", "SENTRY_AUTH_TOKEN": "Sentry", "POSTHOG_KEY": "PostHog", "POSTHOG_HOST": "PostHog"}
-EXCLUSION = re.compile(r"\s*-?\s*뺀 도구:")
+EXCLUSION = re.compile(r"- 뺀 도구: (.+?) — (\S.*)")
 
 
 def tools(readme_text):
@@ -25,58 +28,73 @@ def tools(readme_text):
     return [row.split("|")[2].strip() for row in rows[2:]]
 
 
-def rules(readme_text):
-    """Bullet lines of the 「켜기」 snippet, which a consumer copies as is."""
-    snippet = readme_text.split("## 켜기", 1)[1].split("```markdown\n", 1)[1].split("```", 1)[0]
-    return [line.rstrip() for line in snippet.splitlines() if line.startswith("- ")]
+def snippet(readme_text):
+    """Lines of the 「켜기」 code block, markers included."""
+    text = readme_text.split("## 켜기", 1)[1].split("```markdown\n", 1)[1].split("```", 1)[0]
+    return text.rstrip("\n").split("\n")
 
 
-def mentions(tool, text):
-    """The tool cell and the tool's secret names that appear in the text."""
-    return [word for word in [tool] + [name for name, owner in NAMES.items() if owner in tool] if word in text]
+def mentions(tool, line):
+    return tool in line or any(owner in tool and name in line for name, owner in NAMES.items())
 
 
-def ops_section(agents_text):
-    """Text under `### ops` up to the next heading of level 1-3, or None."""
-    match = re.search(r"^### ops[ \t]*\n(.*?)(?=^#{1,3} |\Z)", agents_text, re.M | re.S)
-    return match.group(1) if match else None
+def ops_block(readme_text, exclude):
+    """The block text for these exclusions ({tool: reason}, in any order)."""
+    known = tools(readme_text)
+    unknown = [tool for tool in exclude if tool not in known]
+    if unknown:
+        raise ValueError(f"표에 없는 도구를 뺐다: {', '.join(unknown)}")
+    lines = [line for line in snippet(readme_text)
+             if not (line.startswith("- ") and any(mentions(tool, line) for tool in exclude))]
+    extra = [f"- 뺀 도구: {tool} — {exclude[tool]}" for tool in known if tool in exclude]
+    return "\n".join(lines[:-1] + extra + lines[-1:]) + "\n"
+
+
+def find_block(text):
+    """(start, end) offsets of the marked block including the end marker line, or None."""
+    if text.count(BEGIN) != 1 or text.count(END) != 1:
+        return None
+    start, end = text.find(BEGIN + "\n"), text.find(END + "\n")
+    if start < 0 or end < start:
+        return None
+    return start, end + len(END) + 1
+
+
+def exclusions(block_text):
+    """{tool: reason} from the `뺀 도구:` lines, and lines that look like one but break the format."""
+    found, broken = {}, []
+    for line in block_text.splitlines():
+        if not line.startswith("- 뺀 도구:"):
+            continue
+        match = EXCLUSION.fullmatch(line)
+        if match:
+            found[match.group(1)] = match.group(2)
+        else:
+            broken.append(line)
+    return found, broken
 
 
 def check(repo, readme_text, sdk=False):
-    known = tools(readme_text)
     agents = repo / "AGENTS.md"
     if not agents.is_file():
         return ["AGENTS.md가 없다"]
-    section = ops_section(agents.read_text(encoding="utf-8"))
-    if section is None:
-        return ["AGENTS.md에 `### ops` 절이 없다"]
-    problems = []
-    excluded = set()
-    for line in section.splitlines():
-        if not EXCLUSION.match(line):
-            continue  # the rule line that explains the format quotes it mid-line
-        match = re.fullmatch(r"\s*-?\s*뺀 도구: (.+?) — (\S.*)", line)
-        if not match:
-            problems.append(f"형식이 `뺀 도구: <도구> — <이유>`가 아니다: {line.strip()}")
-        elif match.group(1) not in known:
-            problems.append(f"표에 없는 도구를 뺐다: {match.group(1)}")
-        else:
-            excluded.add(match.group(1))
-    present = {line.rstrip() for line in section.splitlines()}
-    # An exclusion reason must not count as another tool still being named.
-    named = "\n".join(line for line in section.splitlines() if not EXCLUSION.match(line))
-    for rule in rules(readme_text):
-        if not any(mentions(tool, rule) for tool in excluded):
-            if rule not in present:
-                problems.append(f"ops 절에 「켜기」 절의 줄이 그대로 없다: {rule}")
-            continue
-        # A rule naming an excluded tool may be reworded, but its other tools stay named.
-        for tool in known:
-            if tool in excluded:
-                continue
-            for word in mentions(tool, rule):
-                if word not in named:
-                    problems.append(f"ops 절에 없고 `뺀 도구:` 줄도 없다: {word}")
+    text = agents.read_text(encoding="utf-8")
+    span = find_block(text)
+    if span is None:
+        return [f"AGENTS.md에 `{BEGIN}`·`{END}` 표시 줄이 한 쌍 없다"]
+    block = text[span[0]:span[1]]
+    excluded, broken = exclusions(block)
+    problems = [f"형식이 `뺀 도구: <도구> — <이유>`가 아니다: {line}" for line in broken]
+    try:
+        expected = ops_block(readme_text, excluded)
+    except ValueError as error:
+        return problems + [str(error)]
+    if block != expected:
+        have, want = block.splitlines(), expected.splitlines()
+        problems += [f"블록에 없다: {line}" for line in want if line not in have]
+        problems += [f"블록에 있으면 안 된다: {line}" for line in have if line not in want]
+        if not problems:
+            problems.append("블록의 줄 순서나 빈 줄이 「켜기」 블록과 다르다")
     if sdk:
         problems += env_problems(repo, excluded)
     return problems

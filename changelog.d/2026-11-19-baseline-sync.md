@@ -1,0 +1,1 @@
+- 소비 레포 동기화를 더했다. ops 「켜기」는 표시 줄로 감싼 관리 블록이 되고, 줄마다 도구가 하나다. hash-copy manifest에 `blocks`를 적으면 `apply_baseline.py`가 블록을 쓰고, `tools/sync_consumers.py`가 `tools/consumers.json`의 소비 레포에 PR을 연다. 동기화 전용 PR은 결정적 검사로 큐에 넣는다(POLICY §5). 목록의 소비 레포는 첫 동기화 때 이전 PR(manifest 추가, ops 절을 블록으로)을 받는다. 목록에 없는 배포 앱은 판 올리기 때 ops 절을 새 블록으로 바꾼다(`tools/check_ops.py`가 옛 절을 실패로 본다).
