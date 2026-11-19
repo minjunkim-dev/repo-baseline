@@ -28,8 +28,9 @@ import apply_baseline  # noqa: E402
 CONSUMERS = HERE / "tools/consumers.json"
 PREFIX = "baseline/sync-"
 PASSING = {"SUCCESS", "SKIPPED", "NEUTRAL"}
-# Bots whose PR comments are summaries, not review findings.
-SUMMARY_BOTS = {"coderabbitai[bot]", "coderabbitai"}
+# GitHub App bots whose PR comments are summaries or preview links, not review findings.
+# Logins carry the [bot] suffix only for Bot accounts (see comment_logins), so a user cannot pose as one.
+SUMMARY_BOTS = {"coderabbitai[bot]", "cloudflare-workers-and-pages[bot]"}
 # Paths a sync PR must never touch without a person reading it (POLICY §4 sensitive paths).
 SENSITIVE = re.compile(
     r"\.github/(workflows/|dependabot\.yml$|repository-settings\.json$)"
@@ -205,6 +206,15 @@ def decide(user, pr, detail, comments, threads, commit_authors, sync_reasons, ch
     return reasons + sync_reasons
 
 
+def comment_logins(comments):
+    """Comment author logins; Bot accounts get the [bot] suffix that gh strips, and a page cut short counts as a comment."""
+    logins = [(a["login"] + "[bot]" if a["__typename"] == "Bot" else a["login"]) if a else "ghost"
+              for a in (n["author"] for n in comments["nodes"])]
+    if comments["totalCount"] > len(logins):
+        logins.append("(more comments)")
+    return logins
+
+
 def enqueue(repo, folder, user):
     results = []
     owner, name = repo.split("/")
@@ -215,12 +225,16 @@ def enqueue(repo, folder, user):
             continue
         number, head = pr["number"], pr["headRefOid"]
         detail = gh_json("pr", "view", str(number), "--repo", repo, "--json",
-                         "statusCheckRollup,reviews,baseRefOid,comments,commits")
-        threads = gh_json("api", "graphql", "-f", "query=query($o:String!,$n:String!,$p:Int!){repository(owner:$o,name:$n)"
-                          "{pullRequest(number:$p){reviewThreads(first:1){totalCount}}}}",
-                          "-f", f"o={owner}", "-f", f"n={name}", "-F", f"p={number}")
-        thread_count = threads["data"]["repository"]["pullRequest"]["reviewThreads"]["totalCount"]
-        comments = [c["author"]["login"] for c in detail["comments"]]
+                         "statusCheckRollup,reviews,baseRefOid,commits")
+        state = gh_json("api", "graphql", "-f", "query=query($o:String!,$n:String!,$p:Int!){repository(owner:$o,name:$n)"
+                        "{pullRequest(number:$p){isInMergeQueue reviewThreads(first:1){totalCount}"
+                        "comments(first:100){totalCount nodes{author{__typename login}}}}}}",
+                        "-f", f"o={owner}", "-f", f"n={name}", "-F", f"p={number}")["data"]["repository"]["pullRequest"]
+        if state["isInMergeQueue"]:
+            results.append(f"#{number}: already in the merge queue")
+            continue
+        thread_count = state["reviewThreads"]["totalCount"]
+        comments = comment_logins(state["comments"])
         authors = [a.get("login") for commit in detail["commits"] for a in commit.get("authors", [])]
         # Gates that need no checkout run first, so a PR from someone else is never cloned.
         early = decide(user, pr, detail, comments, thread_count, authors, [], False)

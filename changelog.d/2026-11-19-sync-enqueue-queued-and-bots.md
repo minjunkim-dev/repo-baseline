@@ -1,0 +1,1 @@
+- `tools/sync_consumers.py --enqueue`가 이미 머지 큐에 있는 동기화 PR을 실패로 세지 않고 건너뛴다. Cloudflare 배포 미리보기 봇(`cloudflare-workers-and-pages[bot]`)의 링크 댓글은 판정할 댓글로 세지 않는다. 봇 예외는 GitHub App 봇 계정에만 적용한다. 소비 레포가 옮길 일은 없다.

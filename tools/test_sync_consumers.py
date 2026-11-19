@@ -124,19 +124,44 @@ class DecideTest(unittest.TestCase):
 
 class EnqueueOrderTest(unittest.TestCase):
     def test_pr_from_someone_else_is_never_cloned(self):
-        from unittest.mock import patch
         pr = {"number": 7, "id": "PR_x", "headRefName": "baseline/sync-abc1234", "headRefOid": "f" * 40,
               "author": {"login": "someone"}, "isCrossRepository": False}
+        results = self.enqueue(pr, author="someone")
+        self.assertEqual(len(results), 1)
+        self.assertIn("not opened by this pipeline", results[0])
+
+    def enqueue(self, pr, author="bot", queued=False, comments=()):
+        from unittest.mock import patch
         detail = {"statusCheckRollup": [{"conclusion": "SUCCESS"}], "reviews": [], "baseRefOid": "e" * 40,
-                  "comments": [], "commits": [{"authors": [{"login": "someone"}]}]}
-        threads = {"data": {"repository": {"pullRequest": {"reviewThreads": {"totalCount": 0}}}}}
-        answers = iter([[pr], detail, threads])
+                  "commits": [{"authors": [{"login": author}]}]}
+        state = {"isInMergeQueue": queued, "reviewThreads": {"totalCount": 0},
+                 "comments": {"totalCount": len(comments), "nodes": [{"author": a} for a in comments]}}
+        answers = iter([[pr], detail, {"data": {"repository": {"pullRequest": state}}}])
         with patch.object(sync_consumers, "gh_json", lambda *a: next(answers)), \
                 patch.object(sync_consumers, "run", side_effect=AssertionError("cloned")) as run:
             results = sync_consumers.enqueue("minjunkim-labs/app", "/nonexistent", "bot")
         run.assert_not_called()
-        self.assertEqual(len(results), 1)
-        self.assertIn("not opened by this pipeline", results[0])
+        return results
+
+    PR = {"number": 8, "id": "PR_y", "headRefName": "baseline/sync-abc1234", "headRefOid": "f" * 40,
+          "author": {"login": "bot"}, "isCrossRepository": False}
+
+    def test_pr_already_in_the_queue_is_reported_not_failed(self):
+        self.assertEqual(self.enqueue(self.PR, queued=True), ["#8: already in the merge queue"])
+
+    def test_a_user_named_like_a_bot_is_a_comment_to_judge(self):
+        results = self.enqueue(self.PR, comments=[{"__typename": "User", "login": "cloudflare-workers-and-pages"}])
+        self.assertIn("has comments to judge", results[0])
+
+
+class CommentLoginsTest(unittest.TestCase):
+    def test_bot_suffix_and_cut_short_page(self):
+        nodes = [{"author": {"__typename": "Bot", "login": "cloudflare-workers-and-pages"}},
+                 {"author": {"__typename": "User", "login": "coderabbitai"}}, {"author": None}]
+        logins = sync_consumers.comment_logins({"totalCount": 4, "nodes": nodes})
+        self.assertEqual(logins, ["cloudflare-workers-and-pages[bot]", "coderabbitai", "ghost", "(more comments)"])
+        self.assertEqual(decide(user="bot", pr=DecideTest.PR, detail=DecideTest.DETAIL, comments=logins[:1],
+                                threads=0, commit_authors=["bot"], sync_reasons=[], check_differs=False), [])
 
 if __name__ == "__main__":
     unittest.main()
