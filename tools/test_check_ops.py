@@ -89,6 +89,10 @@ class CheckOpsTest(unittest.TestCase):
         self.assertEqual(self.problems(ops=ops), ["ops 절에 없고 `뺀 도구:` 줄도 없다: POSTHOG_KEY",
                                                   "ops 절에 없고 `뺀 도구:` 줄도 없다: POSTHOG_HOST"])
 
+    def test_secret_names_do_not_stand_in_for_the_tool_name(self):
+        ops = SNIPPET.replace("에러 추적은 Sentry, 제품 분석은 PostHog다. ", "") + "- 뺀 도구: PostHog — 분석 안 함\n"
+        self.assertEqual(self.problems(ops=ops), ["ops 절에 없고 `뺀 도구:` 줄도 없다: Sentry"])
+
     def test_cli_flag_and_path(self):
         root = self.repo()
         with redirect_stdout(StringIO()):
