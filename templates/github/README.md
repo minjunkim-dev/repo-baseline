@@ -243,6 +243,10 @@ done
 | `DRIFT` | 1 | 기대값과 실제 값이 다르거나 필드가 없음 |
 | `UNVERIFIED` | 2 | 기준선 오류·권한 부족·API 오류로 검증 못 함 |
 
+## 작업 추적
+
+이 프로필을 켜면 작업의 원본은 GitHub Issue다(POLICY §8). 목표·완료 조건·결정 기록·열림과 닫힘·하위 Issue·차단 관계(blocked by)를 Issue에 둔다. PR 본문에 원본 Issue를 닫는 키워드를 적는다. 예: `Closes #N`. 상태 라벨은 [matt-skills 프로필](../../profiles/matt-skills/README.md#issue-절차와-상태-라벨)이 정한다. Projects 보드·마일스톤·분류 라벨은 이 기준이 쓰지 않는다. 일정표 문서와 Issue 목록만으로 계획하기 불편하면 [linear 프로필](../../profiles/linear/README.md)을 켠다.
+
 ## 예외
 
 요금제·공개 여부·언어 때문에 적용할 수 없는 항목만 `exceptions`에 적고 `expected`에서 뺀다. 권한 부족이나 원인 불명은 예외가 아니다. 근거에는 공식 문서 URL과 확인 날짜를 적는다.

@@ -60,13 +60,13 @@
 "enabledPlugins": { "mattpocock-skills@mattpocock": true }
 ```
 
-이 두 키는 로컬 세션에서만 플러그인을 설치한다. 클라우드 세션은 저장소 설정에 적은 플러그인을 설치하지 않는다([Cloud environments](https://code.claude.com/docs/en/cloud-environments#what-carries-over-from-your-setup), 확인일 2026-11-08). 클라우드에서도 써야 하면 쓰는 스킬만 저장소에 커밋한다(Claude `.claude/skills/`, Codex·Cursor `.agents/skills/`). Claude 프로젝트의 클라우드 스레드는 저장소 스킬도 읽지 않는다. 그때는 [Claude projects](https://code.claude.com/docs/en/claude-projects#get-skills-plugins-connectors-and-tools-into-threads)를 따른다. 코어는 플러그인 없이 돈다.
+이 두 키는 로컬 세션에서만 플러그인을 설치한다. 클라우드 세션은 저장소 설정에 적은 플러그인을 설치하지 않는다([Cloud environments](https://code.claude.com/docs/en/cloud-environments#what-carries-over-from-your-setup), 확인일 2026-11-08). Matt 스킬은 저장소에 커밋하지 않는다([matt-skills 프로필](../../../profiles/matt-skills/README.md)). 클라우드 세션은 스킬 없이 코어 규칙만으로 일한다. 다른 스킬을 클라우드에서도 써야 하면 쓰는 스킬만 저장소에 커밋한다(Claude `.claude/skills/`, Codex·Cursor `.agents/skills/`). Claude 프로젝트의 클라우드 스레드는 저장소 스킬도 읽지 않는다. 그때는 [Claude projects](https://code.claude.com/docs/en/claude-projects#get-skills-plugins-connectors-and-tools-into-threads)를 따른다. 코어는 플러그인 없이 돈다.
 
 플러그인·스킬은 같은 작업을 켤 때와 끌 때 한 번씩 돌려 보고, 결과가 나아진 것만 켠다.
 
-리뷰의 두 축 판단·회고·PR 본문을 이 스킬에 맡기려면 [matt-skills 프로필](../../../profiles/matt-skills/README.md)을 켠다. Matt 스킬의 기본 동작 중 POLICY와 어긋나는 점, 그것을 메우는 절차, 설치 확인 스크립트가 그 프로필에 있다. 프로필을 켜지 않고 스킬만 써도 그 「어긋나는 점」은 지킨다.
+에이전트로 개발하면 기본 프로필인 [matt-skills 프로필](../../../profiles/matt-skills/README.md)을 켠다. 기본 프로필은 위 시험 없이 켜고, 빼려면 `AGENTS.md`에 이유를 적는다. Matt 스킬의 기본 동작 중 POLICY와 어긋나는 점, 그것을 메우는 절차, 설치 확인 스크립트가 그 프로필에 있다. 프로필을 켜지 않고 스킬만 써도 그 「어긋나는 점」을 메우는 절차는 지킨다.
 
-pstack 스킬을 쓰면 [pstack 프로필](../../../profiles/pstack/README.md)의 절을 `AGENTS.md`에 붙인다.
+에이전트로 개발하면 기본 프로필인 [pstack 프로필](../../../profiles/pstack/README.md)의 절을 `AGENTS.md`에 붙인다.
 
 코어 기준에 없는 것을 이 스킬로 채울 수 있다. 이 스킬은 사람이 부를 때만 돈다(`disable-model-invocation`, [v1.3.2](https://github.com/mattpocock/skills/tree/v1.3.2/skills), 확인일 2026-11-10).
 
