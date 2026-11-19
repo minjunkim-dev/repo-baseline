@@ -68,5 +68,6 @@ ls CLAUDE.md CLAUDE.local.md .claude/CLAUDE.md 2>/dev/null   # 나온 파일은 
 ## 다음
 
 - GitHub에 올리면 [github 프로필](../templates/github/)을 켠다.
+- 배포하는 앱이면 [ops 프로필](../profiles/ops/)을 켠다.
 - 다른 프로필은 [README](../README.md)의 표를 보고 필요할 때만 켠다.
 - 에이전트에게 맡기려면 [prompts/setup.md](../prompts/setup.md)를 첨부한다.
