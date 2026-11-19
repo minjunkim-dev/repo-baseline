@@ -1,0 +1,1 @@
+- ops 「켜기」 절의 코드·의존성 보안 줄에서 GitGuardian을 조직 기본값과 따로 적었다. GitGuardian은 조직에 설치한 GitHub App으로 돈다. 배포하는 소비 레포는 판 올리기 때 ops 절의 그 줄을 새 문구로 바꾼다.
