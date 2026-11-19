@@ -31,7 +31,7 @@
 
 소유자가 한다. 저장소 파일을 바꾸지 않는다.
 
-1. GitHub 조직의 Code security 설정에서 secret scanning, push protection, Dependabot alerts·security updates, CodeQL default setup을 켠 구성을 새 저장소의 기본값으로 정한다. 그러면 새 저장소가 [github 프로필](../../templates/github/)의 `repository-settings.json` 가운데 `security_and_analysis` 항목을 처음부터 맞춘다. 병합 설정, 브랜치 보호, 머지 큐는 github 프로필 절차로 따로 켠다.
+1. GitHub 조직의 Code security 설정에서 secret scanning, push protection, Dependabot alerts·security updates, CodeQL default setup을 켠 구성을 새 저장소의 기본값으로 정한다. 그러면 새 저장소가 [github 프로필](../../templates/github/)의 `repository-settings.json` 가운데 `security_and_analysis` 항목을 처음부터 맞춘다. 병합 설정, 브랜치 보호, 머지 큐는 github 프로필 절차로 따로 켠다. CodeQL을 고급 설정 workflow로 돌리는 저장소는 default setup을 끈 채로 둔다(두 설정은 함께 켤 수 없다).
 2. GitGuardian GitHub App을 조직의 모든 저장소에 설치한다.
 3. Sentry와 PostHog 조직 계정을 하나씩 만든다. Sentry의 GitHub 연동을 조직에 설치한다(커밋과 릴리스를 에러에 잇는다).
 
@@ -65,7 +65,7 @@
 ### ops
 
 - repo-baseline ops 프로필의 도구를 모두 쓴다. 빼는 도구는 이 절에 `뺀 도구: 도구 — 이유` 한 줄로 적는다. 다른 도구를 더하려면 먼저 소유자에게 묻는다.
-- 코드·의존성 보안(GitHub secret scanning, push protection, Dependabot, CodeQL)과 GitGuardian은 조직에서 켜져 있다. 저장소에서 끄지 않는다.
+- 코드·의존성 보안(GitHub secret scanning, push protection, Dependabot, CodeQL)과 GitGuardian은 켜져 있다. CodeQL은 기본 설정을 먼저 쓰고, 기본 설정으로 분석이 안 될 때만 고급 설정 workflow를 쓴다. 그 이유는 저장소 문서에 적는다. 나머지는 조직 기본값으로 켜고, 기존 저장소는 github 프로필 절차로 맞춘다. 저장소에서 끄지 않는다.
 - 에러 추적은 Sentry, 제품 분석은 PostHog다. SDK는 처음 배포하는 PR에서 붙인다. 이미 배포한 앱이면 이 절을 붙인 뒤 따로 여는 PR에서 붙인다.
 - 배포한 URL은 UptimeRobot에, 도메인은 Cloudflare에 소유자가 등록한다.
 - 서버를 직접 운영하게 되면 Grafana Cloud, 비밀값이 세 곳을 넘으면 Infisical을 켠다. 켜기 전에 소유자에게 알린다.
