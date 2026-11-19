@@ -1,6 +1,6 @@
 # pstack 프로필
 
-[pstack](https://github.com/cursor/plugins/tree/main/pstack) 스킬을 이 기준과 함께 쓸 때 켠다. pstack에는 검사·리뷰·구현·보고 단계와 겹치는 스킬이 있고, 그중 몇은 기본 동작이 [POLICY.md](../../POLICY.md)와 어긋난다. 이 프로필은 그 어긋남을 저장소 안에 적어서, 다른 기기·클라우드 세션·다른 사람도 같은 규칙을 보게 한다. 스크립트는 없다. pstack은 사람이 부를 때만 쓰기 때문이다.
+기본 프로필이다. 에이전트로 개발하면 켠다. 저장소에 붙이는 것은 `AGENTS.md`의 절 하나이고, pstack을 부르지 않으면 아무 일도 하지 않는다. 누가 pstack을 부르면 그때 이 절이 기본 동작(병합 등)을 막는다. [pstack](https://github.com/cursor/plugins/tree/main/pstack) 스킬을 이 기준과 함께 쓸 때를 위한 것이다. pstack에는 검사·리뷰·구현·보고 단계와 겹치는 스킬이 있고, 그중 몇은 기본 동작이 [POLICY.md](../../POLICY.md)와 어긋난다. 이 프로필은 그 어긋남을 저장소 안에 적어서, 다른 기기·클라우드 세션·다른 사람도 같은 규칙을 보게 한다. 스크립트는 없다. pstack은 사람이 부를 때만 쓰기 때문이다.
 
 ## 설치
 
@@ -8,7 +8,7 @@ pstack은 각자의 기기에 설치한다. 저장소에는 커밋하지 않는�
 
 - Cursor: `/add-plugin pstack`
 - Claude Code: `/plugin marketplace add cursor/plugins` 다음에 `/plugin install pstack@cursor-plugins`. 서드파티 마켓플레이스는 자동 업데이트가 꺼져 있어서 설치한 판에 머문다. 올릴 때는 `claude plugin update pstack@cursor-plugins`를 실행한다. 스킬은 `/pstack:poteto-mode`처럼 플러그인 이름을 붙여 부른다.
-- Codex: 공식 설치 방법이 README에 없다. Codex에서는 이 프로필을 쓰지 않는다.
+- Codex: 공식 설치 방법이 README에 없다. 직접 설치해 쓰면 같은 절이 적용된다. Codex는 `disable-model-invocation`을 읽지 않으므로, 사람이 부를 때만 쓰게 설치한 기기에서 따로 맞춘다.
 
 설치한 뒤 `/setup-pstack`(Claude Code는 `/pstack:setup-pstack`)으로 모델을 고른다. 이 명령은 개인 설정에 쓰고 저장소는 바꾸지 않는다. 판을 올리면 아래 「맞춘 판」을 다시 본다.
 
