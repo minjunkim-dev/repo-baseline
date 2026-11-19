@@ -32,7 +32,11 @@
       "Bash(gh api */invitations*)",
       "Bash(gh api */actions/permissions*)",
       "Bash(gh api */environments*)",
-      "Bash(gh api */transfer*)"
+      "Bash(gh api */transfer*)",
+      "Bash(gh api *Repository*)",
+      "Bash(gh api *BranchProtection*)",
+      "Bash(gh api *Ruleset*)",
+      "Bash(gh api *mergeBranch*)"
     ]
   }
 }
