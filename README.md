@@ -20,8 +20,8 @@
 | 기본 | [pstack](profiles/pstack/) | 에이전트로 개발하면 켠다. pstack 기본 동작 중 이 기준과 어긋나는 것(병합, 바로 반영, 규칙 위치)을 `AGENTS.md`에 적는다. pstack을 부르지 않으면 아무 일도 하지 않는다 |
 | 기본 | [ops](profiles/ops/) | 배포해서 사람이 쓰는 앱이면 켠다. 보안·에러 추적·제품 분석·감시 도구를 모두 쓰고, 빼는 도구만 이유와 함께 적는다. 조직에서 한 번 켤 것과 소비 레포마다 할 것, 비밀값 이름 |
 | 선택 | [team](profiles/team/) | 2명 이상. CODEOWNERS와 사람 승인 |
-| 선택 | [pr-conventions](profiles/pr-conventions/) | PR 제목·브랜치·본문 형식이 두 번 어긋났을 때 CI로 검사한다 |
-| 선택 | [linear](profiles/linear/) | 사이클·프로젝트 같은 계획 화면이나 여러 저장소를 한눈에 볼 곳이 필요할 때. GitHub Issue를 원본으로 두고 Linear는 동기화로 붙인다 |
+| 선택 | [pr-conventions](profiles/pr-conventions/) | PR 제목·브랜치·본문 형식을 CI로 검사한다. 형식이 두 번 어긋났을 때, 제목에서 릴리스 노트를 뽑을 때, 피처 플래그 규칙을 기계로 확인할 때 켠다 |
+| 선택 | [linear](profiles/linear/) | 일정표 문서와 Issue 목록만으로 계획하기 불편할 때. 예: 2주 동안 할 Issue를 묶고 돌아보기, 큰 목표 아래 Issue를 모아 진행률 보기, 여러 저장소의 할 일을 한 목록에서 보기. GitHub Issue를 원본으로 두고 Linear는 동기화로 붙인다 |
 
 위 프로필은 규칙을 더한다. [hash-copy](profiles/hash-copy/)는 규칙이 아니라 이 저장소의 파일을 소비 레포에 복사하는 도구다. 공통 검사기를 해시로 고정해 여러 저장소에 똑같이 두고 싶을 때 쓴다(Python 필요).
 

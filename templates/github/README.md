@@ -245,7 +245,7 @@ done
 
 ## 작업 추적
 
-이 프로필을 켜면 작업의 원본은 GitHub Issue다(POLICY §8). 목표·완료 조건·결정 기록·열림과 닫힘·하위 Issue·차단 관계(blocked by)를 Issue에 둔다. PR은 `Closes #N`이나 `Refs #N`으로 잇는다. 상태 라벨은 [matt-skills 프로필](../../profiles/matt-skills/README.md#issue-절차와-상태-라벨)이 정한다. Projects 보드·마일스톤·분류 라벨은 이 기준이 쓰지 않는다. 계획 화면이 필요하면 [linear 프로필](../../profiles/linear/README.md)을 켠다.
+이 프로필을 켜면 작업의 원본은 GitHub Issue다(POLICY §8). 목표·완료 조건·결정 기록·열림과 닫힘·하위 Issue·차단 관계(blocked by)를 Issue에 둔다. PR 본문에 원본 Issue를 닫는 키워드를 적는다. 예: `Closes #N`. 상태 라벨은 [matt-skills 프로필](../../profiles/matt-skills/README.md#issue-절차와-상태-라벨)이 정한다. Projects 보드·마일스톤·분류 라벨은 이 기준이 쓰지 않는다. 일정표 문서와 Issue 목록만으로 계획하기 불편하면 [linear 프로필](../../profiles/linear/README.md)을 켠다.
 
 ## 예외
 
