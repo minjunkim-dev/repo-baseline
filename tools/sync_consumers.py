@@ -30,7 +30,6 @@ PREFIX = "baseline/sync-"
 PASSING = {"SUCCESS", "SKIPPED", "NEUTRAL"}
 # Bots whose PR comments are summaries, not review findings.
 SUMMARY_BOTS = {"coderabbitai[bot]", "coderabbitai"}
-RECORD_KEYS = {"sha256", "source", "source_commit"}
 # Paths a sync PR must never touch without a person reading it (POLICY §4, github profile).
 SENSITIVE = re.compile(r"^\.github/(workflows/|dependabot\.yml$|repository-settings\.json$)")
 
@@ -50,12 +49,19 @@ def strip_block(text):
 
 
 def policy(manifest):
-    """The manifest without the fields apply_baseline records, so only what to sync remains."""
-    def strip(value):
-        if isinstance(value, dict):
-            return {k: strip(v) for k, v in value.items() if k not in RECORD_KEYS}
-        return value
-    return strip(manifest)
+    """The manifest without the fields apply_baseline records, so only what to sync remains.
+
+    A file entry's "source" picks what is copied, so it stays; only the top-level source and
+    source_commit and each entry's sha256 are records.
+    """
+    if not isinstance(manifest, dict):
+        return manifest
+    kept = {k: v for k, v in manifest.items() if k not in ("source", "source_commit")}
+    for key in ("files", "blocks"):
+        if isinstance(kept.get(key), dict):
+            kept[key] = {name: {k: v for k, v in entry.items() if k != "sha256"} if isinstance(entry, dict) else entry
+                         for name, entry in kept[key].items()}
+    return kept
 
 
 def sync_only(changed, base, head):

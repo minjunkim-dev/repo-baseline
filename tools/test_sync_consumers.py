@@ -53,6 +53,11 @@ class SyncOnlyTest(unittest.TestCase):
         reasons = self.reasons([MANIFEST, "src/app.py"], {}, {}, head_policy=added)
         self.assertIn("the manifest changes what is synced (files, blocks or exclude)", reasons)
         self.assertIn("src/app.py is not managed", reasons)
+        # A file entry's source decides what is copied, so it is policy, not a record.
+        moved = json.loads(json.dumps(POLICY))
+        moved["files"][".github/pull_request_template.md"]["source"] = "README.md"
+        self.assertIn("the manifest changes what is synced (files, blocks or exclude)",
+                      self.reasons([MANIFEST, ".github/pull_request_template.md"], {}, {}, head_policy=moved))
 
     def test_migration_unmanaged_and_sensitive_paths_are_not(self):
         self.assertEqual(sync_only([MANIFEST], {MANIFEST: None}, {MANIFEST: recorded(POLICY, "b")}),
