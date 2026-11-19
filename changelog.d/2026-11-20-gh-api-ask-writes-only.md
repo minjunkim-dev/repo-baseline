@@ -1,0 +1,1 @@
+- Claude 권한 예시(`templates/github/agents/claude-settings.json`)의 `gh api` 확인 규칙을 병합(`enqueuePullRequest`, `mergePullRequest`, 자동 병합, `/merge`)과 `PATCH`로 좁혔다. 읽기와 댓글 같은 쓰기는 더 묻지 않는다. 소비 레포는 `.claude/settings.json`의 `permissions.ask`에서 `Bash(gh api *)`를 이 다섯 줄로 바꾼다.

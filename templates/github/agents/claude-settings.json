@@ -17,7 +17,11 @@
     "ask": [
       "Bash(gh pr merge *)",
       "Bash(gh pr merge)",
-      "Bash(gh api *)"
+      "Bash(gh api *enqueuePullRequest*)",
+      "Bash(gh api *mergePullRequest*)",
+      "Bash(gh api *PullRequestAutoMerge*)",
+      "Bash(gh api */merge*)",
+      "Bash(gh api *PATCH*)"
     ]
   }
 }
