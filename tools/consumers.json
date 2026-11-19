@@ -1,0 +1,39 @@
+{
+  "enqueue": "sync-only",
+  "consumers": [
+    {
+      "repo": "minjunkim-labs/BGLike",
+      "manifest": {
+        "files": {".github/pull_request_template.md": {"source": ".github/pull_request_template.md"}},
+        "blocks": {"ops": {"target": "AGENTS.md", "exclude": {"Cloudflare": "웹 도메인이 없는 데스크톱 게임"}}}
+      }
+    },
+    {
+      "repo": "minjunkim-labs/smallnext",
+      "manifest": {
+        "files": {".github/pull_request_template.md": {"source": ".github/pull_request_template.md"}},
+        "blocks": {"ops": {"target": "AGENTS.md"}}
+      }
+    },
+    {
+      "repo": "minjunkim-labs/portfolio",
+      "manifest": {
+        "files": {".github/pull_request_template.md": {"source": ".github/pull_request_template.md"}},
+        "blocks": {"ops": {"target": "AGENTS.md"}}
+      }
+    },
+    {
+      "repo": "minjunkim-labs/answer-desk",
+      "manifest": {
+        "files": {".github/pull_request_template.md": {"source": ".github/pull_request_template.md"}},
+        "blocks": {"ops": {"target": "AGENTS.md"}}
+      }
+    },
+    {
+      "repo": "minjunkim-labs/mobile-runtime",
+      "manifest": {
+        "files": {".github/pull_request_template.md": {"source": ".github/pull_request_template.md"}}
+      }
+    }
+  ]
+}

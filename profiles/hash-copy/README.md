@@ -21,5 +21,7 @@ python3 profiles/hash-copy/apply_baseline.py <소비 레포 경로>
    파일을 복사하고 `source_commit`과 각 파일의 `sha256`을 manifest에 쓴다. 덮어쓰면 기록되지 않은 내용을 잃는 파일(기록된 `sha256`과 다르거나 지워진 파일, 기록 없이 이미 있던 파일)이 하나라도 있으면 아무것도 쓰지 않고 그 이름을 대고 멈춘다. 새 내용과 이미 같은 파일은 멈추지 않는다. 처음 적용할 때 PR 양식처럼 이미 있던 파일도 멈추므로, 내용을 확인한 뒤 `--force`로 덮어쓴다. 판 올리기에서 멈추면 `docs/start.md` 「판 올리기」를 따른다. `--check`는 쓰지 않고 지금 원본과 다른 파일만 보고한다.
 3. 소비 레포 CI에서 `python3 scripts/check_repo_baseline.py`를 돌린다(manifest에 `scripts/check_repo_baseline.py`가 들어 있어야 한다). 해시가 다르면 실패한다. `.mcp.json`에 비밀값처럼 보이는 문자 그대로의 값이 있어도 실패한다.
 4. `ecosystems`가 있는 항목은 복사 대신 생성한다. `templates/github/dependabot.yml` 뒤에 생태계마다 `profiles/hash-copy/dependabot-ecosystem.yml` 블록(옛 소비 레포 형식, `$ecosystem`·`$directory` 치환)을 붙인다.
+5. `blocks`는 파일 전체가 아니라 파일 안의 관리 블록을 쓴다. 예: `"blocks": {"ops": {"target": "AGENTS.md", "exclude": {"Cloudflare": "웹 도메인이 없다"}}}`. 표시 줄(`<!-- repo-baseline:ops -->` … `<!-- /repo-baseline:ops -->`) 사이만 `tools/check_ops.py`의 `ops_block()` 결과로 바꾸고, 블록 밖은 그대로 둔다. 블록의 sha256도 기록한다. 표시 줄이 없으면 멈추고, `--force`면 옛 `### ops` 절을 블록으로 바꾸거나 「작업 방식」 끝에 더한다. 지금 블록은 ops 하나다.
+6. 여러 소비 레포는 `tools/sync_consumers.py`로 한 번에 맞춘다. 목록과 처음 manifest는 `tools/consumers.json`에 있다.
 
 `source` 경로는 2026-11 재배치(#66) 뒤의 위치다. 옛 경로(`scripts/…`, `templates/dependabot.yml`)를 적은 소비 레포 manifest는 다시 적용하기 전에 고쳐야 한다(W9).

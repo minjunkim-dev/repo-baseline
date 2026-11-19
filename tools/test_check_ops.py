@@ -1,4 +1,4 @@
-"""check_ops.py against the real ops README: its own 「켜기」 snippet must pass."""
+"""check_ops.py against the real ops README: its own 「켜기」 block must pass."""
 
 from contextlib import redirect_stdout
 from io import StringIO
@@ -9,18 +9,16 @@ import unittest
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from check_ops import README, check, main, rules, tools  # noqa: E402
+from check_ops import BEGIN, END, README, check, main, mentions, ops_block, snippet, tools  # noqa: E402
 
 README_TEXT = README.read_text(encoding="utf-8")
-SNIPPET = README_TEXT.split("## 켜기", 1)[1].split("```markdown\n", 1)[1].split("```", 1)[0]
+BLOCK = ops_block(README_TEXT, {})
 ENV = "SENTRY_DSN=\nSENTRY_AUTH_TOKEN=\nPOSTHOG_KEY=\nPOSTHOG_HOST=\n"
 AGENTS = "# app\n\n## 작업 방식\n\n- 규칙\n\n{ops}\n## 하지 않는 것\n\n- 없음\n"
-NO_CLOUDFLARE = SNIPPET.replace(", 도메인은 Cloudflare에", "").replace("DNS, Cloudflare, ", "DNS, ")
-CLOUDFLARE_OUT = NO_CLOUDFLARE + "- 뺀 도구: Cloudflare — 웹 도메인이 없는 데스크톱 게임\n"
 
 
 class CheckOpsTest(unittest.TestCase):
-    def repo(self, ops=SNIPPET, env=None):
+    def repo(self, ops=BLOCK, env=None):
         temporary = TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         root = Path(temporary.name)
@@ -34,64 +32,57 @@ class CheckOpsTest(unittest.TestCase):
 
     def test_readme_parts_are_found(self):
         self.assertEqual(len(tools(README_TEXT)), 8)
-        self.assertGreater(len(rules(README_TEXT)), 5)
+        lines = snippet(README_TEXT)
+        self.assertEqual((lines[0], lines[-1]), (BEGIN, END))
 
-    def test_setup_state_passes_without_env_example(self):
-        # prompts/setup.md pastes the section and creates no .env* file.
+    def test_every_rule_line_names_at_most_one_tool(self):
+        # One tool per line is what makes an exclusion a plain line deletion.
+        for line in snippet(README_TEXT):
+            named = [tool for tool in tools(README_TEXT) if mentions(tool, line)]
+            self.assertLessEqual(len(named), 1, line)
+
+    def test_block_as_copied_passes(self):
         self.assertEqual(self.problems(), [])
 
-    def test_missing_section_fails(self):
-        self.assertEqual(self.problems(ops=""), ["AGENTS.md에 `### ops` 절이 없다"])
+    def test_missing_markers_fail(self):
+        self.assertEqual(len(self.problems(ops=BLOCK.replace(END + "\n", ""))), 1)
+        self.assertEqual(len(self.problems(ops="### ops\n")), 1)
 
-    def test_dropped_rule_fails_even_if_tool_named_elsewhere(self):
-        ops = SNIPPET.replace("- 배포한 URL은 UptimeRobot에, 도메인은 Cloudflare에 소유자가 등록한다.\n", "")
-        self.assertNotEqual(ops, SNIPPET)
-        problems = self.problems(ops=ops)
-        self.assertEqual(len(problems), 1)
-        self.assertIn("UptimeRobot", problems[0])
+    def test_any_edit_inside_the_block_fails(self):
+        dropped = BLOCK.replace("- 배포한 URL은 UptimeRobot에 소유자가 등록한다.\n", "")
+        self.assertNotEqual(dropped, BLOCK)
+        self.assertEqual(self.problems(ops=dropped), ["블록에 없다: - 배포한 URL은 UptimeRobot에 소유자가 등록한다."])
+        body = BLOCK.splitlines()[3:-1]
+        reordered = BLOCK.replace("\n".join(body), "\n".join(reversed(body)))
+        self.assertTrue(self.problems(ops=reordered))
 
-    def test_excluded_tool_may_be_reworded(self):
-        self.assertEqual(len(self.problems(ops=NO_CLOUDFLARE)), 2)
-        self.assertEqual(self.problems(ops=CLOUDFLARE_OUT), [])
+    def test_exclusion_drops_that_tools_lines_only(self):
+        block = ops_block(README_TEXT, {"Cloudflare": "웹 도메인이 없는 데스크톱 게임"})
+        self.assertNotIn("Cloudflare에", block)
+        self.assertIn("UptimeRobot", block)
+        self.assertIn("- 뺀 도구: Cloudflare — 웹 도메인이 없는 데스크톱 게임\n" + END, block)
+        self.assertEqual(self.problems(ops=block), [])
+        # An exclusion line without deleting the tool's lines is not the generated block.
+        kept = BLOCK.replace(END, "- 뺀 도구: Cloudflare — 이유\n" + END)
+        self.assertTrue(any("있으면 안 된다" in p for p in self.problems(ops=kept)))
 
-    def test_exclusion_keeps_other_tools_on_the_same_line(self):
-        ops = CLOUDFLARE_OUT.replace("배포한 URL은 UptimeRobot에 소유자가 등록한다.", "소유자가 등록한다.")
-        self.assertEqual(self.problems(ops=ops), ["ops 절에 없고 `뺀 도구:` 줄도 없다: UptimeRobot"])
-        ops = ops.replace("데스크톱 게임", "데스크톱 게임, UptimeRobot과 무관")
-        self.assertEqual(self.problems(ops=ops), ["ops 절에 없고 `뺀 도구:` 줄도 없다: UptimeRobot"])
+    def test_secret_names_go_with_their_tool(self):
+        block = ops_block(README_TEXT, {"Sentry": "서버가 없는 정적 페이지"})
+        self.assertNotIn("SENTRY_", block)
+        self.assertIn("POSTHOG_KEY", block)
 
     def test_exclusion_line_format_and_name(self):
-        problems = self.problems(ops=SNIPPET + "- 뺀 도구: Cloudflare\n- 뺀 도구: Datadog — 비싸다\n")
-        self.assertEqual(len(problems), 2)
-        self.assertIn("형식", problems[0])
-        self.assertIn("Datadog", problems[1])
+        self.assertIn("표에 없는 도구", self.problems(ops=BLOCK.replace(END, "- 뺀 도구: Datadog — 비싸다\n" + END))[0])
+        self.assertIn("형식", self.problems(ops=BLOCK.replace(END, "- 뺀 도구: Cloudflare\n" + END))[0])
 
     def test_sdk_stage_checks_env_example(self):
         self.assertEqual(self.problems(sdk=True)[0], ".env.example에 SENTRY_DSN 칸이 없다")
         self.assertEqual(self.problems(sdk=True, env=ENV), [])
-        self.assertEqual(self.problems(sdk=True, env=ENV.replace("POSTHOG_HOST=\n", "")),
-                         [".env.example에 POSTHOG_HOST 칸이 없다"])
         self.assertEqual(self.problems(sdk=True, env=ENV.replace("POSTHOG_KEY=", "NEXT_PUBLIC_POSTHOG_KEY=")), [])
         self.assertEqual(self.problems(sdk=True, env=ENV.replace("SENTRY_AUTH_TOKEN=", "SENTRY_AUTH_TOKEN=abc")),
                          [".env.example의 SENTRY_AUTH_TOKEN에 값이 있다. 빈 칸으로 둔다"])
-
-    def test_excluded_tool_skips_its_names(self):
-        ops = SNIPPET.replace("에러 추적은 Sentry, ", "") + "- 뺀 도구: Sentry — 서버가 없는 정적 페이지\n"
-        self.assertEqual(self.problems(sdk=True, ops=ops, env="POSTHOG_KEY=\nPOSTHOG_HOST=\n"), [])
-        # Lines that name Sentry only through its secret names may be reworded too.
-        ops = (ops.replace("`SENTRY_DSN`, `SENTRY_AUTH_TOKEN`, ", "")
-               .replace("- `SENTRY_AUTH_TOKEN`은 GitHub secrets에만 둔다.\n", ""))
-        self.assertEqual(self.problems(ops=ops), [])
-        dropped = "\n".join(line for line in ops.splitlines() if not line.startswith("- 개인 정보는"))
-        self.assertEqual(len(self.problems(ops=dropped)), 1)
-        # The other tool's secret names on a reworded line must stay.
-        ops = ops.replace("`POSTHOG_KEY`, `POSTHOG_HOST`다", "없다")
-        self.assertEqual(self.problems(ops=ops), ["ops 절에 없고 `뺀 도구:` 줄도 없다: POSTHOG_KEY",
-                                                  "ops 절에 없고 `뺀 도구:` 줄도 없다: POSTHOG_HOST"])
-
-    def test_secret_names_do_not_stand_in_for_the_tool_name(self):
-        ops = SNIPPET.replace("에러 추적은 Sentry, 제품 분석은 PostHog다. ", "") + "- 뺀 도구: PostHog — 분석 안 함\n"
-        self.assertEqual(self.problems(ops=ops), ["ops 절에 없고 `뺀 도구:` 줄도 없다: Sentry"])
+        block = ops_block(README_TEXT, {"Sentry": "정적 페이지"})
+        self.assertEqual(self.problems(sdk=True, ops=block, env="POSTHOG_KEY=\nPOSTHOG_HOST=\n"), [])
 
     def test_cli_flag_and_path(self):
         root = self.repo()

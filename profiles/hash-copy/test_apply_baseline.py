@@ -209,5 +209,69 @@ class ApplyBaselineTests(unittest.TestCase):
                 apply_baseline.apply(self.project, check=True)
 
 
+
+class BlockTests(unittest.TestCase):
+    """The ops block in AGENTS.md, written with tools/check_ops.py ops_block()."""
+
+    AGENTS = "# app\n\n## 작업 방식\n\n- 규칙\n\n### ops\n\n- 옛 문구\n\n## 하지 않는 것\n\n- 없음\n"
+
+    def setUp(self):
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        self.project = Path(folder.name)
+        (self.project / ".github").mkdir()
+        (self.project / "AGENTS.md").write_text(self.AGENTS, encoding="utf-8")
+        self.manifest({"ops": {"target": "AGENTS.md", "exclude": {"Cloudflare": "웹 도메인이 없다"}}})
+
+    def manifest(self, blocks):
+        (self.project / apply_baseline.MANIFEST).write_text(json.dumps({"blocks": blocks}, ensure_ascii=False))
+
+    def agents(self):
+        return (self.project / "AGENTS.md").read_text(encoding="utf-8")
+
+    def apply(self, **kwargs):
+        with patch.object(apply_baseline, "git", fake_git):
+            return apply_baseline.apply(self.project, **kwargs)
+
+    def test_unmarked_section_stops_until_forced_then_matches_check_ops(self):
+        with self.assertRaisesRegex(ValueError, "no markers"):
+            self.apply()
+        self.assertEqual(self.agents(), self.AGENTS)
+        self.assertEqual(self.apply(force=True), ["AGENTS.md#ops"])
+        text = self.agents()
+        self.assertNotIn("옛 문구", text)
+        self.assertTrue(text.startswith("# app\n\n## 작업 방식\n\n- 규칙\n\n" + apply_baseline.OPS.BEGIN))
+        self.assertTrue(text.endswith(apply_baseline.OPS.END + "\n\n## 하지 않는 것\n\n- 없음\n"))
+        readme = (apply_baseline.HERE / "profiles/ops/README.md").read_text(encoding="utf-8")
+        self.assertEqual(apply_baseline.OPS.check(self.project, readme), [])
+        self.assertEqual(self.apply(check=True), [])
+
+    def test_block_is_added_to_work_section_when_there_is_none(self):
+        (self.project / "AGENTS.md").write_text("# app\n\n## 작업 방식\n\n- 규칙\n\n## 하지 않는 것\n", encoding="utf-8")
+        self.apply(force=True)
+        text = self.agents()
+        self.assertLess(text.index("- 규칙"), text.index(apply_baseline.OPS.BEGIN))
+        self.assertLess(text.index(apply_baseline.OPS.END), text.index("## 하지 않는 것"))
+
+    def test_edit_inside_block_stops_and_outside_is_kept(self):
+        self.apply(force=True)
+        (self.project / "AGENTS.md").write_text(self.agents() + "\n- 프로젝트 줄\n", encoding="utf-8")
+        self.assertEqual(self.apply(), [])
+        self.assertTrue(self.agents().endswith("- 프로젝트 줄\n"))
+        edited = self.agents().replace("감시 대상 변경은", "감시 대상은")
+        (self.project / "AGENTS.md").write_text(edited, encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "differs from recorded sha256"):
+            self.apply()
+        self.assertEqual(self.apply(check=True), ["AGENTS.md#ops"])
+
+    def test_invalid_blocks_stop(self):
+        for blocks in ({"ops": {"target": "AGENTS.md", "exclude": {"Datadog": "x"}}},
+                       {"pstack": {"target": "AGENTS.md"}},
+                       {"ops": {"target": "MISSING.md"}},
+                       {"ops": {"target": "../AGENTS.md"}}):
+            self.manifest(blocks)
+            with self.assertRaises(ValueError):
+                self.apply(force=True)
+
 if __name__ == "__main__":
     unittest.main()
