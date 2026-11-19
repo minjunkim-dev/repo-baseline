@@ -7,7 +7,7 @@
 ## 기본값과 예외
 
 - 표의 도구를 모두 쓴다. 저장소마다 도구를 다시 고르지 않는다.
-- 빼는 도구만 그 저장소 `AGENTS.md`의 ops 블록 끝에 `뺀 도구: <도구> — <이유>` 한 줄로 적고, 그 도구가 나오는 줄을 지운다(「켜기」). 예: `뺀 도구: Cloudflare — 웹 도메인이 없는 데스크톱 게임`. 이 줄이 없으면 모두 쓴다.
+- 빼는 도구만 적는다. hash-copy manifest(`.github/repo-baseline.json`)가 있는 저장소는 `blocks.ops.exclude`에 적고, 도구가 블록을 다시 쓴다. manifest가 없으면 `AGENTS.md`의 ops 블록 끝에 `뺀 도구: <도구> — <이유>` 한 줄로 적고, 그 도구가 나오는 줄을 지운다(「켜기」). 예: `뺀 도구: Cloudflare — 웹 도메인이 없는 데스크톱 게임`. 이 줄이 없으면 모두 쓴다.
 - Grafana Cloud와 Infisical은 표의 조건이 생기면 켠다. 조건이 없을 때 켜지 않은 것은 예외가 아니다.
 - ops 절은 저장소를 만들 때 넣는다. SDK 설치와 감시 등록은 처음 배포하는 PR에서 한다. 보낼 에러와 사용자가 생기는 때이고, SDK PR은 되돌리기 어려움이라 소유자가 diff를 읽기 때문이다.
 - 이미 배포한 앱에 처음 켜면 ops 절을 붙이는 PR이 병합된 뒤 SDK 설치와 감시 등록만 하는 PR을 따로 연다. 판 올리기에서도 같다.
@@ -59,7 +59,7 @@
 
 ## 켜기
 
-소비 레포 `AGENTS.md` 「작업 방식」 끝에 아래 블록을 표시 줄(`<!-- repo-baseline:ops -->`, `<!-- /repo-baseline:ops -->`)까지 그대로 붙인다. 규칙을 그대로 옮기므로 repo-baseline 클론이 없는 세션도 읽는다. 블록 안은 손으로 고치지 않는다. 빼는 도구가 있으면 그 도구 이름(또는 그 도구의 비밀값 이름)이 나오는 줄을 지우고, 끝 표시 줄 바로 앞에 `- 뺀 도구: <도구> — <이유>` 줄을 더한다. 여러 도구를 빼면 이 줄은 위 도구 표의 순서로 둔다. 줄마다 도구가 하나뿐이라 이 두 가지 말고는 바꿀 것이 없다. hash-copy manifest의 `blocks`에 적으면 도구가 이 일을 한다(`profiles/hash-copy/README.md`).
+소비 레포 `AGENTS.md` 「작업 방식」 끝에 아래 블록을 표시 줄(`<!-- repo-baseline:ops -->`, `<!-- /repo-baseline:ops -->`)까지 그대로 붙인다. 규칙을 그대로 옮기므로 repo-baseline 클론이 없는 세션도 읽는다. 블록 안은 손으로 고치지 않는다. hash-copy manifest가 있는 저장소는 빼는 도구를 `blocks.ops.exclude`에 적고 `apply_baseline.py`가 블록을 쓴다(manifest에 `blocks.ops`가 없으면 먼저 더한다). manifest가 없는 저장소만 손으로 한다: 빼는 도구가 있으면 그 도구 이름(또는 그 도구의 비밀값 이름)이 나오는 줄을 지우고, 끝 표시 줄 바로 앞에 `- 뺀 도구: <도구> — <이유>` 줄을 더한다. 여러 도구를 빼면 이 줄은 위 도구 표의 순서로 둔다. 줄마다 도구가 하나뿐이라 이 두 가지 말고는 바꿀 것이 없다. hash-copy manifest의 `blocks`에 적으면 도구가 이 일을 한다(`profiles/hash-copy/README.md`).
 
 ```markdown
 <!-- repo-baseline:ops -->
