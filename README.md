@@ -1,7 +1,7 @@
 # repo-baseline
 
 1인·소규모 팀이 언어·스택·에이전트 도구(어떤 코딩 에이전트든)와 관계없이 바로 안전하게 개발을 시작하게 하는 최소 기준이다.
-코어는 복사만 하는 작은 파일 4개와 한 쪽짜리 규칙([POLICY.md](POLICY.md))이다. 나머지는 이유가 있을 때만 켜는 프로필이다.
+코어는 복사만 하는 작은 파일 4개와 한 쪽짜리 규칙([POLICY.md](POLICY.md))이다. GitHub에 올리면 github 프로필도 켠다. 나머지는 이유가 있을 때만 켜는 프로필이다.
 
 ## 코어 적용 3단계
 
@@ -15,13 +15,14 @@
 
 | 프로필 | 언제 켜는가 |
 | --- | --- |
-| [github](templates/github/) | GitHub에 올릴 때(권장). 브랜치 보호, 필수 CI, push protection, Dependabot, CI 골격, SECURITY.md, CodeRabbit 한국어 리뷰 설정, 에이전트 권한 예시 |
+| [github](templates/github/) | GitHub에 올리면 켠다(POLICY §5가 브랜치 보호·필수 CI·머지 큐를 요구한다). 브랜치 보호, 필수 CI, push protection, Dependabot, CI 골격, SECURITY.md, CodeRabbit 한국어 리뷰 설정, 에이전트 권한 예시 |
 | [pr-conventions](profiles/pr-conventions/) | PR 제목·본문 형식을 CI로 검사하고 싶을 때 |
-| [hash-copy](profiles/hash-copy/) | 공통 검사기를 해시로 고정해 여러 저장소에 똑같이 두고 싶을 때(Python 필요) |
 | [team](profiles/team/) | 2명 이상. CODEOWNERS와 사람 승인 |
 | [matt-skills](profiles/matt-skills/) | 리뷰의 두 축 판단·회고·PR 본문을 Matt Pocock 스킬에 맡기고 싶을 때. 켜면 스킬 설치가 규칙이다(설치 확인 스크립트) |
 | [ops](profiles/ops/) | 배포해서 사람이 쓰는 앱. 에러 추적·제품 분석·감시 도구를 조직에서 한 번 켤 것과 소비 레포마다 할 것, 비밀값 이름 |
 | [pstack](profiles/pstack/) | pstack 스킬을 쓸 때. 기본 동작 중 이 기준과 어긋나는 것(병합, 바로 반영, 규칙 위치)을 `AGENTS.md`에 적는다 |
+
+위 프로필은 규칙을 더한다. [hash-copy](profiles/hash-copy/)는 규칙이 아니라 이 저장소의 파일을 소비 레포에 복사하는 도구다. 공통 검사기를 해시로 고정해 여러 저장소에 똑같이 두고 싶을 때 쓴다(Python 필요).
 
 PR을 열면 [prompts/review.md](prompts/review.md)로 리뷰한다. 되돌리기 쉬움이고 민감한 파일을 건드리지 않으면 구현 세션의 하위 에이전트가 리뷰해도 되고, 어려움이거나 민감한 파일을 건드리면 새 세션이 리뷰한다. 리뷰하는 기기에는 이 저장소의 클론과 Python 3.9 이상이 있어야 한다(리뷰 전 확인 스크립트).
 회고는 정기 실행하지 않는다. 같은 지적이 반복될 때 [prompts/retro.md](prompts/retro.md)를 실행한다.
