@@ -77,6 +77,7 @@
 - `git check-ignore -q .env && git check-ignore -q .env.local && echo ignored`: `ignored`가 나온다. 예외 줄(`!.env`)이 있거나 이미 커밋된 파일이면 나오지 않는다.
 - `git status`: 비밀값 파일이 스테이징되지 않았다.
 - `CLAUDE.md`·`CLAUDE.local.md`가 없거나 `@AGENTS.md` 한 줄이고, `.claude/CLAUDE.md`가 없거나 `@../AGENTS.md` 한 줄이다. 상위 폴더에 `CLAUDE.md`가 있으면 보고에 적는다.
+- ops 프로필을 했으면: `python3 <repo-baseline 클론>/tools/check_ops.py`가 `ops: 통과`를 출력한다. `--sdk`는 붙이지 않는다. 이 단계는 `.env*` 파일을 만들지 않기 때문이다.
 - GitHub 프로필을 했으면: workflow 파일의 YAML이 파싱된다(쓸 수 있는 도구로). 확인하지 못했으면 그렇게 적는다. 이 PR에 `SECURITY.md`를 넣었으면 `.github/`, 루트, `docs/` 중 한 곳에만 있고, 그 파일에 `grep -n 'OWNER/REPO'`가 아무것도 출력하지 않는다.
 
 ## 5. PR 열기
@@ -84,7 +85,7 @@
 커밋하고 PR을 연다. 본문은 `.github/pull_request_template.md` 양식이다.
 
 - Author: 너의 도구 / 모델.
-- Summary: 코어 적용(했으면 GitHub 프로필·ops 프로필도). 완료 기준: 템플릿 빈칸이 없다, `.env`가 무시된다, 비밀값이 스테이징되지 않았다, `CLAUDE.md`가 없거나 `@AGENTS.md` 한 줄이다, (GitHub 프로필을 했으면) workflow YAML이 파싱된다. 전에 통과하던 프로젝트 명령은 그대로 통과한다.
+- Summary: 코어 적용(했으면 GitHub 프로필·ops 프로필도). 완료 기준: 템플릿 빈칸이 없다, `.env`가 무시된다, 비밀값이 스테이징되지 않았다, `CLAUDE.md`가 없거나 `@AGENTS.md` 한 줄이다, (GitHub 프로필을 했으면) workflow YAML이 파싱된다, (ops 프로필을 했으면) `check_ops.py`가 통과한다. 전에 통과하던 프로젝트 명령은 그대로 통과한다.
 - Evidence: 4단계 출력. 확인하지 않은 범위.
 - Merge Danger: 코어만이면 되돌리기 쉬움, GitHub 프로필을 했으면 되돌리기 어려움과 걸린 경로.
 - Review: 비워 둔다. 리뷰는 다른 컨텍스트가 원본 저장소의 `prompts/review.md`로 한다.
