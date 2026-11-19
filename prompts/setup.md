@@ -9,7 +9,7 @@
 ## 지킬 것
 
 - 원본은 공개 저장소 `https://github.com/minjunkim-labs/repo-baseline`의 `main`이다. 저장소 밖 임시 폴더에 clone해서 읽는다.
-- 읽을 것은 `templates/core/`, `POLICY.md`, (GitHub이면) `templates/github/`뿐이다. 판 올리기면 `CHANGELOG.md`와 `changelog.d/`, `docs/start.md` 「판 올리기」, 옮길 항목이 가리키는 파일(예: `profiles/` 아래 파일)도 읽는다. 옛 문서는 읽지 않는다.
+- 읽을 것은 `templates/core/`, `POLICY.md`, (GitHub이면) `templates/github/`, (배포하는 앱이면) `profiles/ops/README.md`뿐이다. 판 올리기면 `CHANGELOG.md`와 `changelog.d/`, `docs/start.md` 「판 올리기」, 옮길 항목이 가리키는 파일(예: `profiles/` 아래 파일)도 읽는다. 옛 문서는 읽지 않는다.
 - 있는 파일을 덮어쓰지 않는다. 이미 있으면 템플릿 내용을 합치고, 합친 내용을 보고한다. 예외: 판 올리기에서 `docs/start.md` 「판 올리기」가 다시 쓰라는 파일(`apply_baseline.py`가 쓰는 파일, 손으로 복사한 코어 파일)은 덮어쓴다. `apply_baseline.py`가 멈추면 0절 3번을 따른다. `AGENTS.md`·`REVIEW.md`는 판 올리기에서도 바뀐 줄만 합치고, `.gitignore`는 1단계처럼 없는 줄만 붙인다.
 - 비밀값 파일(`.env*`, 키)을 읽거나 만들거나 커밋하지 않는다.
 - `main`에 직접 push하지 않는다. PR을 병합하지 않는다.
@@ -26,8 +26,8 @@
 1. 작업 브랜치를 만든다.
 2. 지난번에 맞춘 때를 정한다. hash-copy를 쓰면 `apply_baseline.py`를 돌리기 전의 `.github/repo-baseline.json` `source_commit`이다. 이 도구가 그 값을 새 판으로 바꾸므로 먼저 적어 둔다. 원본 clone에서 `git log -p --format='%h %cs %s' <source_commit>..origin/main -- CHANGELOG.md changelog.d/`의 `+` 줄로 그 뒤에 더해진 항목을 찾는다. 그 밖에는 저장소에서 확인할 수 없으면 어림한 시점과 근거를 보고에 적는다.
 3. hash-copy를 쓰면 `apply_baseline.py`로 적용한다. 소비 레포에서 고친 파일이 있으면 도구가 아무것도 쓰지 않고 멈춘다. 그때는 멈춘 파일과 고친 내용을 보고하고, 그 수정을 원본에 반영할지 소유자에게 묻는다. 그 뒤는 `docs/start.md` 「판 올리기」대로 한다. `--force`는 소유자가 답한 뒤에만 쓴다.
-4. 원본의 `docs/start.md` 「판 올리기」를 따른다. `CHANGELOG.md`와 `changelog.d/`에서 2번 시점 뒤의 항목을 읽고, 소비 레포가 옮길 일을 한다. 이 저장소에 없는 프로필의 항목은 건너뛴다. 2번 시점은 hash-copy 파일을 맞춘 판이거나 어림이라, 손으로 옮길 일은 끝냈다는 보장이 없다. 그래서 `CHANGELOG.md`와 `changelog.d/`의 손으로 옮길 일은 절·파일과 관계없이 모든 항목을, 2번 시점 앞의 것도 저장소에 반영됐는지 확인하고, 빠졌으면 옮긴다. 재설계 전 기록(`CHANGELOG-2026.md`)은 다른 파일이라 이 범위에 들어가지 않는다.
-5. 3단계 검증과 4단계 PR은 그대로 한다. 다만 검사기가 바뀌는 판이면 PR 본문은 `docs/start.md` 「판 올리기」대로 옛 형식으로 쓴다. Summary에는 반영한 변경 기록 항목과 건너뛴 항목을 적는다. `POLICY.md` §4의 민감한 파일을 건드렸으면 이 PR은 되돌리기 어려움이다.
+4. 원본의 `docs/start.md` 「판 올리기」를 따른다. `CHANGELOG.md`와 `changelog.d/`에서 2번 시점 뒤의 항목을 읽고, 소비 레포가 옮길 일을 한다. 이 저장소에 없는 프로필의 항목은 건너뛴다. ops 프로필은 예외다. 저장소가 배포하는 앱이고 `AGENTS.md`에 `### ops` 절이 없으면 3단계를 한다. 2번 시점은 hash-copy 파일을 맞춘 판이거나 어림이라, 손으로 옮길 일은 끝냈다는 보장이 없다. 그래서 `CHANGELOG.md`와 `changelog.d/`의 손으로 옮길 일은 절·파일과 관계없이 모든 항목을, 2번 시점 앞의 것도 저장소에 반영됐는지 확인하고, 빠졌으면 옮긴다. 재설계 전 기록(`CHANGELOG-2026.md`)은 다른 파일이라 이 범위에 들어가지 않는다.
+5. 4단계 검증과 5단계 PR은 그대로 한다. 다만 검사기가 바뀌는 판이면 PR 본문은 `docs/start.md` 「판 올리기」대로 옛 형식으로 쓴다. Summary에는 반영한 변경 기록 항목과 건너뛴 항목을 적는다. `POLICY.md` §4의 민감한 파일을 건드렸으면 이 PR은 되돌리기 어려움이다.
 
 ## 1. 코어 적용
 
@@ -60,7 +60,15 @@
 
 `.github/workflows/**`, 저장소 설정 파일, 에이전트 설정 폴더(`.claude/`·`.agents/`·`.codex/`·`.cursor/` 등)와 `.mcp.json`은 민감한 파일이다(`POLICY.md` §4). 이 단계를 했으면 이 PR은 되돌리기 어려움이다.
 
-## 3. 검증
+## 3. ops 프로필 (배포하는 앱일 때만)
+
+저장소가 배포해서 사람이 쓰는 앱(웹, 서버, 모바일, 게임)이 아니면 이 단계를 건너뛰고 보고에 적는다. 판단이 애매하면 소유자에게 묻는다.
+
+1. 원본의 `profiles/ops/README.md`를 읽는다.
+2. 그 「켜기」 절을 `AGENTS.md` 「작업 방식」 끝에 붙인다. 빼는 도구가 분명하면(예: 웹 도메인이 없으면 Cloudflare) 절에서 그 도구를 지우고 `뺀 도구: <도구> — <이유>` 줄을 더한다.
+3. SDK는 설치하지 않는다. 아직 배포하지 않았으면 처음 배포하는 PR에서 한다. 이미 배포한 앱이면 이 PR이 병합된 뒤 SDK와 감시 등록만 하는 PR을 따로 연다. 그 PR은 되돌리기 어려움이다. 보고에 이 다음 일을 적는다.
+
+## 4. 검증
 
 모두 실제로 돌리고 출력을 보고에 붙인다.
 
@@ -71,13 +79,13 @@
 - `CLAUDE.md`·`CLAUDE.local.md`가 없거나 `@AGENTS.md` 한 줄이고, `.claude/CLAUDE.md`가 없거나 `@../AGENTS.md` 한 줄이다. 상위 폴더에 `CLAUDE.md`가 있으면 보고에 적는다.
 - GitHub 프로필을 했으면: workflow 파일의 YAML이 파싱된다(쓸 수 있는 도구로). 확인하지 못했으면 그렇게 적는다. 이 PR에 `SECURITY.md`를 넣었으면 `.github/`, 루트, `docs/` 중 한 곳에만 있고, 그 파일에 `grep -n 'OWNER/REPO'`가 아무것도 출력하지 않는다.
 
-## 4. PR 열기
+## 5. PR 열기
 
 커밋하고 PR을 연다. 본문은 `.github/pull_request_template.md` 양식이다.
 
 - Author: 너의 도구 / 모델.
-- Summary: 코어 적용(했으면 GitHub 프로필도). 완료 기준: 템플릿 빈칸이 없다, `.env`가 무시된다, 비밀값이 스테이징되지 않았다, `CLAUDE.md`가 없거나 `@AGENTS.md` 한 줄이다, (GitHub 프로필을 했으면) workflow YAML이 파싱된다. 전에 통과하던 프로젝트 명령은 그대로 통과한다.
-- Evidence: 3단계 출력. 확인하지 않은 범위.
+- Summary: 코어 적용(했으면 GitHub 프로필·ops 프로필도). 완료 기준: 템플릿 빈칸이 없다, `.env`가 무시된다, 비밀값이 스테이징되지 않았다, `CLAUDE.md`가 없거나 `@AGENTS.md` 한 줄이다, (GitHub 프로필을 했으면) workflow YAML이 파싱된다. 전에 통과하던 프로젝트 명령은 그대로 통과한다.
+- Evidence: 4단계 출력. 확인하지 않은 범위.
 - Merge Danger: 코어만이면 되돌리기 쉬움, GitHub 프로필을 했으면 되돌리기 어려움과 걸린 경로.
 - Review: 비워 둔다. 리뷰는 다른 컨텍스트가 원본 저장소의 `prompts/review.md`로 한다.
 
@@ -86,7 +94,7 @@
 아래 형식으로 짧게 보고한다.
 
 ```
-적용: 코어 [완료|부분|판 올리기(반영한 변경 기록 범위)] / GitHub 프로필 [완료|건너뜀(이유)]
+적용: 코어 [완료|부분|판 올리기(반영한 변경 기록 범위)] / GitHub 프로필 [완료|건너뜀(이유)] / ops 프로필 [완료|건너뜀(이유)]
 PR: <링크>
 명령 4칸: setup=<결과> check=<결과> test=<결과> build=<결과>
 합친 기존 파일: <없음|목록>
