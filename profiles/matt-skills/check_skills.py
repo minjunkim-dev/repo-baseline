@@ -2,9 +2,12 @@
 """Decide whether review may delegate to the Matt Pocock skills, before it uses them.
 
 Run it from the working tree of the repository under review, after the review preflight:
-    python3 -I <repo-baseline>/profiles/matt-skills/check_skills.py <base ref> --harness <claude|codex|cursor>
+    python3 -I <repo-baseline>/profiles/matt-skills/check_skills.py <base ref> --harness <claude|codex|cursor> [--settings <file>]...
 The harness is the one the reviewer runs in; only the folders it reads count.
-Exit 0: delegate. 1: a skill is not installed (stop the review).
+--settings (claude only, repeatable): a project settings file the reviewer's Claude Code loads after the user's.
+Its enabledPlugins override the user's, later files winning. Pass only a file the PR under review cannot change,
+so not one inside the tree under review.
+Exit 0: delegate. 1: a skill is not installed, or a --settings file cannot be read (stop the review).
 2: do not delegate (review it directly): the PR touched files a harness loads, or the answer is unclear.
 
 Scope: this decides delegation only. Instruction files the PR changed (AGENTS.md, rule files, what they import)
@@ -129,21 +132,31 @@ def plugin_version(root, cache):
     return tuple(int(n) for n in re.findall(r"\d+", version)) if numbered else (), str(root)
 
 
-def disabled(home, harness):
-    """Plugins ("<plugin>@<marketplace>") the user turned off; their cached copies cannot be called.
-    Claude Code keeps the switch in enabledPlugins (https://code.claude.com/docs/en/settings, checked 2026-11-10).
-    shortcut: user settings only; project or local settings that turn a plugin on or off are not read.
+def disabled(home, harness, project=()):
+    """Plugins ("<plugin>@<marketplace>") turned off; their cached copies cannot be called.
+    Claude Code keeps the switch in enabledPlugins; the highest source that names a plugin wins
+    (https://code.claude.com/docs/en/plugins/loading, checked 2026-11-19).
+    project: enabledPlugins of the --settings files, already read, in load order.
+    shortcut: only the files given are read; a local settings file the reviewer did not pass is not.
     """
     if harness != "claude":
         return set()
+    merged = {}
+    for plugins in (plugins_in(home / ".claude/settings.json") or {}, *project):
+        merged.update(plugins)
+    return {key for key, on in merged.items() if on is False}
+
+
+def plugins_in(file):
+    """enabledPlugins of one settings file, or None if the file cannot be read as settings."""
     try:
-        plugins = json.loads((home / ".claude/settings.json").read_text(encoding="utf-8")).get("enabledPlugins", {})
+        plugins = json.loads(Path(file).read_text(encoding="utf-8")).get("enabledPlugins", {})
     except (OSError, ValueError, AttributeError):
-        return set()
-    return {key for key, on in plugins.items() if on is False} if isinstance(plugins, dict) else set()
+        return None
+    return plugins if isinstance(plugins, dict) else None
 
 
-def find(name, marker, home, harness):
+def find(name, marker, home, harness, project=()):
     """Return (path of Matt's SKILL.md or None, paths of same-name skills that are not Matt's).
 
     A personal skill answers to the bare name, so a different one there hides Matt's copy in that harness.
@@ -155,7 +168,7 @@ def find(name, marker, home, harness):
     personal = [home / p for p in folders]
     cache = home / cache
     roots = list(cache.glob("*/mattpocock-skills*/*/skills")) + list(cache.glob("*/mattpocock-skills*/*/skills/*"))
-    off = disabled(home, harness)
+    off = disabled(home, harness, project)
     roots = [r for r in roots if "{1}@{0}".format(*r.relative_to(cache).parts) not in off]
     plugins = sorted(roots, key=lambda root: plugin_version(root, cache), reverse=True)
     found, others = None, []
@@ -174,12 +187,22 @@ def find(name, marker, home, harness):
 
 def main(argv=None, home=None):
     args = sys.argv[1:] if argv is None else argv
-    if len(args) != 3 or args[1] != "--harness" or args[2] not in HARNESSES:
+    extra, settings = args[3:], []
+    while extra[:1] == ["--settings"] and len(extra) >= 2 and not extra[1].startswith("-"):
+        settings.append(extra[1])
+        extra = extra[2:]
+    if len(args) < 3 or args[1] != "--harness" or args[2] not in HARNESSES or extra or (settings and args[2] != "claude"):
         print(__doc__.strip())
         return 2
+    project = [plugins_in(file) for file in settings]  # read once: every skill sees the same answer
+    for file, plugins in zip(settings, project):
+        if plugins is None:  # the reviewer asked for this file; 1, not 2, so setup (any exit but 1 passes) fails
+            print(f"--settings {file}: 설정 파일로 읽지 못했다")
+    if None in project:
+        return 1
     home, missing = Path(home or Path.home()), 0
     for name, marker in SKILLS.items():
-        skill, others = find(name, marker, home, args[2])
+        skill, others = find(name, marker, home, args[2], project)
         if skill:
             print(f"{name}: {skill} (sha256 {hashlib.sha256(skill.read_bytes()).hexdigest()[:12]})")
         else:
