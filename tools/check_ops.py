@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Check that a consumer repo carries the ops profile; never changes files or calls a service.
 
-Usage: python3 <repo-baseline clone>/tools/check_ops.py [consumer repo path, default .]
-The tool list comes from profiles/ops/README.md in this clone, so the README stays the only source.
+Usage: python3 <repo-baseline clone>/tools/check_ops.py [--sdk] [consumer repo path, default .]
+Without --sdk it checks the AGENTS.md ops section, which setup adds before any .env file exists.
+With --sdk it also checks the .env.example names, which the first-deploy SDK PR adds.
+The rules and the tool list come from profiles/ops/README.md in this clone, so the README stays the only source.
 Exit 0 when every check passes, 1 with one line per problem otherwise.
 """
 
@@ -13,6 +15,7 @@ import sys
 README = Path(__file__).resolve().parents[1] / "profiles/ops/README.md"
 # Each secret name belongs to the tool whose table cell contains this word.
 NAMES = {"SENTRY_DSN": "Sentry", "SENTRY_AUTH_TOKEN": "Sentry", "POSTHOG_KEY": "PostHog", "POSTHOG_HOST": "PostHog"}
+EXCLUSION = re.compile(r"\s*-?\s*뺀 도구:")
 
 
 def tools(readme_text):
@@ -22,13 +25,19 @@ def tools(readme_text):
     return [row.split("|")[2].strip() for row in rows[2:]]
 
 
+def rules(readme_text):
+    """Bullet lines of the 「켜기」 snippet, which a consumer copies as is."""
+    snippet = readme_text.split("## 켜기", 1)[1].split("```markdown\n", 1)[1].split("```", 1)[0]
+    return [line.rstrip() for line in snippet.splitlines() if line.startswith("- ")]
+
+
 def ops_section(agents_text):
     """Text under `### ops` up to the next heading of level 1-3, or None."""
     match = re.search(r"^### ops[ \t]*\n(.*?)(?=^#{1,3} |\Z)", agents_text, re.M | re.S)
     return match.group(1) if match else None
 
 
-def check(repo, readme_text):
+def check(repo, readme_text, sdk=False):
     known = tools(readme_text)
     agents = repo / "AGENTS.md"
     if not agents.is_file():
@@ -39,7 +48,7 @@ def check(repo, readme_text):
     problems = []
     excluded = set()
     for line in section.splitlines():
-        if not re.match(r"\s*-?\s*뺀 도구:", line):
+        if not EXCLUSION.match(line):
             continue  # the rule line that explains the format quotes it mid-line
         match = re.fullmatch(r"\s*-?\s*뺀 도구: (.+?) — (\S.*)", line)
         if not match:
@@ -48,14 +57,28 @@ def check(repo, readme_text):
             problems.append(f"표에 없는 도구를 뺐다: {match.group(1)}")
         else:
             excluded.add(match.group(1))
-    for tool in known:
-        if tool not in excluded and tool not in section:
-            problems.append(f"ops 절에 없고 `뺀 도구:` 줄도 없다: {tool}")
-    needed = [name for name, owner in NAMES.items()
-              if not any(owner in tool for tool in excluded)]
+    present = {line.rstrip() for line in section.splitlines()}
+    for rule in rules(readme_text):
+        if not any(tool in rule for tool in excluded):
+            if rule not in present:
+                problems.append(f"ops 절에 「켜기」 절의 줄이 그대로 없다: {rule}")
+            continue
+        # A rule naming an excluded tool may be reworded, but its other tools stay named.
+        for tool in known:
+            if tool in rule and tool not in excluded and tool not in section:
+                problems.append(f"ops 절에 없고 `뺀 도구:` 줄도 없다: {tool}")
+    if sdk:
+        problems += env_problems(repo, excluded)
+    return problems
+
+
+def env_problems(repo, excluded):
     example = repo / ".env.example"
     lines = example.read_text(encoding="utf-8").splitlines() if example.is_file() else []
-    for name in needed:
+    problems = []
+    for name, owner in NAMES.items():
+        if any(owner in tool for tool in excluded):
+            continue
         # A framework prefix such as NEXT_PUBLIC_ is allowed in front of the name.
         found = [line for line in lines if re.match(rf"\s*(?:export\s+)?(?:[A-Z0-9]+_)*{name}\s*=", line)]
         if not found:
@@ -66,8 +89,11 @@ def check(repo, readme_text):
 
 
 def main(argv):
-    repo = Path(argv[1] if len(argv) > 1 else ".")
-    problems = check(repo, README.read_text(encoding="utf-8"))
+    args = argv[1:]
+    sdk = "--sdk" in args
+    paths = [arg for arg in args if arg != "--sdk"]
+    repo = Path(paths[0] if paths else ".")
+    problems = check(repo, README.read_text(encoding="utf-8"), sdk=sdk)
     for problem in problems:
         print(problem)
     if not problems:
