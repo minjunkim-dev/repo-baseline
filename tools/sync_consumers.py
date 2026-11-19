@@ -9,8 +9,9 @@ Run it from a clean checkout whose HEAD is origin/main.
 - --open-prs: push the change to baseline/sync-<sha7> and open a PR. A consumer without
   .github/repo-baseline.json gets the manifest from consumers.json (a migration PR).
 - --enqueue: queue each open sync PR that is sync-only (sync_only() below) at its head SHA.
-  This is the standing order in consumers.json ("enqueue": "sync-only", POLICY §5). A PR
-  that is not sync-only is left for review and the owner.
+  This is the standing order in consumers.json ("enqueue": "sync-only", POLICY §5). Running
+  this mode is the pipeline carrying out that order, as the repo-office engine does; it is
+  not an agent merging on its own. A PR that is not sync-only is left for review and the owner.
 """
 
 import json
@@ -27,6 +28,9 @@ import apply_baseline  # noqa: E402
 CONSUMERS = HERE / "tools/consumers.json"
 PREFIX = "baseline/sync-"
 PASSING = {"SUCCESS", "SKIPPED", "NEUTRAL"}
+# Bots whose PR comments are summaries, not review findings.
+SUMMARY_BOTS = {"coderabbitai[bot]", "coderabbitai"}
+RECORD_KEYS = {"sha256", "source", "source_commit"}
 # Paths a sync PR must never touch without a person reading it (POLICY §4, github profile).
 SENSITIVE = re.compile(r"^\.github/(workflows/|dependabot\.yml$|repository-settings\.json$)")
 
@@ -45,17 +49,35 @@ def strip_block(text):
     return text[:span[0]] + text[span[1]:] if span else None
 
 
-def sync_only(changed, manifest, base, head):
+def policy(manifest):
+    """The manifest without the fields apply_baseline records, so only what to sync remains."""
+    def strip(value):
+        if isinstance(value, dict):
+            return {k: strip(v) for k, v in value.items() if k not in RECORD_KEYS}
+        return value
+    return strip(manifest)
+
+
+def sync_only(changed, base, head):
     """Reasons the change is not sync-only; [] when it is.
 
-    changed: paths that differ between base and head. manifest: the head manifest.
-    base, head: {path: text or None} for every changed path.
+    changed: every path that differs between base and head (git diff --no-renames).
+    base, head: {path: text or None} for every changed path and the manifest.
+    The allowlist comes from the base manifest, and the head manifest may differ from it only
+    in recorded hashes and commit, so a PR cannot widen what counts as managed.
     """
+    reasons = []
+    base_text, head_text = base.get(apply_baseline.MANIFEST), head.get(apply_baseline.MANIFEST)
+    if base_text is None:
+        return ["base has no manifest (migration)"]
+    try:
+        manifest = json.loads(base_text)
+        if policy(json.loads(head_text or "null")) != policy(manifest):
+            reasons.append("the manifest changes what is synced (files, blocks or exclude)")
+    except (ValueError, AttributeError):
+        return ["a manifest is not valid JSON"]
     allowed = {apply_baseline.MANIFEST, *manifest.get("files", {})}
     targets = {entry["target"] for entry in manifest.get("blocks", {}).values()}
-    reasons = []
-    if base.get(apply_baseline.MANIFEST) is None:
-        reasons.append("base has no manifest (migration)")
     for path in sorted(changed):
         if SENSITIVE.match(path):
             reasons.append(f"{path} is sensitive")
@@ -69,10 +91,12 @@ def sync_only(changed, manifest, base, head):
 
 
 def changelog_since(commit):
-    """changelog.d fragments added after commit (all of them when commit is unknown)."""
+    """changelog.d fragments added after commit (none when commit is unknown or not a SHA)."""
+    if not (isinstance(commit, str) and re.fullmatch(r"[0-9a-f]{40}", commit)):
+        return []
     try:
-        names = run("git", "log", "--diff-filter=A", "--name-only", "--format=", f"{commit}..HEAD",
-                    "--", "changelog.d", cwd=HERE).split() if commit else []
+        names = run("git", "log", "--diff-filter=A", "--name-only", "--format=", "--end-of-options",
+                    f"{commit}..HEAD", "--", "changelog.d", cwd=HERE).split()
     except subprocess.CalledProcessError:
         names = []
     return [(HERE / name).read_text(encoding="utf-8").strip() for name in sorted(set(names)) if (HERE / name).is_file()]
@@ -129,10 +153,16 @@ def prepare(consumer, folder):
     return path, migration, before, sorted(changed)
 
 
-def open_pr(consumer, path, sha, migration, before, changed):
+def open_pr(consumer, path, sha, migration, before, changed, user):
     branch = PREFIX + sha[:7]
     if run("git", "ls-remote", "--heads", "origin", branch, cwd=path):
         return f"skip: {branch} already exists"
+    # One open sync PR per consumer: an older one is stale once repo-baseline moves.
+    for old in gh_json("pr", "list", "--repo", consumer["repo"], "--state", "open", "--author", user,
+                       "--json", "number,headRefName"):
+        if old["headRefName"].startswith(PREFIX):
+            run("gh", "pr", "close", str(old["number"]), "--repo", consumer["repo"], "--delete-branch",
+                "--comment", f"repo-baseline {sha[:7]} 동기화 PR로 대체한다.")
     check = "SAME" if apply_baseline.apply(path, check=True) == [] else "DIFFERS"
     run("git", "switch", "--quiet", "-c", branch, cwd=path)
     run("git", "add", "--all", cwd=path)
@@ -144,48 +174,61 @@ def open_pr(consumer, path, sha, migration, before, changed):
                "--title", f"chore(baseline): sync with repo-baseline {sha[:7]}", "--body-file", str(note))
 
 
+def decide(user, pr, detail, comments, threads, commit_authors, sync_reasons, check_differs):
+    """Reasons to leave a sync PR for the owner; [] means queue it at its head."""
+    reasons = []
+    if pr["author"]["login"] != user or pr["isCrossRepository"]:
+        reasons.append("not opened by this pipeline")
+    if any(login != user for login in commit_authors):
+        reasons.append("has commits from someone else")
+    checks = [c.get("conclusion") or c.get("state") for c in detail["statusCheckRollup"]]
+    if not checks or any(c not in PASSING for c in checks):
+        reasons.append("CI not passed")
+    if detail["reviews"] or threads:
+        reasons.append("has reviews or review threads to judge")
+    if any(login not in SUMMARY_BOTS for login in comments):
+        reasons.append("has comments to judge")
+    if check_differs:
+        reasons.append("head differs from this repo-baseline commit")
+    return reasons + sync_reasons
+
+
 def enqueue(repo, folder, user):
     results = []
+    owner, name = repo.split("/")
     prs = gh_json("pr", "list", "--repo", repo, "--state", "open", "--json",
                   "number,id,headRefName,headRefOid,author,isCrossRepository")
     for pr in prs:
         if not pr["headRefName"].startswith(PREFIX):
             continue
         number, head = pr["number"], pr["headRefOid"]
-        if pr["author"]["login"] != user or pr["isCrossRepository"]:
-            results.append(f"#{number}: not opened by this pipeline")
-            continue
-        detail = gh_json("pr", "view", str(number), "--repo", repo, "--json", "statusCheckRollup,reviews,baseRefOid")
+        detail = gh_json("pr", "view", str(number), "--repo", repo, "--json",
+                         "statusCheckRollup,reviews,baseRefOid,comments,commits")
         threads = gh_json("api", "graphql", "-f", "query=query($o:String!,$n:String!,$p:Int!){repository(owner:$o,name:$n)"
                           "{pullRequest(number:$p){reviewThreads(first:1){totalCount}}}}",
-                          "-f", f"o={repo.split('/')[0]}", "-f", f"n={repo.split('/')[1]}", "-F", f"p={number}")
-        checks = [c.get("conclusion") or c.get("state") for c in detail["statusCheckRollup"]]
-        reasons = []
-        if not checks or any(c not in PASSING for c in checks):
-            reasons.append("CI not passed")
-        if detail["reviews"] or threads["data"]["repository"]["pullRequest"]["reviewThreads"]["totalCount"]:
-            reasons.append("has reviews or review threads to judge")
-        path = Path(folder) / f"{repo.split('/')[1]}-{number}"
+                          "-f", f"o={owner}", "-f", f"n={name}", "-F", f"p={number}")
+        thread_count = threads["data"]["repository"]["pullRequest"]["reviewThreads"]["totalCount"]
+        comments = [c["author"]["login"] for c in detail["comments"]]
+        authors = [a.get("login") for commit in detail["commits"] for a in commit.get("authors", [])]
+        path = Path(folder) / f"{name}-{number}"
         run("git", "clone", "--quiet", f"https://github.com/{repo}.git", str(path))
         run("git", "fetch", "--quiet", "origin", head, detail["baseRefOid"], cwd=path)
         run("git", "checkout", "--quiet", head, cwd=path)
-        changed = run("git", "diff", "--name-only", detail["baseRefOid"], head, cwd=path).splitlines()
+        changed = run("git", "diff", "--no-renames", "--name-only", detail["baseRefOid"], head, cwd=path).splitlines()
 
-        def show(rev, name):
+        def show(rev, file):
             try:
-                return run("git", "show", f"{rev}:{name}", cwd=path)
+                return run("git", "show", f"{rev}:{file}", cwd=path)
             except subprocess.CalledProcessError:
                 return None
         names = set(changed) | {apply_baseline.MANIFEST}
         base = {n: show(detail["baseRefOid"], n) for n in names}
         tip = {n: show(head, n) for n in names}
-        manifest = json.loads(tip[apply_baseline.MANIFEST] or "{}")
-        reasons += sync_only(changed, manifest, base, tip)
         try:
-            if apply_baseline.apply(path, check=True):
-                reasons.append("head differs from this repo-baseline commit")
-        except ValueError as error:
-            reasons.append(str(error))
+            differs = bool(apply_baseline.apply(path, check=True))
+        except ValueError:
+            differs = True
+        reasons = decide(user, pr, detail, comments, thread_count, authors, sync_only(changed, base, tip), differs)
         if reasons:
             results.append(f"#{number}: left for the owner ({'; '.join(reasons)})")
             continue
@@ -223,7 +266,7 @@ def main(argv):
                     if not changed:
                         lines = ["same"]
                     elif mode == "--open-prs":
-                        lines = [open_pr(consumer, path, sha, migration, before, changed)]
+                        lines = [open_pr(consumer, path, sha, migration, before, changed, user)]
                     else:
                         lines = [("migration: " if migration else "would change: ") + ", ".join(changed)]
             except (OSError, ValueError, subprocess.CalledProcessError) as error:

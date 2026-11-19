@@ -29,7 +29,7 @@ PR을 열면 [prompts/review.md](prompts/review.md)로 리뷰한다. 되돌리�
 
 ## 적용 중인 프로젝트
 
-2026-11-18 기준으로 아래 여섯 곳 모두 코어(`AGENTS.md`·`REVIEW.md`·PR 템플릿)와 github 프로필(`.github/repository-settings.json`)이 있다. 이 저장소도 같은 구성을 쓴다. 서버 설정이 파일과 맞는지는 소유자가 `tools/apply_github_settings.py` 계획 모드로 확인한다. repo-office 연결은 `docs/agents/office.md`가 있는 곳이다.
+동기화 대상 목록의 정본은 [tools/consumers.json](tools/consumers.json)이다. 이 표는 그 요약이다. 2026-11-18 기준으로 아래 여섯 곳 모두 코어(`AGENTS.md`·`REVIEW.md`·PR 템플릿)와 github 프로필(`.github/repository-settings.json`)이 있다. 이 저장소도 같은 구성을 쓴다. 서버 설정이 파일과 맞는지는 소유자가 `tools/apply_github_settings.py` 계획 모드로 확인한다. repo-office 연결은 `docs/agents/office.md`가 있는 곳이다.
 
 | 프로젝트 | 저장소 | repo-office |
 | --- | --- | --- |

@@ -34,7 +34,7 @@
 - PR 본문은 `.github/pull_request_template.md`를, 리뷰와 회고는 `prompts/review.md`·`prompts/retro.md`를 따른다. PR 본문 작성·코드 리뷰·회고를 하는 다른 스킬이 있어도 이 규칙이 먼저다.
 - PR마다 `changelog.d/YYYY-MM-DD-<slug>.md` 파일 하나를 더한다. 날짜는 작성일, slug는 영문 소문자·숫자·`-`다. 내용은 `- `로 시작하는 항목 하나, 1~3줄이다. 소비 레포가 손으로 옮겨야 하는 변경이면 그 일을 적는다. `CHANGELOG.md`는 고치지 않는다. 열린 PR들이 같은 줄을 고쳐 충돌하지 않게 하려는 것이다.
 - 같은 사실을 여러 문서에 적었으면(README, `docs/start.md`, `prompts/setup.md`) 함께 고친다.
-- hash-copy 파일이나 관리 블록(예: ops 「켜기」)의 원본을 바꾼 PR이 병합되면, 깨끗한 `origin/main` checkout에서 `python3 tools/sync_consumers.py --open-prs`를 돌린다. 소비 레포 CI가 끝나면 `--enqueue`를 돌린다. 이전 PR과 동기화 전용이 아닌 PR은 리뷰를 거친다.
+- hash-copy 파일이나 관리 블록(예: ops 「켜기」)의 원본을 바꾼 PR이 병합되면, 깨끗한 `origin/main` checkout에서 `python3 tools/sync_consumers.py --open-prs`를 돌린다. 소비 레포 CI가 끝나면 `--enqueue`를 돌린다. `--enqueue`는 파이프라인이 `tools/consumers.json`의 상시 지시를 실행하는 것이고(POLICY §5), 아래 「하지 않는 것」의 에이전트 병합이 아니다. 이전 PR과 동기화 전용이 아닌 PR은 리뷰를 거친다.
 - 에이전트 도구의 문서를 근거로 쓰면 공식 문서 링크와 확인일을 적는다.
 - 리뷰는 `prompts/review.md`로 받는다. 되돌리기 쉬움이면 이 세션의 하위 에이전트에게 맡겨도 되고, 어려움이거나 민감한 파일을 건드리면 새 세션에 첨부한다(`POLICY.md` §3). 이 저장소의 PR은 `origin/main` 판의 `prompts/review.md`·`tools/review_preflight.py`·`REVIEW.md`로 리뷰한다.
 
