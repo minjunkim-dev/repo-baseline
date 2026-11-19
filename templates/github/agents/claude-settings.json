@@ -21,7 +21,18 @@
       "Bash(gh api *mergePullRequest*)",
       "Bash(gh api *PullRequestAutoMerge*)",
       "Bash(gh api */merge*)",
-      "Bash(gh api *PATCH*)"
+      "Bash(gh api *PATCH*)",
+      "Bash(gh api *PUT*)",
+      "Bash(gh api *DELETE*)",
+      "Bash(gh api */secrets*)",
+      "Bash(gh api */variables*)",
+      "Bash(gh api */hooks*)",
+      "Bash(gh api */keys*)",
+      "Bash(gh api */collaborators*)",
+      "Bash(gh api */invitations*)",
+      "Bash(gh api */actions/permissions*)",
+      "Bash(gh api */environments*)",
+      "Bash(gh api */transfer*)"
     ]
   }
 }
