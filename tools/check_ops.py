@@ -31,6 +31,11 @@ def rules(readme_text):
     return [line.rstrip() for line in snippet.splitlines() if line.startswith("- ")]
 
 
+def mentions(tool, text):
+    """The tool cell or one of its secret names appears in the text."""
+    return tool in text or any(owner in tool and name in text for name, owner in NAMES.items())
+
+
 def ops_section(agents_text):
     """Text under `### ops` up to the next heading of level 1-3, or None."""
     match = re.search(r"^### ops[ \t]*\n(.*?)(?=^#{1,3} |\Z)", agents_text, re.M | re.S)
@@ -61,13 +66,13 @@ def check(repo, readme_text, sdk=False):
     # An exclusion reason must not count as another tool still being named.
     named = "\n".join(line for line in section.splitlines() if not EXCLUSION.match(line))
     for rule in rules(readme_text):
-        if not any(tool in rule for tool in excluded):
+        if not any(mentions(tool, rule) for tool in excluded):
             if rule not in present:
                 problems.append(f"ops 절에 「켜기」 절의 줄이 그대로 없다: {rule}")
             continue
         # A rule naming an excluded tool may be reworded, but its other tools stay named.
         for tool in known:
-            if tool in rule and tool not in excluded and tool not in named:
+            if mentions(tool, rule) and tool not in excluded and not mentions(tool, named):
                 problems.append(f"ops 절에 없고 `뺀 도구:` 줄도 없다: {tool}")
     if sdk:
         problems += env_problems(repo, excluded)

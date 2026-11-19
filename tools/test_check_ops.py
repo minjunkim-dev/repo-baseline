@@ -78,6 +78,12 @@ class CheckOpsTest(unittest.TestCase):
     def test_excluded_tool_skips_its_names(self):
         ops = SNIPPET.replace("에러 추적은 Sentry, ", "") + "- 뺀 도구: Sentry — 서버가 없는 정적 페이지\n"
         self.assertEqual(self.problems(sdk=True, ops=ops, env="POSTHOG_KEY=\nPOSTHOG_HOST=\n"), [])
+        # Lines that name Sentry only through its secret names may be reworded too.
+        ops = (ops.replace("`SENTRY_DSN`, `SENTRY_AUTH_TOKEN`, ", "")
+               .replace("- `SENTRY_AUTH_TOKEN`은 GitHub secrets에만 둔다.\n", ""))
+        self.assertEqual(self.problems(ops=ops), [])
+        dropped = "\n".join(line for line in ops.splitlines() if not line.startswith("- 개인 정보는"))
+        self.assertEqual(len(self.problems(ops=dropped)), 1)
 
     def test_cli_flag_and_path(self):
         root = self.repo()
