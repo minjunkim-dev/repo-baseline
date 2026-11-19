@@ -1,0 +1,1 @@
+- `tools/sync_consumers.py --enqueue`가 체크아웃 없이 판정할 수 있는 조건(작성자, fork, CI, 리뷰·댓글)을 먼저 보고, 통과한 PR만 clone한다. 소비 레포가 옮길 일은 없다.

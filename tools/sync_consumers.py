@@ -220,6 +220,11 @@ def enqueue(repo, folder, user):
         thread_count = threads["data"]["repository"]["pullRequest"]["reviewThreads"]["totalCount"]
         comments = [c["author"]["login"] for c in detail["comments"]]
         authors = [a.get("login") for commit in detail["commits"] for a in commit.get("authors", [])]
+        # Gates that need no checkout run first, so a PR from someone else is never cloned.
+        early = decide(user, pr, detail, comments, thread_count, authors, [], False)
+        if early:
+            results.append(f"#{number}: left for the owner ({'; '.join(early)})")
+            continue
         path = Path(folder) / f"{name}-{number}"
         run("git", "clone", "--quiet", f"https://github.com/{repo}.git", str(path))
         run("git", "fetch", "--quiet", "origin", head, detail["baseRefOid"], cwd=path)

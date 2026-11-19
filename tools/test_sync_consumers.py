@@ -114,5 +114,22 @@ class DecideTest(unittest.TestCase):
         self.assertIn("CI not passed", self.decide(detail={"statusCheckRollup": [], "reviews": []}))
 
 
+
+class EnqueueOrderTest(unittest.TestCase):
+    def test_pr_from_someone_else_is_never_cloned(self):
+        from unittest.mock import patch
+        pr = {"number": 7, "id": "PR_x", "headRefName": "baseline/sync-abc1234", "headRefOid": "f" * 40,
+              "author": {"login": "someone"}, "isCrossRepository": False}
+        detail = {"statusCheckRollup": [{"conclusion": "SUCCESS"}], "reviews": [], "baseRefOid": "e" * 40,
+                  "comments": [], "commits": [{"authors": [{"login": "someone"}]}]}
+        threads = {"data": {"repository": {"pullRequest": {"reviewThreads": {"totalCount": 0}}}}}
+        answers = iter([[pr], detail, threads])
+        with patch.object(sync_consumers, "gh_json", lambda *a: next(answers)), \
+                patch.object(sync_consumers, "run", side_effect=AssertionError("cloned")) as run:
+            results = sync_consumers.enqueue("minjunkim-labs/app", "/nonexistent", "bot")
+        run.assert_not_called()
+        self.assertEqual(len(results), 1)
+        self.assertIn("not opened by this pipeline", results[0])
+
 if __name__ == "__main__":
     unittest.main()
