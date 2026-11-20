@@ -1,0 +1,1 @@
+- Claude 권한 예시의 `gh api` 확인 규칙에서 대문자 `PATCH`·`PUT`·`DELETE` 세 줄을 `-X`·`--method` 두 줄로 바꿨다. `gh`는 `-X patch`처럼 소문자 메서드도 받으므로 대문자만 찾으면 설정 변경이 확인 없이 지나갔다. 본문을 파일에서 읽는 `=@`·`--input` 두 줄도 더했다. `-F query=@파일`이면 명령줄에 `mergePullRequest` 같은 이름이 보이지 않아 병합 확인을 피했다. 소비 레포는 `.claude/settings.json`의 `permissions.ask`를 템플릿의 `gh api` 줄들과 같게 맞춘다.
