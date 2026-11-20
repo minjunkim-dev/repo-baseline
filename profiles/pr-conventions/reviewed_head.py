@@ -39,8 +39,8 @@ def reviewed_head(body):
     return match.group(1) if match else None
 
 
-# A sync PR that changes these needs a review: otherwise one that claims to be a sync could weaken this check
-# (or the workflow that runs it) for every later PR.
+# A sync PR that changes these needs a review, so a sync update of this check or a workflow is read by a person.
+# This does not stop a PR that only claims to be a sync: the queue runs that PR's own copy and workflow.
 GUARDED_SOURCES = {"profiles/pr-conventions/reviewed_head.py", "profiles/pr-conventions/test_reviewed_head.py"}
 
 
@@ -53,9 +53,9 @@ def managed_paths(manifest_text):
         return set()
     manifest = json.loads(manifest_text)
     paths = {MANIFEST, *(path for path, entry in manifest.get("files", {}).items()
-                         if entry.get("source") not in GUARDED_SOURCES and not path.startswith(".github/workflows/"))}
+                         if entry.get("source") not in GUARDED_SOURCES)}
     paths.update(block["target"] for block in manifest.get("blocks", {}).values() if "target" in block)
-    return paths
+    return {path for path in paths if not path.startswith(".github/workflows/")}
 
 
 def is_sync(body, changed, manifest_text):

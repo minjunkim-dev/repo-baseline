@@ -15,7 +15,7 @@ MANIFEST = json.dumps({"files": {".github/pull_request_template.md": {},
                                  "scripts/test_reviewed_head.py":
                                      {"source": "profiles/pr-conventions/test_reviewed_head.py"},
                                  ".github/workflows/pr-policy.yml": {"source": "profiles/pr-conventions/pr-policy.yml"}},
-                       "blocks": {"ops": {"target": "AGENTS.md"}}})
+                       "blocks": {"ops": {"target": "AGENTS.md"}, "ci": {"target": ".github/workflows/ci.yml"}}})
 
 
 def body(*heads, author="Claude Code / opus"):
@@ -66,7 +66,8 @@ class ReviewedHeadTests(unittest.TestCase):
 
     def test_sync_pr_touching_this_check_or_a_workflow_needs_review(self):
         sync = body(author="스크립트 / 없음 (repo-baseline tools/sync_consumers.py)")
-        for path in ["scripts/reviewed_head.py", "scripts/test_reviewed_head.py", ".github/workflows/pr-policy.yml"]:
+        for path in ["scripts/reviewed_head.py", "scripts/test_reviewed_head.py", ".github/workflows/pr-policy.yml",
+                     ".github/workflows/ci.yml"]:
             with self.subTest(path=path):
                 self.assertIn("없습니다", verdict(REF, HEAD, "x", sync, [".github/repo-baseline.json", path], MANIFEST))
         self.assertIsNone(verdict(REF, HEAD, "x", body(HEAD, author="스크립트 / 없음 (tools/sync_consumers.py)"),
