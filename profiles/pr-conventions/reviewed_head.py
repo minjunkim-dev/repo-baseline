@@ -87,8 +87,8 @@ def main():
              "--jq", "{head: .head.sha, body: (.body // \"\")}"], text=True))
         head, body = pr["head"], pr["body"]
         base = os.environ["BASE_SHA"]
-        changed = subprocess.check_output(["git", "diff", "--no-renames", "--name-only", base, "HEAD"],
-                                          text=True).split()
+        changed = subprocess.check_output(["git", "diff", "--no-renames", "--name-only", "-z", base, "HEAD"],
+                                          text=True).split("\0")[:-1]
         shown = subprocess.run(["git", "show", f"{base}:{MANIFEST}"], capture_output=True, text=True)
         manifest = shown.stdout if shown.returncode == 0 else ""
     reason = verdict(ref, head, os.environ.get("QUEUE_AUTHOR", ""), body, changed, manifest)
