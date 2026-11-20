@@ -1,0 +1,1 @@
+- `tools/consumers.json`에 `minjunkim-labs/repo-office`를 더했다. PR 템플릿만 hash-copy로 받는다. repo-office는 ops 블록이 없으므로 블록은 받지 않는다. 다음 `sync_consumers.py --open-prs`가 repo-office에 manifest를 처음 두는 이전 PR을 연다.
