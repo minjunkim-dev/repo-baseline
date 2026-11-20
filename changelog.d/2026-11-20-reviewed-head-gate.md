@@ -1,0 +1,1 @@
+- pr-conventions 프로필에 `reviewed_head.py`를 더했다. 머지 큐에서 큐에 들어간 PR head가 Review 칸의 「리뷰한 head」와 같은지 확인한다. Dependabot과 동기화 PR은 통과한다. 선택이다. 켜는 소비 레포는 두 파일을 복사하고 `merge_group` job에 단계를 더한다(프로필 README).
