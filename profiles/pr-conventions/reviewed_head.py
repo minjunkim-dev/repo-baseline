@@ -1,21 +1,22 @@
 """Merge queue check: the queued PR head must be the head its review recorded (POLICY §5).
 
-Run it in a `merge_group` job. GitHub names the queue branch `gh-readonly-queue/<base>/pr-<N>-<head SHA>`,
-so the SHA the PR was queued at needs no API call. The script reads the PR body with `gh api` and compares
-that SHA with the last 「리뷰한 head와 되돌리기:」 line in the body (prompts/review.md 「보고」).
+Run it in a `merge_group` job. GitHub names the queue branch `gh-readonly-queue/<base>/pr-<N>-<SHA>`; that
+SHA is the queue base, not the PR head, so only N is read from it. The script reads the PR head and body with
+`gh api` and compares the head with the last 「리뷰한 head와 되돌리기:」 line in the body (prompts/review.md 「보고」).
+A push to a queued PR removes it from the queue, so the head read here is the head that was queued.
 
 This catches a head that moved after review. It is not a security boundary: anyone who can edit the PR body
 can write any SHA there. Two kinds of PR carry no review and pass:
 - Dependabot, by the queue commit's author email (no other account can claim that noreply address).
-- repo-baseline sync PRs: the Author line names tools/sync_consumers.py and every changed path is the
-  manifest or a path it records (POLICY §5 lets those go to the queue without review).
+- repo-baseline sync PRs: the Author line names tools/sync_consumers.py, the base already has the manifest
+  (migration PRs need review), and every changed path is the manifest or a path the base manifest records
+  (POLICY §5 lets those go to the queue without review).
 
 Usage (environment): QUEUE_REF, QUEUE_AUTHOR, BASE_SHA, GITHUB_REPOSITORY, GH_TOKEN.
 """
 
 import json
 import os
-from pathlib import Path
 import re
 import subprocess
 import sys
@@ -26,15 +27,16 @@ SYNC_AUTHOR = "tools/sync_consumers.py"
 
 
 def queued(ref):
-    """(PR number, head SHA) from a merge queue branch name, or None."""
-    match = re.fullmatch(r"gh-readonly-queue/.+/pr-([0-9]+)-([0-9a-f]{40})", ref or "")
-    return (match.group(1), match.group(2)) if match else None
+    """The PR number from a merge queue ref (`refs/heads/` optional), or None."""
+    match = re.fullmatch(r"(?:refs/heads/)?gh-readonly-queue/.+/pr-([0-9]+)-[0-9a-f]{40}", ref or "")
+    return match.group(1) if match else None
 
 
 def reviewed_head(body):
     """The SHA on the last 「리뷰한 head와 되돌리기:」 line, or None. Later review rounds come last."""
-    heads = re.findall(r"^리뷰한 head와 되돌리기:\s*`?([0-9a-f]{40})\b", (body or "").replace("\r\n", "\n"), re.M)
-    return heads[-1] if heads else None
+    lines = re.findall(r"^리뷰한 head와 되돌리기:(.*)$", (body or "").replace("\r\n", "\n"), re.M)
+    match = re.match(r"\s*`?([0-9a-f]{40})\b", lines[-1]) if lines else None
+    return match.group(1) if match else None
 
 
 def managed_paths(manifest_text):
@@ -53,12 +55,14 @@ def is_sync(body, changed, manifest_text):
     return SYNC_AUTHOR in author and bool(changed) and set(changed) <= allowed
 
 
-def verdict(ref, author_email, body, changed, manifest_text):
-    """None when the queued head may merge, else the reason it may not."""
-    parsed = queued(ref)
-    if not parsed:
+def verdict(ref, head, author_email, body, changed, manifest_text):
+    """None when the queued head may merge, else the reason it may not.
+
+    manifest_text is the base commit's manifest, so a migration PR (no manifest in base) is not a sync PR.
+    """
+    number = queued(ref)
+    if not number:
         return f"머지 큐 브랜치 이름을 읽지 못했습니다: {ref!r}"
-    number, head = parsed
     if author_email == DEPENDABOT:
         return None
     if is_sync(body, changed, manifest_text):
@@ -74,17 +78,20 @@ def verdict(ref, author_email, body, changed, manifest_text):
 
 def main():
     ref = os.environ.get("QUEUE_REF", "")
-    parsed = queued(ref)
-    body = ""
+    number = queued(ref)
+    head = body = manifest = ""
     changed = []
-    if parsed:
-        body = subprocess.check_output(["gh", "api", f"repos/{os.environ['GITHUB_REPOSITORY']}/pulls/{parsed[0]}",
-                                        "--jq", ".body // \"\""], text=True)
-        changed = subprocess.check_output(["git", "diff", "--no-renames", "--name-only",
-                                           os.environ["BASE_SHA"], "HEAD"], text=True).split()
-    manifest = Path(MANIFEST)
-    reason = verdict(ref, os.environ.get("QUEUE_AUTHOR", ""), body, changed,
-                     manifest.read_text(encoding="utf-8") if manifest.exists() else "")
+    if number:
+        pr = json.loads(subprocess.check_output(
+            ["gh", "api", f"repos/{os.environ['GITHUB_REPOSITORY']}/pulls/{number}",
+             "--jq", "{head: .head.sha, body: (.body // \"\")}"], text=True))
+        head, body = pr["head"], pr["body"]
+        base = os.environ["BASE_SHA"]
+        changed = subprocess.check_output(["git", "diff", "--no-renames", "--name-only", base, "HEAD"],
+                                          text=True).split()
+        shown = subprocess.run(["git", "show", f"{base}:{MANIFEST}"], capture_output=True, text=True)
+        manifest = shown.stdout if shown.returncode == 0 else ""
+    reason = verdict(ref, head, os.environ.get("QUEUE_AUTHOR", ""), body, changed, manifest)
     if reason:
         print(f"::error::{reason}")
         return 1

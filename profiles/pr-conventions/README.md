@@ -36,7 +36,7 @@
 
 `reviewed_head.py`는 위 검사와 따로 쓸 수 있다. 큐에 들어간 PR head가 PR 본문 Review 칸의 마지막 「리뷰한 head와 되돌리기:」 SHA와 같은지 `merge_group`에서 확인한다(POLICY §5 "그 뒤 push가 있으면 다시 리뷰한다"). 리뷰 뒤 커밋이 올라간 채 병합되는 일을 막는다. 본문은 PR을 고칠 수 있는 누구나 바꿀 수 있으므로 실수를 잡는 검사이지 보안 경계가 아니다.
 
-- 통과: SHA가 같다. Dependabot PR(큐 커밋 작성자 이메일로 판정). repo-baseline 동기화 PR(Author 줄이 `tools/sync_consumers.py`이고 바뀐 경로가 모두 manifest와 그것이 기록한 경로).
+- 통과: SHA가 같다. Dependabot PR(큐 커밋 작성자 이메일로 판정). repo-baseline 동기화 PR(Author 줄이 `tools/sync_consumers.py`이고, base에 manifest가 있고, 바뀐 경로가 모두 manifest와 base manifest가 기록한 경로. 이전 PR은 리뷰를 거친다).
 - 실패: SHA가 다르다. 「리뷰한 head와 되돌리기:」 줄에 40자 SHA가 없다. 큐 브랜치 이름을 읽지 못했다.
 
 켜는 법:
