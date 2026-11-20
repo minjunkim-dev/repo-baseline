@@ -9,8 +9,8 @@ This catches a head that moved after review. It is not a security boundary: anyo
 can write any SHA there. Two kinds of PR carry no review and pass:
 - Dependabot, by the queue commit's author email (no other account can claim that noreply address).
 - repo-baseline sync PRs: the Author line names tools/sync_consumers.py, the base already has the manifest
-  (migration PRs need review), and every changed path is the manifest or a path the base manifest records
-  (POLICY §5 lets those go to the queue without review).
+  (migration PRs need review), and every changed path is the manifest or a path the base manifest records,
+  except copies of this check and workflows (POLICY §5 lets those go to the queue without review).
 
 Usage (environment): QUEUE_REF, QUEUE_AUTHOR, BASE_SHA, GITHUB_REPOSITORY, GH_TOKEN.
 """
@@ -39,14 +39,23 @@ def reviewed_head(body):
     return match.group(1) if match else None
 
 
+# A sync PR that changes these needs a review, so a sync update of this check or a workflow is read by a person.
+# This does not stop a PR that only claims to be a sync: the queue runs that PR's own copy and workflow.
+GUARDED_SOURCES = {"profiles/pr-conventions/reviewed_head.py", "profiles/pr-conventions/test_reviewed_head.py"}
+
+
 def managed_paths(manifest_text):
-    """Paths a sync PR may change: the manifest, its copied files, and its block targets."""
+    """Paths a sync PR may change: the manifest, its copied files, and its block targets.
+
+    Copies of this check and anything under .github/workflows/ are left out.
+    """
     if not manifest_text:
         return set()
     manifest = json.loads(manifest_text)
-    paths = {MANIFEST, *manifest.get("files", {})}
+    paths = {MANIFEST, *(path for path, entry in manifest.get("files", {}).items()
+                         if entry.get("source") not in GUARDED_SOURCES)}
     paths.update(block["target"] for block in manifest.get("blocks", {}).values() if "target" in block)
-    return paths
+    return {path for path in paths if not path.startswith(".github/workflows/")}
 
 
 def is_sync(body, changed, manifest_text):
