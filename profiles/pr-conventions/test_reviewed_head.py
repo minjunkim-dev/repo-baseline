@@ -10,7 +10,11 @@ OTHER = "b" * 40
 BASE = "c" * 40
 # The SHA in a queue branch name is the queue base, not the PR head (BGLike pr-711 run, 2026-11-20).
 REF = f"refs/heads/gh-readonly-queue/main/pr-12-{BASE}"
-MANIFEST = json.dumps({"files": {".github/pull_request_template.md": {}},
+MANIFEST = json.dumps({"files": {".github/pull_request_template.md": {},
+                                 "scripts/reviewed_head.py": {"source": "profiles/pr-conventions/reviewed_head.py"},
+                                 "scripts/test_reviewed_head.py":
+                                     {"source": "profiles/pr-conventions/test_reviewed_head.py"},
+                                 ".github/workflows/pr-policy.yml": {"source": "profiles/pr-conventions/pr-policy.yml"}},
                        "blocks": {"ops": {"target": "AGENTS.md"}}})
 
 
@@ -59,6 +63,14 @@ class ReviewedHeadTests(unittest.TestCase):
         # A migration PR: the base has no manifest, so it needs a review.
         self.assertIsNotNone(verdict(REF, HEAD, "x", sync, [".github/repo-baseline.json"], ""))
         self.assertIsNotNone(verdict(REF, HEAD, "x", body(), [".github/repo-baseline.json"], MANIFEST))
+
+    def test_sync_pr_touching_this_check_or_a_workflow_needs_review(self):
+        sync = body(author="스크립트 / 없음 (repo-baseline tools/sync_consumers.py)")
+        for path in ["scripts/reviewed_head.py", "scripts/test_reviewed_head.py", ".github/workflows/pr-policy.yml"]:
+            with self.subTest(path=path):
+                self.assertIn("없습니다", verdict(REF, HEAD, "x", sync, [".github/repo-baseline.json", path], MANIFEST))
+        self.assertIsNone(verdict(REF, HEAD, "x", body(HEAD, author="스크립트 / 없음 (tools/sync_consumers.py)"),
+                                  ["scripts/reviewed_head.py"], MANIFEST))
 
     def test_reviewed_head_accepts_backticks_and_crlf(self):
         self.assertEqual(reviewed_head(f"x\r\n리뷰한 head와 되돌리기: `{HEAD}`, 어려움 (이유)\r\n"), HEAD)
